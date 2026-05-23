@@ -1,0 +1,5 @@
+com.xai.dungeonmaster.plugin.builtin.HealItemEffect
+com.xai.dungeonmaster.plugin.builtin.RestoreManaItemEffect
+com.xai.dungeonmaster.plugin.builtin.BuffAcItemEffect
+com.xai.dungeonmaster.plugin.builtin.CleanseItemEffect
+com.xai.dungeonmaster.plugin.builtin.NoneItemEffect

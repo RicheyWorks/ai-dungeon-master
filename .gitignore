@@ -1,0 +1,16 @@
+# Maven
+target/
+ECHO is on.
+# IDE
+.idea/
+*.iml
+.vscode/
+ECHO is on.
+# Docs 
+*.docx
+mvn
+[Help
+ECHO is on.
+# OS
+.DS_Store
+Thumbs.db

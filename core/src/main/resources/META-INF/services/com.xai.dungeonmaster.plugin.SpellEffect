@@ -1,0 +1,6 @@
+com.xai.dungeonmaster.plugin.builtin.VoidBoltEffect
+com.xai.dungeonmaster.plugin.builtin.TemporalHealEffect
+com.xai.dungeonmaster.plugin.builtin.ChronoStunEffect
+com.xai.dungeonmaster.plugin.builtin.RiftShieldEffect
+com.xai.dungeonmaster.plugin.builtin.ArcaneBlastEffect
+com.xai.dungeonmaster.plugin.builtin.GroupHealEffect

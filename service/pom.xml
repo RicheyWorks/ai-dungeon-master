@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.xai</groupId>
+        <artifactId>ai-dungeon-master-parent</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>ai-dungeon-master-service</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+        Spring Boot service layer.
+        Hosts REST + WebSocket adapters, optional Swing desktop GUI,
+        plugin discovery wiring, and LLM provider orchestration.
+        Depends on core for all domain types and plugin interfaces.
+    -->
+
+    <dependencies>
+        <!-- Engine + plugin SPI -->
+        <dependency>
+            <groupId>com.xai</groupId>
+            <artifactId>ai-dungeon-master-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- REST -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- STOMP / WebSocket push -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- Tests with MockMvc, @SpringBootTest, etc. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                Produces an executable Spring Boot fat jar.
+                Headless by default — see DungeonMasterApplication.main() for
+                how --game.gui.enabled=true flips java.awt.headless to false
+                at the right moment for the Swing GUI to start cleanly.
+            -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

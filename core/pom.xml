@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.xai</groupId>
+        <artifactId>ai-dungeon-master-parent</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>ai-dungeon-master-core</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+        Core engine: domain model, rules, plugin SPI, content loading.
+        Hard rule: NO Spring, NO Swing, NO servlet APIs in this module.
+        Everything here must run in a plain JVM (or be reusable on Android
+        via the same JAR — though Android targets are wired up by a future
+        client module, not here).
+    -->
+
+    <dependencies>
+        <!-- JSON (items.json, monsters.json, save files) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- YAML for plugin.yaml and pack.yaml manifests -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+
+        <!-- Tests: plain JUnit 5, no Spring -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

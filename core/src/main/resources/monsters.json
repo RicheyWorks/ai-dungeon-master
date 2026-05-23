@@ -1,0 +1,18 @@
+{
+  "beast_rift_stalker": {
+    "name": "Rift Stalker",
+    "baseHp": 40,
+    "baseAc": 12,
+    "attackBonus": 4,
+    "levelRequirement": 1,
+    "lootTable": ["pot_health_01", "gold_small"]
+  },
+  "boss_pantheon_fragment": {
+    "name": "Fragment of the Sun God",
+    "baseHp": 500,
+    "baseAc": 18,
+    "attackBonus": 10,
+    "levelRequirement": 10,
+    "isBoss": true
+  }
+}

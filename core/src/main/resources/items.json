@@ -1,0 +1,18 @@
+{
+  "pot_health_01": {
+    "name": "Essence of Yggdrasil",
+    "description": "A shimmering green fluid that mends fractured atoms.",
+    "type": "CONSUMABLE",
+    "rarity": "COMMON",
+    "effectKey": "HEAL",
+    "power": 25
+  },
+  "wpn_void_blade": {
+    "name": "Void-Touched Katana",
+    "description": "Its edge exists in three dimensions simultaneously.",
+    "type": "EQUIPMENT",
+    "rarity": "EPIC",
+    "effectKey": "BLEED",
+    "power": 12
+  }
+}
