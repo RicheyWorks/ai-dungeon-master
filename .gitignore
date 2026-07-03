@@ -1,16 +1,14 @@
 # Maven
 target/
-ECHO is on.
+
 # IDE
 .idea/
 *.iml
 .vscode/
-ECHO is on.
-# Docs 
+
+# Docs (design/roadmap docs kept out of VCS)
 *.docx
-mvn
-[Help
-ECHO is on.
+
 # OS
 .DS_Store
 Thumbs.db

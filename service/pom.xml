@@ -53,9 +53,10 @@
         <plugins>
             <!--
                 Produces an executable Spring Boot fat jar.
-                Headless by default — see DungeonMasterApplication.main() for
-                how --game.gui.enabled=true flips java.awt.headless to false
-                at the right moment for the Swing GUI to start cleanly.
+                Headless by default (see DungeonMasterApplication.main()) for
+                how the game.gui.enabled=true command-line flag flips
+                java.awt.headless to false at the right moment for the Swing
+                GUI to start cleanly.
             -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>

@@ -1,0 +1,14 @@
+# Normalize line endings: store text as LF in the repo, auto-detect binary.
+# Prevents CRLF drift on Windows checkouts (root cause of the earlier noise).
+* text=auto eol=lf
+
+# Binary files — never touch EOL
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.jar binary
+*.zip binary
+*.docx binary
+*.pdf binary
