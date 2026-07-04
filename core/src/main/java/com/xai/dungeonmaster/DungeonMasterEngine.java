@@ -404,6 +404,29 @@ public class DungeonMasterEngine {
                 .collect(Collectors.joining(" | "));
     }
 
+    /**
+     * Structured snapshot of the party for the v2 API. Unlike
+     * {@link #getPartySummary()} (a human-readable string kept for the Swing
+     * GUI and CLI), this returns typed {@link MemberState} value objects so
+     * clients never parse server-formatted text.
+     */
+    public PartyState getPartyState() {
+        List<MemberState> members = new ArrayList<>();
+        synchronized (party) {
+            for (Adventurer a : party) {
+                List<String> statuses = new ArrayList<>();
+                for (StatusEffect e : a.getActiveEffects()) {
+                    statuses.add(e.getName());
+                }
+                members.add(new MemberState(
+                        a.getName(), a.getRole(), a.getLevel(),
+                        a.getHp(), a.getMaxHp(), a.getMana(), a.getMaxMana(),
+                        a.getAC(), a.isAlive(), a.isAscendant(), statuses));
+            }
+        }
+        return new PartyState(members);
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Accessors
     // ──────────────────────────────────────────────────────────────────────────
