@@ -3,6 +3,8 @@ package com.xai.dungeonmaster;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.xai.dungeonmaster.util.ResourceLoader;
+import com.xai.dungeonmaster.plugin.LLMProvider;
+import com.xai.dungeonmaster.plugin.LLMProviderRegistry;
 
 import java.io.*;
 import java.util.*;
@@ -59,6 +61,13 @@ public class DungeonMasterEngine {
      */
     private final java.util.concurrent.CopyOnWriteArrayList<Consumer<String>> listeners =
             new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Narration backend. Defaults to the registry's active provider (the
+     * offline LocalStubProvider unless a keyed provider is registered); the
+     * Spring layer can swap in a budgeted/moderated stack via setNarrator().
+     */
+    private volatile LLMProvider narrator = LLMProviderRegistry.getActive();
 
     // ──────────────────────────────────────────────────────────────────────────
     // Constructor  (isServer / port removed — networking is handled by Spring)
@@ -425,6 +434,31 @@ public class DungeonMasterEngine {
             }
         }
         return new PartyState(members);
+    }
+
+    /**
+     * Generate a dungeon-master narration for the given player prompt through
+     * the active {@link LLMProvider}, broadcast it to all UI listeners, and
+     * return the raw response (text + token/fallback metadata) for the API.
+     */
+    public LLMProvider.NarrativeResponse narrate(String userPrompt) {
+        LLMProvider provider = narrator;
+        String scene = (currentQuest != null) ? currentQuest.getTitle() : "the drifting rift";
+        LLMProvider.NarrativePrompt prompt = new LLMProvider.NarrativePrompt(
+                userPrompt == null ? "" : userPrompt, scene, 256);
+        LLMProvider.NarrativeResponse response = provider.generate(prompt);
+        broadcast(response.text);
+        return response;
+    }
+
+    /** Swap the narration backend (e.g., a budgeted + moderated provider stack). */
+    public void setNarrator(LLMProvider provider) {
+        if (provider != null) this.narrator = provider;
+    }
+
+    /** The active narration backend. */
+    public LLMProvider getNarrator() {
+        return narrator;
     }
 
     // ──────────────────────────────────────────────────────────────────────────

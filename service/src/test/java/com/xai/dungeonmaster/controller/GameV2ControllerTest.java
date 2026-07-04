@@ -72,4 +72,19 @@ class GameV2ControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.type").value("error"));
     }
+
+    @Test
+    void narrateReturnsNarrativeEnvelope() throws Exception {
+        String body = json.writeValueAsString(
+                new com.xai.dungeonmaster.dto.NarrateRequest("open the door"));
+        mvc.perform(post("/v2/narrate")
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("narrative_update"))
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.payload.text").isNotEmpty())
+                .andExpect(jsonPath("$.payload.provider").isNotEmpty())
+                .andExpect(jsonPath("$.payload.tokensUsed").isNumber());
+    }
 }

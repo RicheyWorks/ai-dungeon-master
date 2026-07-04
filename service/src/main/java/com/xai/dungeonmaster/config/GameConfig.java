@@ -2,6 +2,10 @@ package com.xai.dungeonmaster.config;
 
 import com.xai.dungeonmaster.DungeonMasterEngine;
 import com.xai.dungeonmaster.plugin.PluginLoader;
+import com.xai.dungeonmaster.plugin.LLMProvider;
+import com.xai.dungeonmaster.plugin.LLMProviderRegistry;
+import com.xai.dungeonmaster.plugin.builtin.ModerationProvider;
+import com.xai.dungeonmaster.plugin.builtin.TokenBudgetProvider;
 import com.xai.dungeonmaster.util.ResourceLoader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -52,6 +56,14 @@ public class GameConfig {
     @Value("${game.plugins.dir:plugins}")
     private String pluginsDir;
 
+    /** Per-session narration token ceiling for the cost guardrail. */
+    @Value("${game.narration.token.ceiling:4000}")
+    private int narrationTokenCeiling;
+
+    /** Active narration provider id (defaults to the offline local stub). */
+    @Value("${game.narration.provider:local-stub}")
+    private String narrationProviderId;
+
     @Bean
     public DungeonMasterEngine dungeonMasterEngine(SimpMessagingTemplate messaging) {
 
@@ -72,6 +84,15 @@ public class GameConfig {
         // 3. Engine.
         DungeonMasterEngine engine = new DungeonMasterEngine(
                 difficulty, chaos, partyNames, partyRoles);
+
+        // 3.5 Narration provider: registry-selected backend wrapped in the
+        //     cost-guardrail + moderation decorators. The offline stub is the
+        //     default until a keyed provider (OpenAI/Anthropic/xAI) is added.
+        LLMProviderRegistry.setActive(narrationProviderId);
+        LLMProvider narrator = new TokenBudgetProvider(
+                new ModerationProvider(LLMProviderRegistry.getActive()),
+                narrationTokenCeiling);
+        engine.setNarrator(narrator);
 
         // 4. WebSocket bridge — addUiListener so subsequent listeners (Swing) coexist.
         engine.addUiListener(text -> messaging.convertAndSend("/topic/narrative", text));

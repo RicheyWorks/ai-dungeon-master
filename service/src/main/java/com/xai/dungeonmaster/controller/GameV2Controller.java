@@ -3,10 +3,13 @@ package com.xai.dungeonmaster.controller;
 import com.xai.dungeonmaster.Choice;
 import com.xai.dungeonmaster.DungeonMasterEngine;
 import com.xai.dungeonmaster.PartyState;
+import com.xai.dungeonmaster.plugin.LLMProvider;
 import com.xai.dungeonmaster.dto.ActionRequest;
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.dto.ErrorPayload;
 import com.xai.dungeonmaster.dto.GameStatusV2;
+import com.xai.dungeonmaster.dto.NarrateRequest;
+import com.xai.dungeonmaster.dto.NarrativePayload;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -79,6 +82,24 @@ public class GameV2Controller {
 
         engine.handleChoice(matched);
         return ResponseEntity.ok(Envelope.of("game_status", snapshot(), requestId));
+    }
+
+    // POST /v2/narrate   body: { "prompt": "I search the altar for traps" }
+    @PostMapping("/narrate")
+    public ResponseEntity<Envelope<?>> narrate(
+            @RequestBody(required = false) NarrateRequest req,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+
+        String userPrompt = (req == null || req.prompt() == null) ? "" : req.prompt();
+        LLMProvider.NarrativeResponse response = engine.narrate(userPrompt);
+        LLMProvider active = engine.getNarrator();
+
+        NarrativePayload payload = new NarrativePayload(
+                response.text,
+                active != null ? active.id() : "unknown",
+                response.tokensUsed,
+                response.wasFallback);
+        return ResponseEntity.ok(Envelope.of("narrative_update", payload, requestId));
     }
 
     /** Build the structured status payload from the live engine state. */
