@@ -451,6 +451,20 @@ public class DungeonMasterEngine {
         return response;
     }
 
+    /**
+     * Streaming variant of {@link #narrate}: routes the prompt through the
+     * active provider and forwards each chunk to {@code onChunk} as it arrives,
+     * returning the full aggregated response. Unlike {@link #narrate} it does
+     * not broadcast — the streaming caller delivers the chunks itself.
+     */
+    public LLMProvider.NarrativeResponse narrateStreaming(String userPrompt, java.util.function.Consumer<String> onChunk) {
+        LLMProvider provider = narrator;
+        String scene = (currentQuest != null) ? currentQuest.getTitle() : "the drifting rift";
+        LLMProvider.NarrativePrompt prompt = new LLMProvider.NarrativePrompt(
+                userPrompt == null ? "" : userPrompt, scene, 256);
+        return provider.generateStreaming(prompt, onChunk);
+    }
+
     /** Swap the narration backend (e.g., a budgeted + moderated provider stack). */
     public void setNarrator(LLMProvider provider) {
         if (provider != null) this.narrator = provider;

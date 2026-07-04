@@ -45,4 +45,18 @@ public final class TokenBudgetProvider implements LLMProvider {
         spent.addAndGet(r.tokensUsed);
         return r;
     }
+
+    @Override
+    public NarrativeResponse generateStreaming(NarrativePrompt prompt, java.util.function.Consumer<String> onChunk) {
+        if (spent.get() >= sessionCeiling) {
+            NarrativeResponse fb = new NarrativeResponse(
+                    "The Dungeon Master pauses to catch their breath. (Narration budget reached.)",
+                    0, 0.0, true);
+            if (onChunk != null) onChunk.accept(fb.text);
+            return fb;
+        }
+        NarrativeResponse r = delegate.generateStreaming(prompt, onChunk);
+        spent.addAndGet(r.tokensUsed);
+        return r;
+    }
 }

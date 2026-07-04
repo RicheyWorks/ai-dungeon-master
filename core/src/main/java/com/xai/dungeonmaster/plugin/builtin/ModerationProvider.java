@@ -40,6 +40,15 @@ public final class ModerationProvider implements LLMProvider {
         return new NarrativeResponse(cleaned, r.tokensUsed, r.costEstimateUsd, r.wasFallback);
     }
 
+    @Override
+    public NarrativeResponse generateStreaming(NarrativePrompt prompt, java.util.function.Consumer<String> onChunk) {
+        NarrativeResponse r = delegate.generateStreaming(prompt,
+                onChunk == null ? null : chunk -> onChunk.accept(redact(chunk)));
+        String cleaned = redact(r.text);
+        if (cleaned.equals(r.text)) return r;
+        return new NarrativeResponse(cleaned, r.tokensUsed, r.costEstimateUsd, r.wasFallback);
+    }
+
     /** Case-insensitive redaction of every blocklisted term. */
     static String redact(String text) {
         if (text == null || text.isEmpty()) return text == null ? "" : text;

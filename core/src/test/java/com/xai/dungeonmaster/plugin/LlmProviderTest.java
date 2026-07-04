@@ -77,4 +77,17 @@ class LlmProviderTest {
         assertNotNull(r);
         assertFalse(r.text.isBlank(), "narration text should not be blank");
     }
+
+    @Test
+    void localStubStreamsMultipleChunks() {
+        LocalStubProvider p = new LocalStubProvider();
+        assertTrue(p.supportsStreaming());
+        StringBuilder sb = new StringBuilder();
+        java.util.concurrent.atomic.AtomicInteger n = new java.util.concurrent.atomic.AtomicInteger();
+        LLMProvider.NarrativeResponse r = p.generateStreaming(prompt("advance"),
+                c -> { sb.append(c); n.incrementAndGet(); });
+        assertTrue(n.get() > 1, "streaming should emit multiple chunks");
+        assertEquals(r.text.replaceAll("\\s+", ""), sb.toString().replaceAll("\\s+", ""),
+                "concatenated chunks reconstruct the full text");
+    }
 }

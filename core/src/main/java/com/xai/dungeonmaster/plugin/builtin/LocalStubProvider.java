@@ -19,6 +19,18 @@ public final class LocalStubProvider implements LLMProvider {
     @Override public String id() { return ID; }
     @Override public String displayName() { return "Local Stub Narrator (offline)"; }
     @Override public HealthStatus health() { return HealthStatus.OK; }
+    @Override public boolean supportsStreaming() { return true; }
+
+    @Override
+    public NarrativeResponse generateStreaming(NarrativePrompt prompt, java.util.function.Consumer<String> onChunk) {
+        NarrativeResponse full = generate(prompt);
+        if (onChunk != null && !full.text.isEmpty()) {
+            for (String word : full.text.split(" ")) {
+                onChunk.accept(word + " ");
+            }
+        }
+        return full;
+    }
 
     @Override
     public NarrativeResponse generate(NarrativePrompt prompt) {

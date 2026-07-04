@@ -32,6 +32,18 @@ public interface LLMProvider extends Plugin {
     }
 
     /**
+     * Streaming variant of {@link #generate}. Emits the narration in one or
+     * more chunks via {@code onChunk} and returns the full aggregated response.
+     * The default is non-streaming: it calls {@link #generate} and emits the
+     * whole text as a single chunk. Streaming-capable providers override this.
+     */
+    default NarrativeResponse generateStreaming(NarrativePrompt prompt, java.util.function.Consumer<String> onChunk) {
+        NarrativeResponse r = generate(prompt);
+        if (onChunk != null && r.text != null && !r.text.isEmpty()) onChunk.accept(r.text);
+        return r;
+    }
+
+    /**
      * Lightweight liveness check used by the cost-guardrail / fallback logic.
      */
     default HealthStatus health() {

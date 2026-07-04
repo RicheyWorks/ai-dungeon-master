@@ -31,6 +31,7 @@ channels:
       message:
         oneOf:
           - $ref: '#/components/messages/NarrativeText'
+          - $ref: '#/components/messages/NarrativeChunk'
           - $ref: '#/components/messages/NarrativeEnvelope'
   /app/action:
     description: Player action commands routed to the engine (STOMP SEND).
@@ -56,6 +57,13 @@ components:
       summary: v2 envelope, identical in shape to the REST /v2/narrate response.
       payload:
         $ref: '#/components/schemas/NarrativeEnvelopePayload'
+    NarrativeChunk:
+      name: narrativeChunk
+      title: Streamed narration chunk (v2)
+      contentType: application/json
+      summary: A partial narration chunk pushed during streaming.
+      payload:
+        $ref: '#/components/schemas/NarrativeChunkEnvelopePayload'
     ActionCommand:
       name: actionCommand
       title: Player action
@@ -75,6 +83,22 @@ components:
           example: 1
         payload:
           $ref: '#/components/schemas/NarrativePayload'
+        requestId:
+          type: string
+    NarrativeChunkEnvelopePayload:
+      type: object
+      required: [type, version, payload, requestId]
+      properties:
+        type:
+          type: string
+          example: narrative_chunk
+        version:
+          type: integer
+          example: 1
+        payload:
+          type: object
+          properties:
+            text: { type: string }
         requestId:
           type: string
     NarrativePayload:
