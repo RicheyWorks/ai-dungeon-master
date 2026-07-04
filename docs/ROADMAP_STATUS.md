@@ -1,17 +1,17 @@
 # AI Dungeon Master — Roadmap Status
 
-_Audit date: 2026-07-03 · Baseline: `mvn test` green (14 tests) · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
+_Last updated: 2026-07-03 · Baseline: `mvn test` green (33 tests) · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
 
-Grounded in the current code, not the May plan. The project has advanced well past
-the original audit: Phase 0 is complete and Phase 1 is nearly complete.
+Grounded in the current code, not the May plan. Phase 0 is complete, Phase 1 is
+essentially complete, and most of Phase 2 has now been built.
 
 ## Snapshot
 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 — Hygiene | headless, packages, tests, listeners, sync | ✅ Done |
-| 1 — Headless core + plugin SPI | core module, SPIs, registries, loaders | ◐ Mostly done — 3 gaps |
-| 2 — API v2 + LLM provider | envelope, PartyState, identity, LLM, specs | ⬜ Not started |
+| 1 — Headless core + plugin SPI | core module, SPIs, registries, loaders | ◐ Nearly done — 2 gaps |
+| 2 — API v2 + LLM provider | envelope, PartyState, LLM stack, streaming, specs, SDK | ◑ Largely done — identity remaining |
 | 3 — First native client (Android) | Compose UI on the SDK | ⬜ Not started |
 | 4 — Steam + iOS | Tauri, SwiftUI, storefronts | ⬜ Not started |
 | 5 — Content packs & mods | 4 packs, mod browser, signing | ◐ Plumbing only |
@@ -22,7 +22,7 @@ Every item verified in code:
 
 - Headless by default; Swing gated behind `@ConditionalOnProperty(game.gui.enabled=true)` (`GuiLauncher`, `DungeonMasterApplication`).
 - Packages all lowercase (`config/`, `util/`, `controller/`).
-- `src/test` present — 14 tests across 3 classes, all green.
+- `src/test` present with a real, growing suite (33 tests).
 - `setUiUpdater` deprecated in favor of additive `addUiListener`, with a regression test asserting listeners aren't evicted.
 - `currentQuest` is now `volatile`.
 
@@ -35,49 +35,41 @@ Every item verified in code:
 - `Spell.cast` / `Item.use` dispatch through `SpellEffectRegistry` / `ItemEffectRegistry`, ServiceLoader-wired via `META-INF/services`.
 - `ResourceLoader` scans `content-packs/`; `DefaultContentPack` loads `items.json`/`monsters.json`; `GameConfig` registers external packs on boot.
 - `PluginLoader` reads `plugin.yaml` from a JAR root and loads via a scoped `URLClassLoader`.
+- **Content-pack monster loading fixed.** `monsters.json` never actually loaded — entries lacked the `entityType` discriminator `Entity`'s `@JsonTypeInfo` requires, and `baseHp`/`baseAc`/`levelRequirement`/`isBoss` didn't match `Enemy`'s Jackson fields. Fixed with the discriminator + `@JsonAlias` + an `isBoss` setter; `DungeonGenerator.generateEnemy` now scales from the loaded base stats.
 
-**Gaps**
+**Gaps (2)**
 
-1. **DungeonGenerator data wiring (resolved).** `generateLoot`/`generateEnemy` already draw from `ContentRegistry` (inline arrays are fallback only). The real latent bug — `monsters.json` keys (`baseHp`/`baseAc`/`levelRequirement`/`isBoss`) not matching `Enemy`'s Jackson mapping, so stats silently defaulted — is fixed with `@JsonAlias` + an `isBoss` setter, and `generateEnemy` now scales from the loaded base stats.
-2. **Only 2 of 8 SPIs are dispatchable.** EncounterTable, LootTable, QuestScript, LLMProvider, StorefrontIntegration have interfaces but no registry / ServiceLoader wiring (`PluginLoader` marks them "Future").
-3. **JAR signatures unverified.** `plugin.yaml` `signature` is parsed but never checked — code-bearing mods are trust-on-load.
+1. **Only 2 of 8 SPIs are dispatchable.** EncounterTable, LootTable, QuestScript, StorefrontIntegration have interfaces but no registry / ServiceLoader wiring (`PluginLoader` marks them "Future"). LLMProvider is now wired (see Phase 2).
+2. **JAR signatures unverified.** `plugin.yaml` `signature` is parsed but never checked — code-bearing mods are trust-on-load.
 
-## Phase 2 — API v2 + LLM provider ⬜  (the real next work)
+## Phase 2 — API v2 + LLM provider ◑  (largely built)
 
-Nothing here is started:
+**Shipped**
 
-- API is unversioned `/api/game/*`; no `/v2/`.
-- No typed envelope `{type, version, payload, requestId}`.
-- `partySummary` is still a flat `String` (the audit's "API leaks server strings"); no structured `PartyState`.
-- No session IDs, request IDs, or player identity in any DTO.
-- `LLMProvider` interface exists but has **zero implementations** and is wired nowhere — narration is hardcoded `broadcast("…")` strings in the engine.
-- No moderation decorator, no token-budget guardrails.
-- No OpenAPI/AsyncAPI specs, no generated SDKs.
+- Typed `Envelope<T>{type, version, payload, requestId}` and versioned `/v2/*` endpoints (`status`, `action`, `narrate`), alongside the untouched legacy `/api/game/*`.
+- Structured `PartyState` / `MemberState` replacing the flat `partySummary` string.
+- `X-Request-Id` correlation echoed on every v2 response.
+- `LLMProvider` wired end-to-end: offline deterministic `local-stub`, `LLMProviderRegistry` (ServiceLoader discovery + always-available fallback), and `TokenBudgetProvider` + `ModerationProvider` guardrail decorators; engine `narrate()` / `narrateStreaming()`.
+- Streaming narration over STOMP as typed `narrative_chunk` → `narrative_update` envelopes.
+- Validated OpenAPI 3.0.3 + AsyncAPI 2.6.0 specs; a generated, `tsc`-clean TypeScript client.
+
+**Remaining**
+
+- Session IDs / player identity / auth (JWT) — not started.
+- Keyed provider implementations (OpenAI/Anthropic/xAI/llama) — interface + registry are ready; need API keys.
+- Kotlin + Swift client generation from the specs.
 
 ## Phases 3–5 ⬜
 
-Native clients (Android/iOS), Steam/Tauri, and storefront SDKs are untouched. Content-pack **plumbing** exists (ContentPack SPI, filesystem scanner, DefaultContentPack) but no packs ship and there's no mod browser or signature verification — so Phase 5 is groundwork only.
+Native clients (Android/iOS), Steam/Tauri, and storefront SDKs are untouched.
+Content-pack **plumbing** works now (SPI, filesystem scanner, DefaultContentPack,
+JSON loading), but no themed packs ship and there's no mod browser or signature
+verification — so Phase 5 is groundwork only.
 
----
+## Remaining backlog
 
-## Recommended first Phase 2 slice
-
-**"API v2 read path: typed envelope + structured PartyState"** — additive `/v2` endpoints alongside the existing API.
-
-Why this first: no external services or API keys, fully unit-testable today, and it establishes the JSON contract every later piece (LLM streaming, native clients, generated SDKs) plugs into. It also directly closes the audit's "API leaks internal strings" red flag.
-
-**Scope**
-
-- `core`: add `PartyState` / `MemberState` value types (name, hp/maxHp, mana, statuses, alive) plus `engine.getPartyState()`. Keep `getPartySummary()` as a thin formatter over it so the GUI/CLI keep working.
-- `service`: add a typed `Envelope<T>{type, version, payload, requestId}`; expose `GET /v2/status` and `POST /v2/action` returning envelopes; leave `/api/game/*` untouched.
-- Replace loose strings with structured payloads (`PartyStatePayload`, `NarrativePayload`) on the v2 path only.
-- Tests: MockMvc coverage asserting envelope shape + structured party fields; a `PartyState → payload` mapping unit test.
-
-**Acceptance:** `GET /v2/status` returns `{type:"game_status", version:1, payload:{party:[…structured…]}, requestId}`; `/api/game/*` and all 14 current tests stay green.
-
-**Natural second slice:** wire `LLMProvider` end-to-end with an offline, no-key **local/stub provider** (deterministic narrator) via a new `LLMProviderRegistry`; route engine narration through it; add the moderation-decorator + token-budget wrapper. Tackles the "biggest design gap" without secrets and streams into the slice-1 envelope.
-
-## Low-risk quick wins (optional, ~an afternoon)
-
-- Point `DungeonGenerator` loot/monster generation at `ContentRegistry` (closes Phase 1 gap 1).
-- Add `LootTable` / `EncounterTable` registries mirroring the Spell/Item pattern (chips at gap 2).
+- Wire the other SPI registries (EncounterTable, LootTable, QuestScript, StorefrontIntegration) mirroring the Spell/Item pattern.
+- Verify plugin JAR signatures before loading (close the trust-on-load gap).
+- Session/player identity + storefront receipt validation.
+- Ship the launch content packs (D&D-classic, Sci-Fi, Horror, Cozy) and an in-game pack/mod browser.
+- Generate and wire the Kotlin (Android) and Swift (iOS) clients.
