@@ -1,6 +1,7 @@
 package com.xai.dungeonmaster;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ public class Enemy implements Entity {
     private String damageDice;
 
     // --- Boss Phase System ---
-    private final boolean boss;
+    private boolean boss;
     private int phase = 1;
 
     private final List<StatusEffect> effects = Collections.synchronizedList(new ArrayList<>());
@@ -34,10 +35,10 @@ public class Enemy implements Entity {
     @JsonCreator
     public Enemy(
             @JsonProperty("name") String name,
-            @JsonProperty("hp") int hp,
-            @JsonProperty("ac") int ac,
+            @JsonProperty("hp") @JsonAlias("baseHp") int hp,
+            @JsonProperty("ac") @JsonAlias("baseAc") int ac,
             @JsonProperty("attackBonus") int attackBonus,
-            @JsonProperty("level") int level) {
+            @JsonProperty("level") @JsonAlias("levelRequirement") int level) {
 
         this.name = Objects.requireNonNullElse(name, "Unknown Enemy").trim();
         this.hp = Math.max(1, hp);
@@ -50,6 +51,15 @@ public class Enemy implements Entity {
         this.boss = this.name.toLowerCase().contains("harbinger")
                 || this.name.toLowerCase().contains("boss")
                 || this.name.toLowerCase().contains("guardian");
+    }
+
+    /**
+     * Content packs may declare bosses explicitly via the monsters.json
+     * {@code isBoss} flag, overriding the name-based default above.
+     */
+    @JsonProperty("isBoss")
+    public void setBoss(boolean boss) {
+        this.boss = boss;
     }
 
     @Override

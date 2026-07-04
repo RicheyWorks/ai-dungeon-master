@@ -38,7 +38,7 @@ Every item verified in code:
 
 **Gaps**
 
-1. **DungeonGenerator ignores loaded data.** Procedural generation still uses hardcoded inline `String[]` (loot names, party roles, monster behaviors) instead of the content loaded into `ContentRegistry`. The data pipeline exists but generation doesn't consume it.
+1. **DungeonGenerator data wiring (resolved).** `generateLoot`/`generateEnemy` already draw from `ContentRegistry` (inline arrays are fallback only). The real latent bug — `monsters.json` keys (`baseHp`/`baseAc`/`levelRequirement`/`isBoss`) not matching `Enemy`'s Jackson mapping, so stats silently defaulted — is fixed with `@JsonAlias` + an `isBoss` setter, and `generateEnemy` now scales from the loaded base stats.
 2. **Only 2 of 8 SPIs are dispatchable.** EncounterTable, LootTable, QuestScript, LLMProvider, StorefrontIntegration have interfaces but no registry / ServiceLoader wiring (`PluginLoader` marks them "Future").
 3. **JAR signatures unverified.** `plugin.yaml` `signature` is parsed but never checked — code-bearing mods are trust-on-load.
 

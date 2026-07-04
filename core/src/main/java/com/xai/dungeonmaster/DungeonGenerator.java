@@ -131,22 +131,29 @@ public class DungeonGenerator {
     }
 
     public Enemy generateEnemy(boolean isBoss) {
-        // Pull a base name from the loaded content registry if available;
-        // otherwise use the legacy hardcoded names. Stat scaling is always
-        // computed from difficulty/chaos at roll time so static JSON
-        // monster entries still scale up appropriately.
-        Map<String, Enemy> registered = ContentRegistry.monsters();
+        // Draw a template from the loaded content registry when available so
+        // monsters.json stats (HP/AC/attack) and boss flags actually drive
+        // generation; fall back to legacy constants when nothing is loaded.
+        Enemy template = pickMonsterTemplate(isBoss);
+
         String name;
-        if (!registered.isEmpty()) {
-            Enemy[] pool = registered.values().toArray(new Enemy[0]);
-            name = pool[random.nextInt(pool.length)].getName();
+        int baseHp, baseAc, baseAtk;
+        if (template != null) {
+            name = template.getName();
+            baseHp = template.getMaxHp();
+            baseAc = template.getAC();
+            baseAtk = template.getAttackBonus();
         } else {
             name = isBoss ? "Harbinger of Entropy" : "Rift Stalker";
+            baseHp = isBoss ? 320 : 60;
+            baseAc = 12 + (isBoss ? 8 : 0);
+            baseAtk = 4;
         }
 
-        int hp = (isBoss ? 320 : 60) * difficulty + (random.nextInt(30) * Math.max(1, chaosLevel));
-        int ac = 12 + (difficulty / 2) + (isBoss ? 8 : 0);
-        int atk = 4 + difficulty + (chaosLevel / 2);
+        // Scale the JSON/legacy baseline by difficulty and chaos.
+        int hp = baseHp * difficulty + (random.nextInt(30) * Math.max(1, chaosLevel));
+        int ac = baseAc + (difficulty / 2);
+        int atk = baseAtk + difficulty + (chaosLevel / 2);
 
         if (chaosLevel > 4 && !name.startsWith("Corrupted ")) {
             name = "Corrupted " + name;
@@ -157,6 +164,27 @@ public class DungeonGenerator {
             enemy.setDamageDice("2d12");
         }
         return enemy;
+    }
+
+    /**
+     * Pick a monster template from the registry, preferring one whose boss flag
+     * matches the request. Returns null when no content is loaded.
+     */
+    private Enemy pickMonsterTemplate(boolean isBoss) {
+        Map<String, Enemy> registered = ContentRegistry.monsters();
+        if (registered.isEmpty()) {
+            return null;
+        }
+        List<Enemy> matching = new ArrayList<>();
+        for (Enemy e : registered.values()) {
+            if (e.isBoss() == isBoss) {
+                matching.add(e);
+            }
+        }
+        List<Enemy> pool = matching.isEmpty()
+                ? new ArrayList<>(registered.values())
+                : matching;
+        return pool.get(random.nextInt(pool.size()));
     }
 
     public Summon generateSummon() {
