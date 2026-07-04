@@ -1,0 +1,298 @@
+openapi: 3.0.3
+info:
+  title: AI Dungeon Master API
+  version: 2.0.0
+  description: |
+    HTTP API for the AI Dungeon Master engine.
+
+    The **v2** API (`/v2/*`) wraps every response in a typed, versioned
+    `Envelope` — `{ type, version, payload, requestId }` — so native clients get
+    a stable, self-describing contract. The legacy `/api/game/*` endpoints remain
+    for existing clients and are documented under the `legacy` tag.
+  license:
+    name: Proprietary
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+tags:
+  - name: v2
+    description: Versioned, envelope-wrapped API.
+  - name: legacy
+    description: Original unversioned API (kept for backward compatibility).
+paths:
+  /v2/status:
+    get:
+      tags: [v2]
+      operationId: getStatusV2
+      summary: Current game status as a typed envelope.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Game status envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameStatusEnvelope'
+  /v2/action:
+    post:
+      tags: [v2]
+      operationId: submitActionV2
+      summary: Apply a choice; returns the updated game status envelope.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionRequest'
+      responses:
+        '200':
+          description: Updated game status envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameStatusEnvelope'
+        '400':
+          description: Missing or unknown choice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /v2/narrate:
+    post:
+      tags: [v2]
+      operationId: narrateV2
+      summary: Generate a dungeon-master narration via the active LLM provider.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NarrateRequest'
+      responses:
+        '200':
+          description: Narration envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NarrativeEnvelope'
+  /api/game/status:
+    get:
+      tags: [legacy]
+      operationId: getStatusLegacy
+      summary: Legacy game status (flat pipe-delimited party summary string).
+      responses:
+        '200':
+          description: Game status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameStatusResponse'
+  /api/game/choices:
+    get:
+      tags: [legacy]
+      operationId: getChoicesLegacy
+      summary: Available choice labels.
+      responses:
+        '200':
+          description: Choice labels.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /api/game/action:
+    post:
+      tags: [legacy]
+      operationId: submitActionLegacy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionRequest'
+      responses:
+        '200':
+          description: Acceptance message.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: Missing or unknown choice.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/game/start:
+    post:
+      tags: [legacy]
+      operationId: startQuestLegacy
+      summary: (Re)start the quest and return the opening banner.
+      responses:
+        '200':
+          description: Opening banner text.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/game/save:
+    post:
+      tags: [legacy]
+      operationId: saveGameLegacy
+      responses:
+        '200':
+          description: Confirmation message.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/game/load:
+    post:
+      tags: [legacy]
+      operationId: loadGameLegacy
+      responses:
+        '200':
+          description: Confirmation message.
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  parameters:
+    XRequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: >
+        Optional correlation id echoed back in the response envelope's
+        requestId. A server-generated UUID is used when omitted.
+      schema:
+        type: string
+  schemas:
+    Envelope:
+      type: object
+      description: Base transport envelope. Concrete responses specialize `payload`.
+      required: [type, version, payload, requestId]
+      properties:
+        type:
+          type: string
+          description: Payload discriminator (game_status, narrative_update, error).
+        version:
+          type: integer
+          description: Schema version of the payload contract.
+          example: 1
+        payload:
+          type: object
+          description: Typed body; shape depends on `type`.
+        requestId:
+          type: string
+          description: Correlation id (echoed from X-Request-Id or generated).
+    GameStatusEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: game_status
+            payload:
+              $ref: '#/components/schemas/GameStatusV2'
+    NarrativeEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: narrative_update
+            payload:
+              $ref: '#/components/schemas/NarrativePayload'
+    ErrorEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: error
+            payload:
+              $ref: '#/components/schemas/ErrorPayload'
+    MemberState:
+      type: object
+      description: Public snapshot of a single party member.
+      properties:
+        name: { type: string }
+        role: { type: string }
+        level: { type: integer }
+        hp: { type: integer }
+        maxHp: { type: integer }
+        mana: { type: integer }
+        maxMana: { type: integer }
+        armorClass: { type: integer }
+        alive: { type: boolean }
+        ascendant: { type: boolean }
+        statuses:
+          type: array
+          items: { type: string }
+    GameStatusV2:
+      type: object
+      properties:
+        party:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberState'
+        chaosLevel: { type: integer }
+        combatActive: { type: boolean }
+        availableChoices:
+          type: array
+          items: { type: string }
+        recentHistory:
+          type: array
+          items: { type: string }
+    NarrativePayload:
+      type: object
+      properties:
+        text: { type: string }
+        provider:
+          type: string
+          description: Active provider id, e.g. local-stub.
+        tokensUsed: { type: integer }
+        fallback:
+          type: boolean
+          description: True when a guardrail/fallback response was returned.
+    ErrorPayload:
+      type: object
+      properties:
+        message: { type: string }
+    ActionRequest:
+      type: object
+      required: [choiceLabel]
+      properties:
+        choiceLabel:
+          type: string
+          example: Attack
+    NarrateRequest:
+      type: object
+      properties:
+        prompt:
+          type: string
+          example: I search the altar for traps
+    GameStatusResponse:
+      type: object
+      description: Legacy flat status; `partySummary` is a pipe-delimited string.
+      properties:
+        partySummary: { type: string }
+        chaosLevel: { type: integer }
+        combatActive: { type: boolean }
+        availableChoices:
+          type: array
+          items: { type: string }
+        recentHistory:
+          type: array
+          items: { type: string }

@@ -1,0 +1,93 @@
+asyncapi: '2.6.0'
+info:
+  title: AI Dungeon Master WebSocket API
+  version: 2.0.0
+  description: |
+    STOMP-over-WebSocket messaging for the AI Dungeon Master engine.
+
+    Clients connect to the STOMP endpoint `/ws` (SockJS fallback available),
+    subscribe to `/topic/narrative` to receive narration, and SEND player
+    actions to `/app/action`.
+
+    The narrative stream currently carries plain-text messages (engine
+    broadcasts and `[WS]` acks). The v2 direction — mirroring the REST v2
+    envelope — is a typed `narrative_update` envelope; both message shapes are
+    declared on the channel so clients can migrate incrementally.
+defaultContentType: application/json
+servers:
+  local:
+    url: localhost:8080
+    protocol: ws
+    description: >
+      STOMP broker over WebSocket. Native endpoint ws://localhost:8080/ws;
+      SockJS fallback at http://localhost:8080/ws. In-memory simple broker for
+      /topic/** destinations; application destinations are prefixed /app.
+channels:
+  /topic/narrative:
+    description: Narration stream broadcast by the engine to all subscribers.
+    subscribe:
+      operationId: receiveNarrative
+      summary: Receive narration plus combat and flavor events.
+      message:
+        oneOf:
+          - $ref: '#/components/messages/NarrativeText'
+          - $ref: '#/components/messages/NarrativeEnvelope'
+  /app/action:
+    description: Player action commands routed to the engine (STOMP SEND).
+    publish:
+      operationId: sendAction
+      summary: Send a choice for the engine to process.
+      message:
+        $ref: '#/components/messages/ActionCommand'
+components:
+  messages:
+    NarrativeText:
+      name: narrativeText
+      title: Plain-text narration (current wire format)
+      contentType: text/plain
+      summary: A raw narration line or a "[WS]" acknowledgement string.
+      payload:
+        type: string
+        example: "Kael strikes the Rift Hound for 12 damage."
+    NarrativeEnvelope:
+      name: narrativeEnvelope
+      title: Typed narration envelope (v2 target)
+      contentType: application/json
+      summary: v2 envelope, identical in shape to the REST /v2/narrate response.
+      payload:
+        $ref: '#/components/schemas/NarrativeEnvelopePayload'
+    ActionCommand:
+      name: actionCommand
+      title: Player action
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ActionRequest'
+  schemas:
+    NarrativeEnvelopePayload:
+      type: object
+      required: [type, version, payload, requestId]
+      properties:
+        type:
+          type: string
+          example: narrative_update
+        version:
+          type: integer
+          example: 1
+        payload:
+          $ref: '#/components/schemas/NarrativePayload'
+        requestId:
+          type: string
+    NarrativePayload:
+      type: object
+      properties:
+        text: { type: string }
+        provider: { type: string }
+        tokensUsed: { type: integer }
+        fallback: { type: boolean }
+    ActionRequest:
+      type: object
+      required: [choiceLabel]
+      properties:
+        choiceLabel:
+          type: string
+          example: Attack
