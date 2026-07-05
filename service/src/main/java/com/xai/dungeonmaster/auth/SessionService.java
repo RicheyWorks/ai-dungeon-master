@@ -1,61 +1,70 @@
 package com.xai.dungeonmaster.auth;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * In-memory registry of player sessions and the source of their JWTs.
+ * Registry of player sessions and the source of their JWTs, backed by a
+ * pluggable {@link SessionStore}.
  *
  * A session is a stable player identity (a UUID) minted on first contact via
  * {@code POST /v2/session}. The JWT subject is the session id; {@link JwtAuthFilter}
- * resolves the subject back to a {@link Session} on each request. State is kept
- * in-memory for v1 (single process); tokens issued before a restart simply fail
- * to resolve and the client re-authenticates.
+ * resolves the subject back to a {@link Session} on each request. With the
+ * in-memory store, tokens stop resolving after a restart; with the file store,
+ * they survive it.
  */
 @Service
 public class SessionService {
 
-    private final Map<String, Session> sessions = new ConcurrentHashMap<>();
+    private final SessionStore store;
     private final JwtService jwt;
 
+    /** Convenience constructor using an in-memory store (embedders / tests). */
     public SessionService(JwtService jwt) {
-        this.jwt = jwt;
+        this(jwt, new InMemorySessionStore());
     }
 
-    /** Create a new session and mint its first token. */
+    @Autowired
+    public SessionService(JwtService jwt, SessionStore store) {
+        this.jwt = jwt;
+        this.store = (store != null) ? store : new InMemorySessionStore();
+    }
+
+    /** Create a new session (persisted via the store) and mint its first token. */
     public Issued createSession(String displayName) {
         String name = (displayName == null || displayName.isBlank()) ? "Adventurer" : displayName.trim();
         String id = UUID.randomUUID().toString();
         long now = Instant.now().getEpochSecond();
         Session session = new Session(id, name, now);
-        sessions.put(id, session);
+        store.save(session);
         JwtService.Token token = jwt.issue(id, Map.of("name", name));
         return new Issued(session, token.value(), token.expiresAtEpochSeconds());
     }
 
     public Optional<Session> find(String id) {
-        return Optional.ofNullable(id == null ? null : sessions.get(id));
+        return store.load(id);
     }
 
-    /** Mark a session as seen now; returns it if known. */
+    /** Mark a session as seen now (persisting the update); returns it if known. */
     public Optional<Session> touch(String id) {
-        Session s = (id == null) ? null : sessions.get(id);
-        if (s != null) {
+        Optional<Session> found = store.load(id);
+        found.ifPresent(s -> {
             s.markSeen();
-        }
-        return Optional.ofNullable(s);
+            store.save(s);
+        });
+        return found;
     }
 
     public int activeCount() {
-        return sessions.size();
+        return store.size();
     }
 
-    /** An in-memory player session. */
+    /** A player session. */
     public static final class Session {
         private final String id;
         private final String displayName;
@@ -63,10 +72,15 @@ public class SessionService {
         private volatile long lastSeenEpoch;
 
         Session(String id, String displayName, long createdAtEpoch) {
+            this(id, displayName, createdAtEpoch, createdAtEpoch);
+        }
+
+        /** Restore constructor used by persistent stores. */
+        Session(String id, String displayName, long createdAtEpoch, long lastSeenEpoch) {
             this.id = id;
             this.displayName = displayName;
             this.createdAtEpoch = createdAtEpoch;
-            this.lastSeenEpoch = createdAtEpoch;
+            this.lastSeenEpoch = lastSeenEpoch;
         }
 
         void markSeen() {

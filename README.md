@@ -197,6 +197,8 @@ content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hea
 | `game.auth.enabled` | `false` | Enforce JWT auth on `/v2/**` (opt-in) |
 | `game.auth.jwt.secret` | _(insecure dev secret)_ | HMAC-SHA256 token signing secret |
 | `game.auth.jwt.ttl-seconds` | `86400` | Session token lifetime (seconds) |
+| `game.auth.session.store` | `memory` | Session store: `memory` or `file` (survives restart) |
+| `game.auth.session.file` | `sessions.json` | JSON file for the file session store |
 | `game.plugins.signature.policy` | `LENIENT` | Plugin signature policy: LENIENT / REQUIRED / DISABLED |
 | `game.plugins.sandbox.enabled` | `true` | Sandbox-scan plugin bytecode before loading |
 
