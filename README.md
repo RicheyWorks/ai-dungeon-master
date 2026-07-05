@@ -75,6 +75,7 @@ stable, self-describing shape:
 | `POST /v2/narrate` | Generate DM narration via the active LLM provider |
 | `POST /v2/session` | Create a guest session; returns a JWT + session id |
 | `GET /v2/session/me` | Echo the caller's session (requires a Bearer token) |
+| `GET /v2/catalog` | Installed content packs + registered plugins (mod browser) |
 | `GET/POST /api/game/*` | Original unversioned API (kept for existing clients) |
 
 Example `GET /v2/status` payload:

@@ -38,6 +38,7 @@ Class | Method | HTTP request | Description
 *LegacyAPI* | [**saveGameLegacy**](docs/LegacyAPI.md#savegamelegacy) | **POST** /api/game/save | 
 *LegacyAPI* | [**startQuestLegacy**](docs/LegacyAPI.md#startquestlegacy) | **POST** /api/game/start | (Re)start the quest and return the opening banner.
 *LegacyAPI* | [**submitActionLegacy**](docs/LegacyAPI.md#submitactionlegacy) | **POST** /api/game/action | 
+*V2API* | [**getCatalogV2**](docs/V2API.md#getcatalogv2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser).
 *V2API* | [**getStatusV2**](docs/V2API.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope.
 *V2API* | [**narrateV2**](docs/V2API.md#narratev2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider.
 *V2API* | [**submitActionV2**](docs/V2API.md#submitactionv2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope.
@@ -46,6 +47,8 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [ActionRequest](docs/ActionRequest.md)
+ - [CatalogEnvelope](docs/CatalogEnvelope.md)
+ - [CatalogPayload](docs/CatalogPayload.md)
  - [Envelope](docs/Envelope.md)
  - [ErrorEnvelope](docs/ErrorEnvelope.md)
  - [ErrorPayload](docs/ErrorPayload.md)
@@ -54,8 +57,11 @@ Class | Method | HTTP request | Description
  - [GameStatusV2](docs/GameStatusV2.md)
  - [MemberState](docs/MemberState.md)
  - [NarrateRequest](docs/NarrateRequest.md)
+ - [NarrationInfo](docs/NarrationInfo.md)
  - [NarrativeEnvelope](docs/NarrativeEnvelope.md)
  - [NarrativePayload](docs/NarrativePayload.md)
+ - [PackInfo](docs/PackInfo.md)
+ - [PluginSummary](docs/PluginSummary.md)
 
 
 <a id="documentation-for-authorization"></a>

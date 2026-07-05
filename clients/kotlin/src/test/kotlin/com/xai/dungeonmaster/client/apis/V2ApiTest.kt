@@ -20,6 +20,7 @@ import io.kotlintest.specs.ShouldSpec
 
 import com.xai.dungeonmaster.client.apis.V2Api
 import com.xai.dungeonmaster.client.models.ActionRequest
+import com.xai.dungeonmaster.client.models.CatalogEnvelope
 import com.xai.dungeonmaster.client.models.ErrorEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
@@ -29,6 +30,14 @@ class V2ApiTest : ShouldSpec() {
     init {
         // uncomment below to create an instance of V2Api
         //val apiInstance = V2Api()
+
+        // to test getCatalogV2
+        should("test getCatalogV2") {
+            // uncomment below to test getCatalogV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : CatalogEnvelope = apiInstance.getCatalogV2(xRequestId)
+            //result shouldBe ("TODO")
+        }
 
         // to test getStatusV2
         should("test getStatusV2") {

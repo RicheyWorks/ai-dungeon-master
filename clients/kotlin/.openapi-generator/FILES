@@ -2,6 +2,8 @@
 README.md
 build.gradle
 docs/ActionRequest.md
+docs/CatalogEnvelope.md
+docs/CatalogPayload.md
 docs/Envelope.md
 docs/ErrorEnvelope.md
 docs/ErrorPayload.md
@@ -11,8 +13,11 @@ docs/GameStatusV2.md
 docs/LegacyApi.md
 docs/MemberState.md
 docs/NarrateRequest.md
+docs/NarrationInfo.md
 docs/NarrativeEnvelope.md
 docs/NarrativePayload.md
+docs/PackInfo.md
+docs/PluginSummary.md
 docs/V2Api.md
 gradle/wrapper/gradle-wrapper.jar
 gradle/wrapper/gradle-wrapper.properties
@@ -39,6 +44,8 @@ src/main/kotlin/com/xai/dungeonmaster/client/infrastructure/Serializer.kt
 src/main/kotlin/com/xai/dungeonmaster/client/infrastructure/URIAdapter.kt
 src/main/kotlin/com/xai/dungeonmaster/client/infrastructure/UUIDAdapter.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/ActionRequest.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/CatalogEnvelope.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/CatalogPayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/Envelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/ErrorEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/ErrorPayload.kt
@@ -47,11 +54,16 @@ src/main/kotlin/com/xai/dungeonmaster/client/models/GameStatusResponse.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/GameStatusV2.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/MemberState.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/NarrateRequest.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/NarrationInfo.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/NarrativeEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/NarrativePayload.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/PackInfo.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/PluginSummary.kt
 src/test/kotlin/com/xai/dungeonmaster/client/apis/LegacyApiTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/apis/V2ApiTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/ActionRequestTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/CatalogEnvelopeTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/CatalogPayloadTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/EnvelopeTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/ErrorEnvelopeTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/ErrorPayloadTest.kt
@@ -60,5 +72,8 @@ src/test/kotlin/com/xai/dungeonmaster/client/models/GameStatusResponseTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/GameStatusV2Test.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/MemberStateTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/NarrateRequestTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/NarrationInfoTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/NarrativeEnvelopeTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/NarrativePayloadTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/PackInfoTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/PluginSummaryTest.kt

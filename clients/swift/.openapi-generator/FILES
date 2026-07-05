@@ -13,6 +13,8 @@ AIDungeonMasterClient/Classes/OpenAPIs/JSONDataEncoding.swift
 AIDungeonMasterClient/Classes/OpenAPIs/JSONEncodingHelper.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/ActionRequest.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/CatalogEnvelope.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/CatalogPayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/Envelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/ErrorEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/ErrorPayload.swift
@@ -21,8 +23,11 @@ AIDungeonMasterClient/Classes/OpenAPIs/Models/GameStatusResponse.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/GameStatusV2.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/MemberState.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrateRequest.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrationInfo.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrativeEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrativePayload.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/PackInfo.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/PluginSummary.swift
 AIDungeonMasterClient/Classes/OpenAPIs/OpenISO8601DateFormatter.swift
 AIDungeonMasterClient/Classes/OpenAPIs/SynchronizedDictionary.swift
 AIDungeonMasterClient/Classes/OpenAPIs/URLSessionImplementations.swift
@@ -31,6 +36,8 @@ Cartfile
 Package.swift
 README.md
 docs/ActionRequest.md
+docs/CatalogEnvelope.md
+docs/CatalogPayload.md
 docs/Envelope.md
 docs/ErrorEnvelope.md
 docs/ErrorPayload.md
@@ -40,8 +47,11 @@ docs/GameStatusV2.md
 docs/LegacyAPI.md
 docs/MemberState.md
 docs/NarrateRequest.md
+docs/NarrationInfo.md
 docs/NarrativeEnvelope.md
 docs/NarrativePayload.md
+docs/PackInfo.md
+docs/PluginSummary.md
 docs/V2API.md
 git_push.sh
 project.yml

@@ -16,6 +16,7 @@
 import * as runtime from '../runtime';
 import type {
   ActionRequest,
+  CatalogEnvelope,
   ErrorEnvelope,
   GameStatusEnvelope,
   NarrateRequest,
@@ -24,6 +25,8 @@ import type {
 import {
     ActionRequestFromJSON,
     ActionRequestToJSON,
+    CatalogEnvelopeFromJSON,
+    CatalogEnvelopeToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
     GameStatusEnvelopeFromJSON,
@@ -33,6 +36,10 @@ import {
     NarrativeEnvelopeFromJSON,
     NarrativeEnvelopeToJSON,
 } from '../models/index';
+
+export interface GetCatalogV2Request {
+    xRequestId?: string;
+}
 
 export interface GetStatusV2Request {
     xRequestId?: string;
@@ -52,6 +59,36 @@ export interface SubmitActionV2Request {
  * 
  */
 export class V2Api extends runtime.BaseAPI {
+
+    /**
+     * Installed content packs and registered plugins (mod browser).
+     */
+    async getCatalogV2Raw(requestParameters: GetCatalogV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CatalogEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/catalog`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CatalogEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Installed content packs and registered plugins (mod browser).
+     */
+    async getCatalogV2(requestParameters: GetCatalogV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CatalogEnvelope> {
+        const response = await this.getCatalogV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Current game status as a typed envelope.

@@ -13,6 +13,41 @@ import AnyCodable
 open class V2API {
 
     /**
+     Installed content packs and registered plugins (mod browser).
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: CatalogEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func getCatalogV2(xRequestId: String? = nil) async throws -> CatalogEnvelope {
+        return try await getCatalogV2WithRequestBuilder(xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Installed content packs and registered plugins (mod browser).
+     - GET /v2/catalog
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<CatalogEnvelope> 
+     */
+    open class func getCatalogV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<CatalogEnvelope> {
+        let localVariablePath = "/v2/catalog"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<CatalogEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Current game status as a typed envelope.
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)

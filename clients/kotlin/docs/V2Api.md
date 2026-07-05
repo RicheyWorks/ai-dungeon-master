@@ -4,10 +4,55 @@ All URIs are relative to *http://localhost:8080*
 
 | Method | HTTP request | Description |
 | ------------- | ------------- | ------------- |
+| [**getCatalogV2**](V2Api.md#getCatalogV2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser). |
 | [**getStatusV2**](V2Api.md#getStatusV2) | **GET** /v2/status | Current game status as a typed envelope. |
 | [**narrateV2**](V2Api.md#narrateV2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider. |
 | [**submitActionV2**](V2Api.md#submitActionV2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope. |
 
+
+<a id="getCatalogV2"></a>
+# **getCatalogV2**
+> CatalogEnvelope getCatalogV2(xRequestId)
+
+Installed content packs and registered plugins (mod browser).
+
+### Example
+```kotlin
+// Import classes:
+//import com.xai.dungeonmaster.client.infrastructure.*
+//import com.xai.dungeonmaster.client.models.*
+
+val apiInstance = V2Api()
+val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+try {
+    val result : CatalogEnvelope = apiInstance.getCatalogV2(xRequestId)
+    println(result)
+} catch (e: ClientException) {
+    println("4xx response calling V2Api#getCatalogV2")
+    e.printStackTrace()
+} catch (e: ServerException) {
+    println("5xx response calling V2Api#getCatalogV2")
+    e.printStackTrace()
+}
+```
+
+### Parameters
+| Name | Type | Description  | Notes |
+| ------------- | ------------- | ------------- | ------------- |
+| **xRequestId** | **kotlin.String**| Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] |
+
+### Return type
+
+[**CatalogEnvelope**](CatalogEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
 
 <a id="getStatusV2"></a>
 # **getStatusV2**

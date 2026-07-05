@@ -8,6 +8,8 @@ src/apis/V2Api.ts
 src/apis/index.ts
 src/index.ts
 src/models/ActionRequest.ts
+src/models/CatalogEnvelope.ts
+src/models/CatalogPayload.ts
 src/models/Envelope.ts
 src/models/ErrorEnvelope.ts
 src/models/ErrorPayload.ts
@@ -16,9 +18,11 @@ src/models/GameStatusResponse.ts
 src/models/GameStatusV2.ts
 src/models/MemberState.ts
 src/models/NarrateRequest.ts
+src/models/NarrationInfo.ts
 src/models/NarrativeEnvelope.ts
 src/models/NarrativePayload.ts
+src/models/PackInfo.ts
+src/models/PluginSummary.ts
 src/models/index.ts
 src/runtime.ts
-tsconfig.esm.json
 tsconfig.json

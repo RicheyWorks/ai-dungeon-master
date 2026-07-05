@@ -80,6 +80,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NarrativeEnvelope'
+  /v2/catalog:
+    get:
+      tags: [v2]
+      operationId: getCatalogV2
+      summary: Installed content packs and registered plugins (mod browser).
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Catalog envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogEnvelope'
   /api/game/status:
     get:
       tags: [legacy]
@@ -223,6 +237,16 @@ components:
               example: error
             payload:
               $ref: '#/components/schemas/ErrorPayload'
+    CatalogEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: catalog
+            payload:
+              $ref: '#/components/schemas/CatalogPayload'
     MemberState:
       type: object
       description: Public snapshot of a single party member.
@@ -266,6 +290,49 @@ components:
         fallback:
           type: boolean
           description: True when a guardrail/fallback response was returned.
+    CatalogPayload:
+      type: object
+      description: Snapshot of everything installed and dispatchable in the engine.
+      properties:
+        contentPacks:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackInfo'
+        plugins:
+          $ref: '#/components/schemas/PluginSummary'
+        narration:
+          $ref: '#/components/schemas/NarrationInfo'
+    PackInfo:
+      type: object
+      description: One installed content pack.
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        version: { type: string }
+        monsters: { type: integer }
+        items: { type: integer }
+    PluginSummary:
+      type: object
+      description: Registered plugin ids (or biome tags) grouped by SPI.
+      properties:
+        spellEffects: { type: array, items: { type: string } }
+        itemEffects: { type: array, items: { type: string } }
+        encounterBiomes: { type: array, items: { type: string } }
+        lootBiomes: { type: array, items: { type: string } }
+        questScripts: { type: array, items: { type: string } }
+        storefronts: { type: array, items: { type: string } }
+        llmProviders: { type: array, items: { type: string } }
+    NarrationInfo:
+      type: object
+      description: Active narration provider and everything available to switch to.
+      properties:
+        active: { type: string }
+        health:
+          type: string
+          description: Provider health (OK, DEGRADED, DOWN, UNKNOWN).
+        available:
+          type: array
+          items: { type: string }
     ErrorPayload:
       type: object
       properties:
