@@ -94,6 +94,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CatalogEnvelope'
+  /v2/entitlements/verify:
+    post:
+      tags: [v2]
+      operationId: verifyReceiptV2
+      summary: Validate a purchase receipt via its storefront and grant the entitlement.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyReceiptRequest'
+      responses:
+        '200':
+          description: Receipt valid; entitlement granted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntitlementEnvelope'
+        '402':
+          description: Receipt failed verification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntitlementEnvelope'
+        '401':
+          description: No authenticated session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /v2/entitlements:
+    get:
+      tags: [v2]
+      operationId: listEntitlementsV2
+      summary: List the caller's owned products.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Entitlements envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntitlementEnvelope'
+        '401':
+          description: No authenticated session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /api/game/status:
     get:
       tags: [legacy]
@@ -247,6 +299,16 @@ components:
               example: catalog
             payload:
               $ref: '#/components/schemas/CatalogPayload'
+    EntitlementEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: entitlement
+            payload:
+              $ref: '#/components/schemas/EntitlementPayload'
     MemberState:
       type: object
       description: Public snapshot of a single party member.
@@ -333,6 +395,23 @@ components:
         available:
           type: array
           items: { type: string }
+    EntitlementPayload:
+      type: object
+      properties:
+        granted: { type: boolean }
+        productId: { type: string, nullable: true }
+        storefront: { type: string, nullable: true }
+        reason: { type: string }
+        owned:
+          type: array
+          items: { type: string }
+    VerifyReceiptRequest:
+      type: object
+      required: [productId, receipt]
+      properties:
+        storefront: { type: string, example: dev }
+        productId: { type: string, example: sku_gold }
+        receipt: { type: string }
     ErrorPayload:
       type: object
       properties:

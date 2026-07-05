@@ -10,6 +10,8 @@ src/index.ts
 src/models/ActionRequest.ts
 src/models/CatalogEnvelope.ts
 src/models/CatalogPayload.ts
+src/models/EntitlementEnvelope.ts
+src/models/EntitlementPayload.ts
 src/models/Envelope.ts
 src/models/ErrorEnvelope.ts
 src/models/ErrorPayload.ts
@@ -23,6 +25,7 @@ src/models/NarrativeEnvelope.ts
 src/models/NarrativePayload.ts
 src/models/PackInfo.ts
 src/models/PluginSummary.ts
+src/models/VerifyReceiptRequest.ts
 src/models/index.ts
 src/runtime.ts
 tsconfig.json

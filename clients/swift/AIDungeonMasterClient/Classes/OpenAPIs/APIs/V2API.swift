@@ -83,6 +83,41 @@ open class V2API {
     }
 
     /**
+     List the caller's owned products.
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: EntitlementEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func listEntitlementsV2(xRequestId: String? = nil) async throws -> EntitlementEnvelope {
+        return try await listEntitlementsV2WithRequestBuilder(xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     List the caller's owned products.
+     - GET /v2/entitlements
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<EntitlementEnvelope> 
+     */
+    open class func listEntitlementsV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<EntitlementEnvelope> {
+        let localVariablePath = "/v2/entitlements"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<EntitlementEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Generate a dungeon-master narration via the active LLM provider.
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
@@ -154,6 +189,44 @@ open class V2API {
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
         let localVariableRequestBuilder: RequestBuilder<GameStatusEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Validate a purchase receipt via its storefront and grant the entitlement.
+     
+     - parameter verifyReceiptRequest: (body)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: EntitlementEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func verifyReceiptV2(verifyReceiptRequest: VerifyReceiptRequest, xRequestId: String? = nil) async throws -> EntitlementEnvelope {
+        return try await verifyReceiptV2WithRequestBuilder(verifyReceiptRequest: verifyReceiptRequest, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Validate a purchase receipt via its storefront and grant the entitlement.
+     - POST /v2/entitlements/verify
+     - parameter verifyReceiptRequest: (body)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<EntitlementEnvelope> 
+     */
+    open class func verifyReceiptV2WithRequestBuilder(verifyReceiptRequest: VerifyReceiptRequest, xRequestId: String? = nil) -> RequestBuilder<EntitlementEnvelope> {
+        let localVariablePath = "/v2/entitlements/verify"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters = JSONEncodingHelper.encodingParameters(forEncodableObject: verifyReceiptRequest)
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "Content-Type": "application/json",
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<EntitlementEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }

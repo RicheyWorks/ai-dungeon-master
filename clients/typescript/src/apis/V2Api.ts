@@ -17,16 +17,20 @@ import * as runtime from '../runtime';
 import type {
   ActionRequest,
   CatalogEnvelope,
+  EntitlementEnvelope,
   ErrorEnvelope,
   GameStatusEnvelope,
   NarrateRequest,
   NarrativeEnvelope,
+  VerifyReceiptRequest,
 } from '../models/index';
 import {
     ActionRequestFromJSON,
     ActionRequestToJSON,
     CatalogEnvelopeFromJSON,
     CatalogEnvelopeToJSON,
+    EntitlementEnvelopeFromJSON,
+    EntitlementEnvelopeToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
     GameStatusEnvelopeFromJSON,
@@ -35,6 +39,8 @@ import {
     NarrateRequestToJSON,
     NarrativeEnvelopeFromJSON,
     NarrativeEnvelopeToJSON,
+    VerifyReceiptRequestFromJSON,
+    VerifyReceiptRequestToJSON,
 } from '../models/index';
 
 export interface GetCatalogV2Request {
@@ -45,6 +51,10 @@ export interface GetStatusV2Request {
     xRequestId?: string;
 }
 
+export interface ListEntitlementsV2Request {
+    xRequestId?: string;
+}
+
 export interface NarrateV2Request {
     xRequestId?: string;
     narrateRequest?: NarrateRequest;
@@ -52,6 +62,11 @@ export interface NarrateV2Request {
 
 export interface SubmitActionV2Request {
     actionRequest: ActionRequest;
+    xRequestId?: string;
+}
+
+export interface VerifyReceiptV2Request {
+    verifyReceiptRequest: VerifyReceiptRequest;
     xRequestId?: string;
 }
 
@@ -117,6 +132,36 @@ export class V2Api extends runtime.BaseAPI {
      */
     async getStatusV2(requestParameters: GetStatusV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameStatusEnvelope> {
         const response = await this.getStatusV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * List the caller\'s owned products.
+     */
+    async listEntitlementsV2Raw(requestParameters: ListEntitlementsV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<EntitlementEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/entitlements`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => EntitlementEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * List the caller\'s owned products.
+     */
+    async listEntitlementsV2(requestParameters: ListEntitlementsV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EntitlementEnvelope> {
+        const response = await this.listEntitlementsV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -190,6 +235,46 @@ export class V2Api extends runtime.BaseAPI {
      */
     async submitActionV2(requestParameters: SubmitActionV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameStatusEnvelope> {
         const response = await this.submitActionV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Validate a purchase receipt via its storefront and grant the entitlement.
+     */
+    async verifyReceiptV2Raw(requestParameters: VerifyReceiptV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<EntitlementEnvelope>> {
+        if (requestParameters['verifyReceiptRequest'] == null) {
+            throw new runtime.RequiredError(
+                'verifyReceiptRequest',
+                'Required parameter "verifyReceiptRequest" was null or undefined when calling verifyReceiptV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/entitlements/verify`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: VerifyReceiptRequestToJSON(requestParameters['verifyReceiptRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => EntitlementEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Validate a purchase receipt via its storefront and grant the entitlement.
+     */
+    async verifyReceiptV2(requestParameters: VerifyReceiptV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EntitlementEnvelope> {
+        const response = await this.verifyReceiptV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 

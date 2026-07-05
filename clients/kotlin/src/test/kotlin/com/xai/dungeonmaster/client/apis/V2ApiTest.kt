@@ -21,10 +21,12 @@ import io.kotlintest.specs.ShouldSpec
 import com.xai.dungeonmaster.client.apis.V2Api
 import com.xai.dungeonmaster.client.models.ActionRequest
 import com.xai.dungeonmaster.client.models.CatalogEnvelope
+import com.xai.dungeonmaster.client.models.EntitlementEnvelope
 import com.xai.dungeonmaster.client.models.ErrorEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
 import com.xai.dungeonmaster.client.models.NarrativeEnvelope
+import com.xai.dungeonmaster.client.models.VerifyReceiptRequest
 
 class V2ApiTest : ShouldSpec() {
     init {
@@ -47,6 +49,14 @@ class V2ApiTest : ShouldSpec() {
             //result shouldBe ("TODO")
         }
 
+        // to test listEntitlementsV2
+        should("test listEntitlementsV2") {
+            // uncomment below to test listEntitlementsV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : EntitlementEnvelope = apiInstance.listEntitlementsV2(xRequestId)
+            //result shouldBe ("TODO")
+        }
+
         // to test narrateV2
         should("test narrateV2") {
             // uncomment below to test narrateV2
@@ -62,6 +72,15 @@ class V2ApiTest : ShouldSpec() {
             //val actionRequest : ActionRequest =  // ActionRequest | 
             //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
             //val result : GameStatusEnvelope = apiInstance.submitActionV2(actionRequest, xRequestId)
+            //result shouldBe ("TODO")
+        }
+
+        // to test verifyReceiptV2
+        should("test verifyReceiptV2") {
+            // uncomment below to test verifyReceiptV2
+            //val verifyReceiptRequest : VerifyReceiptRequest =  // VerifyReceiptRequest | 
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : EntitlementEnvelope = apiInstance.verifyReceiptV2(verifyReceiptRequest, xRequestId)
             //result shouldBe ("TODO")
         }
 

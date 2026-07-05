@@ -4,6 +4,8 @@ build.gradle
 docs/ActionRequest.md
 docs/CatalogEnvelope.md
 docs/CatalogPayload.md
+docs/EntitlementEnvelope.md
+docs/EntitlementPayload.md
 docs/Envelope.md
 docs/ErrorEnvelope.md
 docs/ErrorPayload.md
@@ -19,6 +21,7 @@ docs/NarrativePayload.md
 docs/PackInfo.md
 docs/PluginSummary.md
 docs/V2Api.md
+docs/VerifyReceiptRequest.md
 gradle/wrapper/gradle-wrapper.jar
 gradle/wrapper/gradle-wrapper.properties
 gradlew
@@ -46,6 +49,8 @@ src/main/kotlin/com/xai/dungeonmaster/client/infrastructure/UUIDAdapter.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/ActionRequest.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/CatalogEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/CatalogPayload.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/EntitlementEnvelope.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/EntitlementPayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/Envelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/ErrorEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/ErrorPayload.kt
@@ -59,11 +64,14 @@ src/main/kotlin/com/xai/dungeonmaster/client/models/NarrativeEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/NarrativePayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/PackInfo.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/PluginSummary.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/VerifyReceiptRequest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/apis/LegacyApiTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/apis/V2ApiTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/ActionRequestTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/CatalogEnvelopeTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/CatalogPayloadTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/EntitlementEnvelopeTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/EntitlementPayloadTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/EnvelopeTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/ErrorEnvelopeTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/ErrorPayloadTest.kt
@@ -77,3 +85,4 @@ src/test/kotlin/com/xai/dungeonmaster/client/models/NarrativeEnvelopeTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/NarrativePayloadTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/PackInfoTest.kt
 src/test/kotlin/com/xai/dungeonmaster/client/models/PluginSummaryTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/VerifyReceiptRequestTest.kt

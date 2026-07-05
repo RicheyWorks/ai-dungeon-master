@@ -12,7 +12,7 @@ groundwork shipped.
 |---|---|---|
 | 0 — Hygiene | headless, packages, tests, listeners, sync | ✅ Done |
 | 1 — Headless core + plugin SPI | core module, SPIs, registries, loaders, signing, sandbox | ✅ Done |
-| 2 — API v2 + LLM provider | envelope, PartyState, LLM stack + keyed providers, streaming, specs, SDKs, auth, sessions | ✅ Nearly done — storefront receipts remain |
+| 2 — API v2 + LLM provider | envelope, PartyState, LLM stack + keyed providers, streaming, specs, SDKs, auth, sessions, entitlements | ✅ Done |
 | 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ SDK generated; UI not started |
 | 4 — Steam + iOS | Tauri, SwiftUI on the generated Swift SDK, storefronts | ◐ Swift SDK generated; apps not started |
 | 5 — Content packs & mods | packs, mod browser, signing, sandboxing | ◐ 4 packs + signing + sandbox + catalog API; browser UI remains |
@@ -51,13 +51,17 @@ groundwork shipped.
 - **Content/mod catalog.** `GET /v2/catalog` lists installed content packs and
   every registered plugin across the SPIs plus the active narration provider —
   the read model behind an in-game mod browser.
+- **Storefront receipt validation.** `POST /v2/entitlements/verify` routes a
+  purchase receipt to the matching storefront plugin (bundled `dev` store signs
+  and verifies HMAC receipts, the storefront analogue of `local-stub`) and grants
+  the product to the session; `GET /v2/entitlements` lists owned products.
 - Validated OpenAPI 3.0.3 + AsyncAPI 2.6.0 specs, and **generated client SDKs for
   TypeScript, Kotlin, and Swift** (`clients/`, openapi-generator 7.7.0).
 
 **Remaining**
 
-- Storefront receipt validation. (Session persistence is done — see the
-  `SessionStore` note above.)
+- Keyed-provider live smoke tests (need real API keys) and a shared datastore for
+  sessions/entitlements across nodes. Nothing else blocks Phase 2.
 
 ## Phases 3–5
 
@@ -74,6 +78,6 @@ groundwork shipped.
 ## Remaining backlog
 
 - In-game content pack / mod browser UI + install flow (the `/v2/catalog` read API is done).
-- Storefront receipt validation; keyed-provider live smoke tests.
+- Keyed-provider live smoke tests (need real API keys); shared session/entitlement datastore for multi-node.
 - Native client apps (Android Compose, iOS SwiftUI, Steam/Tauri) on the generated SDKs.
 - Deeper mod isolation (dedicated process / OS sandbox) beyond the static bytecode scan.

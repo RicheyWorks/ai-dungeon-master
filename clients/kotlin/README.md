@@ -59,8 +59,10 @@ All URIs are relative to *http://localhost:8080*
 | *LegacyApi* | [**submitActionLegacy**](docs/LegacyApi.md#submitactionlegacy) | **POST** /api/game/action |  |
 | *V2Api* | [**getCatalogV2**](docs/V2Api.md#getcatalogv2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser). |
 | *V2Api* | [**getStatusV2**](docs/V2Api.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope. |
+| *V2Api* | [**listEntitlementsV2**](docs/V2Api.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller's owned products. |
 | *V2Api* | [**narrateV2**](docs/V2Api.md#narratev2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider. |
 | *V2Api* | [**submitActionV2**](docs/V2Api.md#submitactionv2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope. |
+| *V2Api* | [**verifyReceiptV2**](docs/V2Api.md#verifyreceiptv2) | **POST** /v2/entitlements/verify | Validate a purchase receipt via its storefront and grant the entitlement. |
 
 
 <a id="documentation-for-models"></a>
@@ -69,6 +71,8 @@ All URIs are relative to *http://localhost:8080*
  - [com.xai.dungeonmaster.client.models.ActionRequest](docs/ActionRequest.md)
  - [com.xai.dungeonmaster.client.models.CatalogEnvelope](docs/CatalogEnvelope.md)
  - [com.xai.dungeonmaster.client.models.CatalogPayload](docs/CatalogPayload.md)
+ - [com.xai.dungeonmaster.client.models.EntitlementEnvelope](docs/EntitlementEnvelope.md)
+ - [com.xai.dungeonmaster.client.models.EntitlementPayload](docs/EntitlementPayload.md)
  - [com.xai.dungeonmaster.client.models.Envelope](docs/Envelope.md)
  - [com.xai.dungeonmaster.client.models.ErrorEnvelope](docs/ErrorEnvelope.md)
  - [com.xai.dungeonmaster.client.models.ErrorPayload](docs/ErrorPayload.md)
@@ -82,6 +86,7 @@ All URIs are relative to *http://localhost:8080*
  - [com.xai.dungeonmaster.client.models.NarrativePayload](docs/NarrativePayload.md)
  - [com.xai.dungeonmaster.client.models.PackInfo](docs/PackInfo.md)
  - [com.xai.dungeonmaster.client.models.PluginSummary](docs/PluginSummary.md)
+ - [com.xai.dungeonmaster.client.models.VerifyReceiptRequest](docs/VerifyReceiptRequest.md)
 
 
 <a id="documentation-for-authorization"></a>
