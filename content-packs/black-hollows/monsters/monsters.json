@@ -1,0 +1,37 @@
+{
+  "bh_hollow_wretch": {
+    "entityType": "enemy",
+    "name": "Hollow Wretch",
+    "baseHp": 34,
+    "baseAc": 12,
+    "attackBonus": 3,
+    "levelRequirement": 1,
+    "lootTable": ["bh_tallow_candle"]
+  },
+  "bh_drowned_chorister": {
+    "entityType": "enemy",
+    "name": "Drowned Chorister",
+    "baseHp": 46,
+    "baseAc": 13,
+    "attackBonus": 5,
+    "levelRequirement": 3,
+    "lootTable": ["bh_grave_salt"]
+  },
+  "bh_gallows_revenant": {
+    "entityType": "enemy",
+    "name": "Gallows Revenant",
+    "baseHp": 68,
+    "baseAc": 15,
+    "attackBonus": 6,
+    "levelRequirement": 5
+  },
+  "bh_bough_that_weeps": {
+    "entityType": "enemy",
+    "name": "The Bough That Weeps",
+    "baseHp": 540,
+    "baseAc": 19,
+    "attackBonus": 11,
+    "levelRequirement": 12,
+    "isBoss": true
+  }
+}

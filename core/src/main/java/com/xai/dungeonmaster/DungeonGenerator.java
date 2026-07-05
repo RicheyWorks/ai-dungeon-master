@@ -1,20 +1,23 @@
 package com.xai.dungeonmaster;
 
-import com.xai.dungeonmaster.plugin.ContentRegistry;
+import com.xai.dungeonmaster.plugin.EncounterTableRegistry;
+import com.xai.dungeonmaster.plugin.LootTableRegistry;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 /**
  * Procedural content generator.
  *
- * After Phase 1, loot and enemy pools come from the {@link ContentRegistry}
- * (populated by ContentPacks at startup). When the registry is empty —
- * for example in unit tests that don't load any pack — DungeonGenerator
- * falls back to its legacy hardcoded arrays so the engine still produces
- * valid encounters and tests run without any resource loading.
+ * Enemy and loot generation are dispatchable SPIs: {@link #generateEnemy} and
+ * {@link #generateLoot} route through the {@link EncounterTableRegistry} and
+ * {@link LootTableRegistry} respectively, resolving the {@code "default"} biome
+ * table bundled with the engine. Those built-in tables draw from the
+ * {@code ContentRegistry} (populated by ContentPacks at startup) and fall back
+ * to legacy hardcoded pools when no pack is loaded — so unit tests still get
+ * valid encounters without any resource loading, and content packs can register
+ * biome-keyed tables that override generation without editing the engine.
  */
 public class DungeonGenerator {
 
@@ -29,84 +32,20 @@ public class DungeonGenerator {
     }
 
     public Item generateLoot() {
-        Map<String, Item> registered = ContentRegistry.items();
-        if (!registered.isEmpty()) {
-            Item[] pool = registered.values().toArray(new Item[0]);
-            Item template = pool[random.nextInt(pool.length)];
-            // Re-roll power based on current difficulty/chaos so static JSON
-            // entries don't feel flat at high chaos levels.
-            int power = Math.max(
-                    template.getPower(),
-                    15 + (template.getRarity().ordinal() * 12) + random.nextInt(20));
-            return new Item(
-                    template.getName(),
-                    template.getDescription(),
-                    template.getType(),
-                    template.getRarity(),
-                    template.getEffectKey(),
-                    power);
+        // Loot generation is now a dispatchable SPI: route through the
+        // LootTableRegistry's "default" table (bundled DefaultLootTable), which
+        // draws from the ContentRegistry and falls back to the legacy
+        // rarity-weighted generator. Content packs can register biome-keyed
+        // tables that override this without touching the engine.
+        Item item = LootTableRegistry.dispatch(
+                random, difficulty, chaosLevel, LootTableRegistry.DEFAULT_BIOME);
+        if (item != null) {
+            return item;
         }
-        return generateLegacyLoot();
-    }
-
-    private Item generateLegacyLoot() {
-        int rarityRoll = random.nextInt(100) + (chaosLevel * 7) + (difficulty * 3);
-
-        Item.Rarity rarity;
-        if (rarityRoll >= 95) {
-            rarity = Item.Rarity.LEGENDARY;
-        } else if (rarityRoll >= 80) {
-            rarity = Item.Rarity.EPIC;
-        } else if (rarityRoll >= 60) {
-            rarity = Item.Rarity.RARE;
-        } else if (rarityRoll >= 35) {
-            rarity = Item.Rarity.UNCOMMON;
-        } else {
-            rarity = Item.Rarity.COMMON;
-        }
-
-        String[] legendaryNames = {"Chronal Vortex Core", "Riftforged Aegis", "Entropy Blade", "Ascendant Sigil"};
-        String[] epicNames = {"Voidweaver Staff", "Reality Anchor", "Soulfire Amulet"};
-        String[] rareNames = {"Fractured Star Shard", "Echoing Rune", "Nexus Crystal"};
-        String[] commonNames = {"Health Draught", "Mana Shard", "Rift Scrap", "Worn Charm"};
-
-        String name;
-        String description;
-        String effectKey;
-
-        int power = 15 + (rarity.ordinal() * 12) + random.nextInt(20);
-
-        switch (rarity) {
-            case LEGENDARY -> {
-                name = legendaryNames[random.nextInt(legendaryNames.length)];
-                description = "A relic that bends the fabric of the multiverse.";
-                effectKey = random.nextBoolean() ? "BUFF_AC" : "RESTORE_MANA";
-                power += 30;
-            }
-            case EPIC -> {
-                name = epicNames[random.nextInt(epicNames.length)];
-                description = "Pulsing with raw rift energy.";
-                effectKey = random.nextBoolean() ? "HEAL" : "RESTORE_MANA";
-                power += 15;
-            }
-            case RARE -> {
-                name = rareNames[random.nextInt(rareNames.length)];
-                description = "A valuable fragment from a shattered timeline.";
-                effectKey = random.nextBoolean() ? "HEAL" : "BUFF_AC";
-            }
-            case UNCOMMON -> {
-                name = commonNames[random.nextInt(commonNames.length)] + " Plus";
-                description = "A useful item touched by mild rift energy.";
-                effectKey = random.nextBoolean() ? "HEAL" : "RESTORE_MANA";
-            }
-            default -> {
-                name = commonNames[random.nextInt(commonNames.length)];
-                description = "Useful scrap from a damaged timeline.";
-                effectKey = random.nextBoolean() ? "HEAL" : "RESTORE_MANA";
-            }
-        }
-
-        return new Item(name, description, Item.ItemType.CONSUMABLE, rarity, effectKey, power);
+        // Safety net: the bundled DefaultLootTable is ServiceLoader-registered,
+        // so this is only reached if the registry was cleared at runtime.
+        return new Item("Rift Scrap", "Useful scrap from a damaged timeline.",
+                Item.ItemType.CONSUMABLE, Item.Rarity.COMMON, "HEAL", 15);
     }
 
     public String randomRole() {
@@ -131,60 +70,25 @@ public class DungeonGenerator {
     }
 
     public Enemy generateEnemy(boolean isBoss) {
-        // Draw a template from the loaded content registry when available so
-        // monsters.json stats (HP/AC/attack) and boss flags actually drive
-        // generation; fall back to legacy constants when nothing is loaded.
-        Enemy template = pickMonsterTemplate(isBoss);
-
-        String name;
-        int baseHp, baseAc, baseAtk;
-        if (template != null) {
-            name = template.getName();
-            baseHp = template.getMaxHp();
-            baseAc = template.getAC();
-            baseAtk = template.getAttackBonus();
-        } else {
-            name = isBoss ? "Harbinger of Entropy" : "Rift Stalker";
-            baseHp = isBoss ? 320 : 60;
-            baseAc = 12 + (isBoss ? 8 : 0);
-            baseAtk = 4;
+        // Enemy generation is now a dispatchable SPI: route through the
+        // EncounterTableRegistry's "default" table (bundled DefaultEncounterTable),
+        // which draws monster templates from the ContentRegistry and scales them
+        // by difficulty and chaos. Content packs can register biome-keyed tables
+        // that override this without touching the engine.
+        List<Enemy> rolled = EncounterTableRegistry.dispatch(
+                random, difficulty, chaosLevel, isBoss, EncounterTableRegistry.DEFAULT_BIOME);
+        if (!rolled.isEmpty()) {
+            return rolled.get(0);
         }
-
-        // Scale the JSON/legacy baseline by difficulty and chaos.
-        int hp = baseHp * difficulty + (random.nextInt(30) * Math.max(1, chaosLevel));
-        int ac = baseAc + (difficulty / 2);
-        int atk = baseAtk + difficulty + (chaosLevel / 2);
-
-        if (chaosLevel > 4 && !name.startsWith("Corrupted ")) {
-            name = "Corrupted " + name;
-        }
-
-        Enemy enemy = new Enemy(name, hp, ac, atk, difficulty);
+        // Safety net: the bundled DefaultEncounterTable is ServiceLoader-registered,
+        // so this is only reached if the registry was cleared at runtime.
+        int hp = (isBoss ? 320 : 60) * difficulty;
+        Enemy enemy = new Enemy(isBoss ? "Harbinger of Entropy" : "Rift Stalker",
+                hp, isBoss ? 20 : 12, 4, difficulty);
         if (isBoss) {
             enemy.setDamageDice("2d12");
         }
         return enemy;
-    }
-
-    /**
-     * Pick a monster template from the registry, preferring one whose boss flag
-     * matches the request. Returns null when no content is loaded.
-     */
-    private Enemy pickMonsterTemplate(boolean isBoss) {
-        Map<String, Enemy> registered = ContentRegistry.monsters();
-        if (registered.isEmpty()) {
-            return null;
-        }
-        List<Enemy> matching = new ArrayList<>();
-        for (Enemy e : registered.values()) {
-            if (e.isBoss() == isBoss) {
-                matching.add(e);
-            }
-        }
-        List<Enemy> pool = matching.isEmpty()
-                ? new ArrayList<>(registered.values())
-                : matching;
-        return pool.get(random.nextInt(pool.size()));
     }
 
     public Summon generateSummon() {

@@ -1,0 +1,42 @@
+{
+  "bh_tallow_candle": {
+    "name": "Tallow Candle",
+    "description": "Its guttering light keeps the whispering dark at arm's length.",
+    "type": "CONSUMABLE",
+    "rarity": "COMMON",
+    "effectKey": "HEAL",
+    "power": 18
+  },
+  "bh_grave_salt": {
+    "name": "Pouch of Grave Salt",
+    "description": "Scatter it and the restless dead recoil. Purges what festers in the blood.",
+    "type": "CONSUMABLE",
+    "rarity": "UNCOMMON",
+    "effectKey": "CLEANSE",
+    "power": 22
+  },
+  "bh_mourners_veil": {
+    "name": "Mourner's Veil",
+    "description": "Woven from funeral shrouds; the sorrow in it turns blades aside.",
+    "type": "EQUIPMENT",
+    "rarity": "RARE",
+    "effectKey": "BUFF_AC",
+    "power": 14
+  },
+  "bh_reliquary_heart": {
+    "name": "Reliquary of the Weeping Saint",
+    "description": "A cold iron heart that beats once an hour, restoring the spent will of those who carry it.",
+    "type": "EQUIPMENT",
+    "rarity": "EPIC",
+    "effectKey": "RESTORE_MANA",
+    "power": 30
+  },
+  "bh_lantern_of_the_drowned": {
+    "name": "Lantern of the Drowned",
+    "description": "Green flame that burns even underwater. They say it lights the way back from death, but only once.",
+    "type": "KEY_ITEM",
+    "rarity": "LEGENDARY",
+    "effectKey": "HEAL",
+    "power": 60
+  }
+}

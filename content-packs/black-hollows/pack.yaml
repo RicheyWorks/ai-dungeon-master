@@ -1,0 +1,10 @@
+# The Black Hollows — a gothic-horror content pack.
+# Pure data: no code. ResourceLoader.scanContentPacks() reads this manifest,
+# then merges items/*.json, monsters/*.json, and strings/*.properties into the
+# global ContentRegistry at startup. All effectKeys reference bundled ItemEffects
+# (HEAL, RESTORE_MANA, BUFF_AC, CLEANSE), so the pack needs no plugin JAR.
+id: "black-hollows"
+displayName: "The Black Hollows"
+version: "1.0.0"
+minEngineVersion: "1.0.0"
+description: "A drowned parish of wretches and revenants, stalked by the weeping tree at its heart. Ships grave-salt, funeral relics, and a boss encounter."

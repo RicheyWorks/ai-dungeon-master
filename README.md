@@ -4,7 +4,7 @@ A single-player, AI-narrated dungeon crawler built as a portable game engine: a
 pure-Java core, a Spring Boot server, a versioned REST + WebSocket API, an
 offline-capable LLM narration layer, and a data-driven content-pack system.
 
-> Java 17 · Spring Boot 3.2.5 · Maven multi-module · 33 tests green
+> Java 17 · Spring Boot 3.2.5 · Maven multi-module · 54 tests green
 
 ## Overview
 
@@ -32,7 +32,7 @@ Two Maven modules:
 ## Build & test
 
 ```bash
-mvn clean test     # compile both modules and run the suite (33 tests)
+mvn clean test     # compile both modules and run the suite (54 tests)
 mvn package        # build the runnable Spring Boot jar
 ```
 
@@ -73,6 +73,8 @@ stable, self-describing shape:
 | `GET /v2/status` | Full snapshot — structured party, chaos, choices, recent log |
 | `POST /v2/action` | Apply a choice (`{ "choiceLabel": "Attack" }`); returns updated status |
 | `POST /v2/narrate` | Generate DM narration via the active LLM provider |
+| `POST /v2/session` | Create a guest session; returns a JWT + session id |
+| `GET /v2/session/me` | Echo the caller's session (requires a Bearer token) |
 | `GET/POST /api/game/*` | Original unversioned API (kept for existing clients) |
 
 Example `GET /v2/status` payload:
@@ -148,6 +150,16 @@ Game content is data-driven, not hardcoded:
   scoped classloader (`game.plugins.dir`).
 - Spell and item effects register via Java `ServiceLoader` (`META-INF/services`),
   so new effects need no engine changes.
+- All eight plugin SPIs are dispatchable through registries — SpellEffect,
+  ItemEffect, EncounterTable, LootTable, QuestScript, LLMProvider,
+  StorefrontIntegration, ContentPack — each with a bundled default that
+  content packs or mods can override.
+- Plugin JARs are signature-checked before any class loads: `PluginLoader`
+  hashes the payload (SHA-256, all entries except `plugin.yaml`) and compares
+  it to the manifest `signature` under a configurable
+  `game.plugins.signature.policy` (LENIENT / REQUIRED / DISABLED).
+- A worked example pack ships in `content-packs/black-hollows/` (gothic horror):
+  themed monsters, items, and localized strings, loaded end-to-end by tests.
 
 ## Project layout
 
@@ -173,15 +185,20 @@ clients/
 | `game.cli.enabled` | `false` | Run the terminal CLI |
 | `game.narration.provider` | `local-stub` | Active LLM provider id |
 | `game.narration.token.ceiling` | `4000` | Per-session narration token cap |
+| `game.auth.enabled` | `false` | Enforce JWT auth on `/v2/**` (opt-in) |
+| `game.auth.jwt.secret` | _(insecure dev secret)_ | HMAC-SHA256 token signing secret |
+| `game.auth.jwt.ttl-seconds` | `86400` | Session token lifetime (seconds) |
+| `game.plugins.signature.policy` | `LENIENT` | Plugin signature policy: LENIENT / REQUIRED / DISABLED |
 
 ## Roadmap
 
 See [`docs/ROADMAP_STATUS.md`](docs/ROADMAP_STATUS.md) for a detailed,
 code-grounded status. In brief: Phase 0 (hygiene) is complete, Phase 1 (headless
-core + plugin SPI) is essentially complete, and Phase 2 (v2 API + LLM provider)
-is largely built — typed envelope, structured party state, the provider stack
-with guardrails and streaming, validated specs, and a generated client. Native
-clients (Steam / Android / iOS) and storefront integrations are future phases.
+core + plugin SPI) is complete — all eight SPIs are dispatchable and plugin JARs
+are signature-verified — and Phase 2 (v2 API + LLM provider) is largely built:
+typed envelope, structured party state, the provider stack with guardrails and
+streaming, validated specs, a generated client, and session identity + JWT auth.
+Native clients (Steam / Android / iOS) and storefront integrations are future phases.
 
 ## License
 

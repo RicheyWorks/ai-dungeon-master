@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.xai.dungeonmaster.util.ResourceLoader;
 import com.xai.dungeonmaster.plugin.LLMProvider;
 import com.xai.dungeonmaster.plugin.LLMProviderRegistry;
+import com.xai.dungeonmaster.plugin.QuestScriptRegistry;
 
 import java.io.*;
 import java.util.*;
@@ -108,7 +109,14 @@ public class DungeonMasterEngine {
             }
         }
 
-        this.currentQuest = dungeonGenerator.generateCustomRift("Genesis Rift", 4, difficulty);
+        // Opening quest is sourced from the QuestScript SPI (bundled
+        // DefaultQuestScript, id "default"), so content packs can ship their own
+        // openers. Fall back to the generator directly if the registry was cleared.
+        Quest opening = QuestScriptRegistry.dispatch(
+                QuestScriptRegistry.DEFAULT_SCRIPT, this, difficulty, chaosLevel);
+        this.currentQuest = (opening != null)
+                ? opening
+                : dungeonGenerator.generateCustomRift("Genesis Rift", 4, difficulty);
         log("Multiversal Engine Online. Chaos Level " + chaosLevel);
     }
 

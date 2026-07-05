@@ -64,6 +64,10 @@ public class GameConfig {
     @Value("${game.narration.provider:local-stub}")
     private String narrationProviderId;
 
+    /** Signature policy for code-bearing plugin JARs: LENIENT, REQUIRED, or DISABLED. */
+    @Value("${game.plugins.signature.policy:LENIENT}")
+    private String pluginSignaturePolicy;
+
     @Bean
     public DungeonMasterEngine dungeonMasterEngine(SimpMessagingTemplate messaging) {
 
@@ -74,10 +78,13 @@ public class GameConfig {
                     + contentPacksDir);
         }
 
-        // 2. Code-bearing plugins (mods).
-        PluginLoader.LoadReport report = PluginLoader.loadAll(Paths.get(pluginsDir));
-        if (!report.loaded.isEmpty() || !report.failed.isEmpty()) {
-            System.out.println("[plugins] " + report);
+        // 2. Code-bearing plugins (mods). Verify JAR signatures per the
+        //    configured policy before any plugin code is loaded.
+        PluginLoader.SignaturePolicy sigPolicy = parseSignaturePolicy(pluginSignaturePolicy);
+        PluginLoader.LoadReport report = PluginLoader.loadAll(Paths.get(pluginsDir), sigPolicy);
+        if (!report.loaded.isEmpty() || !report.failed.isEmpty() || !report.rejected.isEmpty()) {
+            System.out.println("[plugins] " + report + " (signature policy: " + sigPolicy + ")");
+            report.rejected.forEach(r -> System.err.println("[plugins] REJECTED " + r));
             report.failed.forEach(f -> System.err.println("[plugins] FAILED " + f));
         }
 
@@ -98,5 +105,18 @@ public class GameConfig {
         engine.addUiListener(text -> messaging.convertAndSend("/topic/narrative", text));
 
         return engine;
+    }
+
+    /** Parse the configured signature policy, defaulting to LENIENT on anything unrecognised. */
+    private static PluginLoader.SignaturePolicy parseSignaturePolicy(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return PluginLoader.SignaturePolicy.LENIENT;
+        }
+        try {
+            return PluginLoader.SignaturePolicy.valueOf(raw.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            System.err.println("[plugins] Unknown signature policy '" + raw + "', defaulting to LENIENT.");
+            return PluginLoader.SignaturePolicy.LENIENT;
+        }
     }
 }
