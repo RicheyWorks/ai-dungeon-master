@@ -1,0 +1,6 @@
+{
+  "cozy_grumpy_badger": { "entityType": "enemy", "name": "Grumpy Badger", "baseHp": 26, "baseAc": 12, "attackBonus": 2, "levelRequirement": 1, "lootTable": ["cozy_hot_cocoa"] },
+  "cozy_hedgehog_knight": { "entityType": "enemy", "name": "Hedgehog Knight", "baseHp": 44, "baseAc": 15, "attackBonus": 4, "levelRequirement": 3 },
+  "cozy_thicket_sprite": { "entityType": "enemy", "name": "Mischievous Thicket Sprite", "baseHp": 38, "baseAc": 14, "attackBonus": 5, "levelRequirement": 4 },
+  "cozy_old_oak": { "entityType": "enemy", "name": "The Old Oak", "baseHp": 360, "baseAc": 16, "attackBonus": 7, "levelRequirement": 9, "isBoss": true }
+}

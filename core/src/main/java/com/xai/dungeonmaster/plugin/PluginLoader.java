@@ -29,26 +29,19 @@ import java.util.jar.JarFile;
  *   1. Open the JAR and look for plugin.yaml at its root.
  *   2. Parse the manifest. Reject if id/version/entryClasses are missing
  *      or if minEngineVersion exceeds {@link #ENGINE_VERSION}.
- *   3. Verify the payload signature (see below) under the active
- *      {@link SignaturePolicy}. Reject on mismatch before any code runs.
- *   4. Create a child URLClassLoader scoped to the JAR.
- *   5. Reflectively load each entry class via its no-arg constructor.
- *   6. Hand the instantiated Plugin to the right registry.
+ *   3. Verify the payload signature under the active {@link SignaturePolicy}.
+ *   4. Load each entry class through a {@link SandboxedClassLoader} that, under
+ *      the active {@link SandboxPolicy}, scans plugin bytecode and refuses
+ *      classes referencing blocked APIs (process execution, reflection, raw
+ *      networking, filesystem, JDK internals).
+ *   5. Reflectively instantiate each entry class and hand it to the right registry.
  *
- * Signature verification:
- *   - {@code signature} in plugin.yaml is the expected SHA-256 (lowercase hex)
- *     of the plugin's payload: every JAR entry EXCEPT plugin.yaml itself,
- *     hashed in a deterministic name-sorted order (each entry's name and bytes
- *     mixed in). See {@link #computePayloadHash}.
- *   - The check runs BEFORE the child classloader is created, so a tampered
- *     JAR never gets its classes loaded or instantiated. This closes the old
- *     trust-on-load gap where the signature was parsed but never checked.
- *   - {@link SignaturePolicy} controls strictness. The loader still does not
- *     install a SecurityManager; sandboxing of loaded code is a later phase.
+ * Two security gates run BEFORE any plugin code executes: signature
+ * verification (integrity) and the sandbox scan (capability). A JAR that fails
+ * either is reported under {@code rejected}, never {@code failed}.
  *
- * Returns a {@link LoadReport} so callers can show users which plugins
- * loaded, which were skipped, which were rejected for a bad signature, and
- * which failed.
+ * Returns a {@link LoadReport} so callers can show users which plugins loaded,
+ * were skipped, were rejected for security, and which failed.
  */
 public final class PluginLoader {
 
@@ -82,7 +75,7 @@ public final class PluginLoader {
         public final List<String> loaded = new ArrayList<>();
         public final List<String> skipped = new ArrayList<>();
         public final List<String> failed = new ArrayList<>();
-        /** Plugins refused because signature verification failed (a security stop, not an error). */
+        /** Plugins refused for security (bad signature or sandbox violation) — not an error. */
         public final List<String> rejected = new ArrayList<>();
 
         @Override
@@ -94,31 +87,32 @@ public final class PluginLoader {
         }
     }
 
-    /**
-     * Scan {@code pluginsDir} for *.jar files and load each one under the
-     * default {@link SignaturePolicy#LENIENT} policy (unsigned plugins load
-     * with a warning; signed plugins must verify).
-     */
+    /** Scan and load with the default LENIENT signature policy and the default sandbox. */
     public static LoadReport loadAll(Path pluginsDir) {
-        return loadAll(pluginsDir, SignaturePolicy.LENIENT);
+        return loadAll(pluginsDir, SignaturePolicy.LENIENT, SandboxPolicy.defaults());
+    }
+
+    /** Scan and load under {@code signaturePolicy}, with the default sandbox. */
+    public static LoadReport loadAll(Path pluginsDir, SignaturePolicy signaturePolicy) {
+        return loadAll(pluginsDir, signaturePolicy, SandboxPolicy.defaults());
     }
 
     /**
-     * Scan {@code pluginsDir} for *.jar files and load each one under the given
-     * signature {@code policy}. Idempotent — re-running re-registers the same
-     * plugins; registries are last-write-wins so this is safe.
+     * Scan {@code pluginsDir} for *.jar files and load each under the given
+     * signature and sandbox policies. Idempotent — registries are last-write-wins.
      */
-    public static LoadReport loadAll(Path pluginsDir, SignaturePolicy policy) {
+    public static LoadReport loadAll(Path pluginsDir, SignaturePolicy signaturePolicy, SandboxPolicy sandboxPolicy) {
         LoadReport report = new LoadReport();
         if (pluginsDir == null || !Files.isDirectory(pluginsDir)) {
             return report;
         }
-        SignaturePolicy effective = (policy != null) ? policy : SignaturePolicy.LENIENT;
+        SignaturePolicy sig = (signaturePolicy != null) ? signaturePolicy : SignaturePolicy.LENIENT;
+        SandboxPolicy sandbox = (sandboxPolicy != null) ? sandboxPolicy : SandboxPolicy.defaults();
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(pluginsDir, "*.jar")) {
             for (Path jar : stream) {
                 try {
-                    loadOneJar(jar, report, effective);
+                    loadOneJar(jar, report, sig, sandbox);
                 } catch (Exception e) {
                     report.failed.add(jar.getFileName() + ": " + e.getMessage());
                 }
@@ -129,7 +123,8 @@ public final class PluginLoader {
         return report;
     }
 
-    private static void loadOneJar(Path jarPath, LoadReport report, SignaturePolicy policy) throws Exception {
+    private static void loadOneJar(Path jarPath, LoadReport report,
+                                   SignaturePolicy signaturePolicy, SandboxPolicy sandboxPolicy) throws Exception {
         PluginManifest manifest;
         try (JarFile jar = new JarFile(jarPath.toFile())) {
             JarEntry entry = jar.getJarEntry(MANIFEST_ENTRY);
@@ -157,16 +152,23 @@ public final class PluginLoader {
             return;
         }
 
-        // Security gate: verify the payload hash against the declared signature
-        // BEFORE any plugin code is loaded or instantiated.
-        String sigError = verifySignature(jarPath, manifest, policy);
+        // Security gate 1: verify the payload hash against the declared signature.
+        String sigError = verifySignature(jarPath, manifest, signaturePolicy);
         if (sigError != null) {
             report.rejected.add(jarPath.getFileName() + ": " + sigError);
             return;
         }
 
+        // Security gate 2: the sandboxing classloader scans plugin bytecode as it
+        // defines each class, throwing SecurityException on a blocked API.
         URL[] urls = { jarPath.toUri().toURL() };
-        URLClassLoader loader = new URLClassLoader(urls, PluginLoader.class.getClassLoader());
+        ClassLoader parent = PluginLoader.class.getClassLoader();
+        // The loader is intentionally NOT closed: plugin classes may be resolved
+        // lazily during gameplay, so it must live for the process lifetime.
+        @SuppressWarnings("resource")
+        URLClassLoader loader = (sandboxPolicy != null && sandboxPolicy.isEnabled())
+                ? new SandboxedClassLoader(urls, parent, sandboxPolicy)
+                : new URLClassLoader(urls, parent);
 
         int registered = 0;
         for (String className : manifest.entryClassesOrEmpty()) {
@@ -176,7 +178,10 @@ public final class PluginLoader {
                 if (registerInstance(instance)) registered++;
                 else report.skipped.add(jarPath.getFileName() + ": "
                         + className + " is not a recognised Plugin type");
-            } catch (ReflectiveOperationException roe) {
+            } catch (SecurityException se) {
+                report.rejected.add(jarPath.getFileName() + ": " + className
+                        + " blocked by sandbox — " + se.getMessage());
+            } catch (ReflectiveOperationException | LinkageError roe) {
                 report.failed.add(jarPath.getFileName() + ": " + className
                         + " — " + roe.getClass().getSimpleName() + ": " + roe.getMessage());
             }
@@ -190,8 +195,7 @@ public final class PluginLoader {
 
     /**
      * Verify the plugin's payload against the declared signature. Returns null
-     * when the plugin is acceptable under {@code policy}, otherwise a
-     * human-readable rejection reason.
+     * when acceptable under {@code policy}, otherwise a rejection reason.
      */
     private static String verifySignature(Path jarPath, PluginManifest manifest, SignaturePolicy policy)
             throws IOException {
@@ -218,8 +222,7 @@ public final class PluginLoader {
     /**
      * SHA-256 (lowercase hex) over every JAR entry except {@link #MANIFEST_ENTRY},
      * hashed in a deterministic name-sorted order with each entry's name and
-     * bytes mixed in. Package-private so unit tests can compute the expected
-     * value for a freshly-built JAR.
+     * bytes mixed in. Package-private so unit tests can compute the expected value.
      */
     static String computePayloadHash(Path jarPath) throws IOException {
         MessageDigest md;
@@ -229,7 +232,6 @@ public final class PluginLoader {
             throw new IOException("SHA-256 unavailable", e);
         }
         try (JarFile jar = new JarFile(jarPath.toFile())) {
-            // Sort by entry name so the digest is independent of JAR ordering.
             TreeMap<String, JarEntry> sorted = new TreeMap<>();
             Enumeration<JarEntry> e = jar.entries();
             while (e.hasMoreElements()) {

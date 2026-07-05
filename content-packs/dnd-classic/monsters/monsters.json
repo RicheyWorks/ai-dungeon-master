@@ -1,0 +1,6 @@
+{
+  "dnd_goblin_cutter": { "entityType": "enemy", "name": "Goblin Cutter", "baseHp": 28, "baseAc": 13, "attackBonus": 3, "levelRequirement": 1, "lootTable": ["dnd_potion_healing"] },
+  "dnd_orc_marauder": { "entityType": "enemy", "name": "Orc Marauder", "baseHp": 58, "baseAc": 14, "attackBonus": 6, "levelRequirement": 3 },
+  "dnd_owlbear": { "entityType": "enemy", "name": "Owlbear", "baseHp": 95, "baseAc": 13, "attackBonus": 7, "levelRequirement": 5 },
+  "dnd_young_red_dragon": { "entityType": "enemy", "name": "Young Red Dragon", "baseHp": 480, "baseAc": 18, "attackBonus": 10, "levelRequirement": 11, "isBoss": true }
+}

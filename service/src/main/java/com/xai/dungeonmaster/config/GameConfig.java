@@ -2,6 +2,7 @@ package com.xai.dungeonmaster.config;
 
 import com.xai.dungeonmaster.DungeonMasterEngine;
 import com.xai.dungeonmaster.plugin.PluginLoader;
+import com.xai.dungeonmaster.plugin.SandboxPolicy;
 import com.xai.dungeonmaster.plugin.LLMProvider;
 import com.xai.dungeonmaster.plugin.LLMProviderRegistry;
 import com.xai.dungeonmaster.plugin.builtin.ModerationProvider;
@@ -68,6 +69,10 @@ public class GameConfig {
     @Value("${game.plugins.signature.policy:LENIENT}")
     private String pluginSignaturePolicy;
 
+    /** Whether to sandbox-scan plugin bytecode (reject blocked-API references) before loading. */
+    @Value("${game.plugins.sandbox.enabled:true}")
+    private boolean pluginSandboxEnabled;
+
     @Bean
     public DungeonMasterEngine dungeonMasterEngine(SimpMessagingTemplate messaging) {
 
@@ -81,7 +86,8 @@ public class GameConfig {
         // 2. Code-bearing plugins (mods). Verify JAR signatures per the
         //    configured policy before any plugin code is loaded.
         PluginLoader.SignaturePolicy sigPolicy = parseSignaturePolicy(pluginSignaturePolicy);
-        PluginLoader.LoadReport report = PluginLoader.loadAll(Paths.get(pluginsDir), sigPolicy);
+        SandboxPolicy sandboxPolicy = pluginSandboxEnabled ? SandboxPolicy.defaults() : SandboxPolicy.disabled();
+        PluginLoader.LoadReport report = PluginLoader.loadAll(Paths.get(pluginsDir), sigPolicy, sandboxPolicy);
         if (!report.loaded.isEmpty() || !report.failed.isEmpty() || !report.rejected.isEmpty()) {
             System.out.println("[plugins] " + report + " (signature policy: " + sigPolicy + ")");
             report.rejected.forEach(r -> System.err.println("[plugins] REJECTED " + r));

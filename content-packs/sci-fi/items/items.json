@@ -1,0 +1,7 @@
+{
+  "sci_medgel": { "name": "Medgel Injector", "description": "Cold foam that seals hull breaches in flesh just as well as steel.", "type": "CONSUMABLE", "rarity": "COMMON", "effectKey": "HEAL", "power": 22 },
+  "sci_power_cell": { "name": "Fusion Power Cell", "description": "A palm-sized sun; slot it to recharge an exosuit's reserves.", "type": "CONSUMABLE", "rarity": "UNCOMMON", "effectKey": "RESTORE_MANA", "power": 26 },
+  "sci_deflector": { "name": "Deflector Array", "description": "A shimmering kinetic field that shrugs off incoming fire.", "type": "EQUIPMENT", "rarity": "RARE", "effectKey": "BUFF_AC", "power": 16 },
+  "sci_nanite_purge": { "name": "Nanite Purge Canister", "description": "Counter-swarm nanites that scrub hostile code and toxins alike.", "type": "CONSUMABLE", "rarity": "UNCOMMON", "effectKey": "CLEANSE", "power": 20 },
+  "sci_singularity_core": { "name": "Contained Singularity Core", "description": "A droplet of caged gravity. Reactor-grade. Absurdly valuable.", "type": "KEY_ITEM", "rarity": "LEGENDARY", "effectKey": "NONE", "power": 70 }
+}

@@ -1,0 +1,7 @@
+{
+  "cozy_hot_cocoa": { "name": "Mug of Hot Cocoa", "description": "Marshmallows and warmth; a sip mends scrapes and spirits alike.", "type": "CONSUMABLE", "rarity": "COMMON", "effectKey": "HEAL", "power": 16 },
+  "cozy_acorn_tea": { "name": "Acorn Tea", "description": "Steeped by firelight; it settles the mind and refills the well of magic.", "type": "CONSUMABLE", "rarity": "UNCOMMON", "effectKey": "RESTORE_MANA", "power": 20 },
+  "cozy_quilted_cloak": { "name": "Quilted Patchwork Cloak", "description": "Stitched from a hundred kind hands; softer than armor, somehow tougher.", "type": "EQUIPMENT", "rarity": "RARE", "effectKey": "BUFF_AC", "power": 12 },
+  "cozy_soothing_balm": { "name": "Soothing Herb Balm", "description": "Lavender and mint that chase off stings, rashes, and bad moods.", "type": "CONSUMABLE", "rarity": "UNCOMMON", "effectKey": "CLEANSE", "power": 16 },
+  "cozy_heart_of_hearth": { "name": "Heart of the Hearth", "description": "A warm ember that never fades. Home, made small enough to carry.", "type": "KEY_ITEM", "rarity": "LEGENDARY", "effectKey": "NONE", "power": 40 }
+}

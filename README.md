@@ -4,7 +4,7 @@ A single-player, AI-narrated dungeon crawler built as a portable game engine: a
 pure-Java core, a Spring Boot server, a versioned REST + WebSocket API, an
 offline-capable LLM narration layer, and a data-driven content-pack system.
 
-> Java 17 · Spring Boot 3.2.5 · Maven multi-module · 54 tests green
+> Java 17 · Spring Boot 3.2.5 · Maven multi-module · 69 tests green
 
 ## Overview
 
@@ -32,7 +32,7 @@ Two Maven modules:
 ## Build & test
 
 ```bash
-mvn clean test     # compile both modules and run the suite (54 tests)
+mvn clean test     # compile both modules and run the suite (69 tests)
 mvn package        # build the runnable Spring Boot jar
 ```
 
@@ -109,9 +109,9 @@ The full contract is documented and validated under [`docs/api/`](docs/api/):
 - [`openapi.yaml`](docs/api/openapi.yaml) — OpenAPI 3.0.3 (REST)
 - [`asyncapi.yaml`](docs/api/asyncapi.yaml) — AsyncAPI 2.6.0 (WebSocket)
 
-A generated, type-checked TypeScript client lives in
-[`clients/typescript`](clients/); Kotlin and Swift come from the same spec — see
-[`clients/README.md`](clients/README.md).
+Generated, type-checked client SDKs live in [`clients/`](clients/):
+`typescript/`, `kotlin/` (Android/JVM), and `swift/` (iOS/macOS) — all from the
+same spec via openapi-generator 7.7.0. See [`clients/README.md`](clients/README.md).
 
 ## AI narration (LLM providers)
 
@@ -120,10 +120,11 @@ Narration flows through a swappable
 SPI, so the backend can change per deployment or per turn without touching game
 code:
 
-- **Offline by default.** The bundled `local-stub` provider is deterministic and
-  needs no API key or network — ideal for dev, CI, and a free/privacy tier. Real
-  keyed backends (OpenAI, Anthropic, xAI, local llama.cpp) implement the same
-  interface and slot in behind `LLMProviderRegistry`.
+- **Offline by default, keyed when you want it.** The bundled `local-stub`
+  provider is deterministic and needs no API key or network — ideal for dev, CI,
+  and a free/privacy tier. Keyed backends for **OpenAI, Anthropic, xAI, and local
+  llama** ship too: set `game.narration.provider` and the matching `*_API_KEY` env
+  var. A provider with no key reports DOWN and the registry falls back to the stub.
 - **Guardrails.** `TokenBudgetProvider` enforces a per-session token ceiling and
   `ModerationProvider` filters output; they compose as decorators and are wired
   in `GameConfig`.
@@ -133,8 +134,10 @@ code:
 Config:
 
 ```properties
-game.narration.provider=local-stub    # active provider id
+game.narration.provider=local-stub    # local-stub | openai | anthropic | xai | llama
 game.narration.token.ceiling=4000     # per-session cost guardrail
+# Keyed providers read env / system props: OPENAI_API_KEY, ANTHROPIC_API_KEY,
+# XAI_API_KEY, LLAMA_BASE_URL (+ optional *_MODEL / *_BASE_URL overrides).
 ```
 
 ## Content packs & plugins
@@ -158,8 +161,12 @@ Game content is data-driven, not hardcoded:
   hashes the payload (SHA-256, all entries except `plugin.yaml`) and compares
   it to the manifest `signature` under a configurable
   `game.plugins.signature.policy` (LENIENT / REQUIRED / DISABLED).
-- A worked example pack ships in `content-packs/black-hollows/` (gothic horror):
-  themed monsters, items, and localized strings, loaded end-to-end by tests.
+- Plugin bytecode is sandboxed before instantiation: `SandboxedClassLoader`
+  rejects classes referencing blocked APIs (process exec, reflection, raw net/fs,
+  JDK internals) under `game.plugins.sandbox.enabled` (default on).
+- Four themed packs ship under `content-packs/`: `black-hollows` (horror),
+  `dnd-classic`, `sci-fi`, and `cozy-hearthwood` — monsters, items, and localized
+  strings, each loaded end-to-end by tests.
 
 ## Project layout
 
@@ -170,7 +177,8 @@ docs/
   api/                OpenAPI + AsyncAPI specs and SDK-generation notes
   ROADMAP_STATUS.md   current state vs the 5-phase roadmap
 clients/
-  typescript/         generated, type-checked REST client
+  typescript/  kotlin/  swift/   generated REST client SDKs (openapi-generator)
+content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hearthwood
 ```
 
 ## Configuration reference
@@ -189,6 +197,7 @@ clients/
 | `game.auth.jwt.secret` | _(insecure dev secret)_ | HMAC-SHA256 token signing secret |
 | `game.auth.jwt.ttl-seconds` | `86400` | Session token lifetime (seconds) |
 | `game.plugins.signature.policy` | `LENIENT` | Plugin signature policy: LENIENT / REQUIRED / DISABLED |
+| `game.plugins.sandbox.enabled` | `true` | Sandbox-scan plugin bytecode before loading |
 
 ## Roadmap
 
@@ -196,9 +205,11 @@ See [`docs/ROADMAP_STATUS.md`](docs/ROADMAP_STATUS.md) for a detailed,
 code-grounded status. In brief: Phase 0 (hygiene) is complete, Phase 1 (headless
 core + plugin SPI) is complete — all eight SPIs are dispatchable and plugin JARs
 are signature-verified — and Phase 2 (v2 API + LLM provider) is largely built:
-typed envelope, structured party state, the provider stack with guardrails and
-streaming, validated specs, a generated client, and session identity + JWT auth.
-Native clients (Steam / Android / iOS) and storefront integrations are future phases.
+typed envelope, structured party state, the provider stack with guardrails,
+streaming, and keyed OpenAI/Anthropic/xAI/llama backends, validated specs,
+generated TypeScript/Kotlin/Swift clients, and session identity + JWT auth. Plugin
+mods are signed and sandboxed, and four themed content packs ship. The native
+client apps (Steam / Android / iOS) and storefront integrations are future phases.
 
 ## License
 

@@ -1,0 +1,7 @@
+{
+  "dnd_potion_healing": { "name": "Potion of Healing", "description": "A ruby draught that knits wounds in a warm rush.", "type": "CONSUMABLE", "rarity": "COMMON", "effectKey": "HEAL", "power": 20 },
+  "dnd_potion_mana": { "name": "Draught of Arcane Vigor", "description": "Bottled starlight; it rekindles a caster's spent power.", "type": "CONSUMABLE", "rarity": "UNCOMMON", "effectKey": "RESTORE_MANA", "power": 24 },
+  "dnd_shield_valor": { "name": "Shield of Valor", "description": "Blessed oak and steel that turns aside the cruelest blow.", "type": "EQUIPMENT", "rarity": "RARE", "effectKey": "BUFF_AC", "power": 15 },
+  "dnd_antitoxin": { "name": "Vial of Antitoxin", "description": "Bitter, chalky, and very good at flushing venom.", "type": "CONSUMABLE", "rarity": "UNCOMMON", "effectKey": "CLEANSE", "power": 18 },
+  "dnd_holy_avenger": { "name": "Holy Avenger", "description": "A greatsword that hums with righteous fire in the presence of evil.", "type": "EQUIPMENT", "rarity": "LEGENDARY", "effectKey": "NONE", "power": 55 }
+}

@@ -1,1 +1,5 @@
 com.xai.dungeonmaster.plugin.builtin.LocalStubProvider
+com.xai.dungeonmaster.plugin.builtin.llm.OpenAiProvider
+com.xai.dungeonmaster.plugin.builtin.llm.XaiProvider
+com.xai.dungeonmaster.plugin.builtin.llm.AnthropicProvider
+com.xai.dungeonmaster.plugin.builtin.llm.LlamaProvider

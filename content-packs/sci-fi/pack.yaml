@@ -1,0 +1,5 @@
+id: "sci-fi"
+displayName: "Derelict Station Zero"
+version: "1.0.0"
+minEngineVersion: "1.0.0"
+description: "A hard-sci-fi boarding action: rogue drones, plasma troopers, a hive synth, and the station's dreadnought AI core. Medgel, power cells, and a deflector array keep you breathing."

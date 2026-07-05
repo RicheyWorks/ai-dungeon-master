@@ -1,0 +1,6 @@
+{
+  "sci_recon_drone": { "entityType": "enemy", "name": "Rogue Recon Drone", "baseHp": 30, "baseAc": 15, "attackBonus": 5, "levelRequirement": 1, "lootTable": ["sci_medgel"] },
+  "sci_plasma_trooper": { "entityType": "enemy", "name": "Plasma Trooper", "baseHp": 64, "baseAc": 16, "attackBonus": 7, "levelRequirement": 4 },
+  "sci_hive_synth": { "entityType": "enemy", "name": "Hive Synth", "baseHp": 120, "baseAc": 15, "attackBonus": 8, "levelRequirement": 6 },
+  "sci_dreadnought_ai": { "entityType": "enemy", "name": "Dreadnought AI Core", "baseHp": 620, "baseAc": 20, "attackBonus": 12, "levelRequirement": 13, "isBoss": true }
+}
