@@ -53,6 +53,156 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
     }
 
     /**
+     * Disable a content pack; returns the updated catalog.
+     * 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return CatalogEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun disablePackV2(id: kotlin.String, xRequestId: kotlin.String? = null) : CatalogEnvelope {
+        val localVarResponse = disablePackV2WithHttpInfo(id = id, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as CatalogEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Disable a content pack; returns the updated catalog.
+     * 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<CatalogEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun disablePackV2WithHttpInfo(id: kotlin.String, xRequestId: kotlin.String?) : ApiResponse<CatalogEnvelope?> {
+        val localVariableConfig = disablePackV2RequestConfig(id = id, xRequestId = xRequestId)
+
+        return request<Unit, CatalogEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation disablePackV2
+     *
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun disablePackV2RequestConfig(id: kotlin.String, xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.POST,
+            path = "/v2/catalog/packs/{id}/disable".replace("{"+"id"+"}", encodeURIComponent(id.toString())),
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Enable a content pack; returns the updated catalog.
+     * 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return CatalogEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun enablePackV2(id: kotlin.String, xRequestId: kotlin.String? = null) : CatalogEnvelope {
+        val localVarResponse = enablePackV2WithHttpInfo(id = id, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as CatalogEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Enable a content pack; returns the updated catalog.
+     * 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<CatalogEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun enablePackV2WithHttpInfo(id: kotlin.String, xRequestId: kotlin.String?) : ApiResponse<CatalogEnvelope?> {
+        val localVariableConfig = enablePackV2RequestConfig(id = id, xRequestId = xRequestId)
+
+        return request<Unit, CatalogEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation enablePackV2
+     *
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun enablePackV2RequestConfig(id: kotlin.String, xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.POST,
+            path = "/v2/catalog/packs/{id}/enable".replace("{"+"id"+"}", encodeURIComponent(id.toString())),
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
      * Installed content packs and registered plugins (mod browser).
      * 
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)

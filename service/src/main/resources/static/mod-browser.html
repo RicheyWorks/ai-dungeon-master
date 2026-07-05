@@ -35,6 +35,10 @@
   .pack .id { color:var(--muted); font-size:12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
   .pack .meta { margin-top:10px; display:flex; gap:16px; color:var(--muted); font-size:13px; }
   .pack .meta b { color:var(--ink); }
+  .pack.disabled { opacity:.48; }
+  .pack .toggle { margin-top:12px; background:transparent; border:1px solid var(--edge); color:var(--ink);
+                  border-radius:8px; padding:5px 12px; font-size:12px; cursor:pointer; }
+  .pack .toggle:hover { border-color:var(--accent); }
   .group { margin-bottom:14px; }
   .group .label { color:var(--muted); font-size:12px; margin-bottom:6px; }
   .chips { display:flex; flex-wrap:wrap; gap:6px; }
@@ -115,7 +119,8 @@
     var packs = payload.contentPacks || [];
     if (packs.length === 0) packsEl.appendChild(el("div", "status", "No content packs installed."));
     packs.forEach(function (p) {
-      var card = el("div", "pack");
+      var enabled = p.enabled !== false;
+      var card = el("div", "pack" + (enabled ? "" : " disabled"));
       card.appendChild(el("div", "name", p.displayName || p.id));
       card.appendChild(el("div", "id", p.id + " · v" + (p.version || "?")));
       var meta = el("div", "meta");
@@ -123,6 +128,12 @@
       var i = el("span", null); i.innerHTML = "<b>" + (p.items || 0) + "</b> items";
       meta.appendChild(m); meta.appendChild(i);
       card.appendChild(meta);
+      var toggle = el("button", "toggle", enabled ? "Disable" : "Enable");
+      toggle.setAttribute("data-pack", p.id);
+      (function (id, isEnabled) {
+        toggle.addEventListener("click", function () { togglePack(id, !isEnabled); });
+      })(p.id, enabled);
+      card.appendChild(toggle);
       packsEl.appendChild(card);
     });
 
@@ -157,6 +168,16 @@
     return v.replace(/\/+$/, "");
   }
 
+  function togglePack(id, enable) {
+    var action = enable ? "enable" : "disable";
+    setStatus((enable ? "Enabling " : "Disabling ") + id + "…", false);
+    return fetch(apiBase() + "/v2/catalog/packs/" + encodeURIComponent(id) + "/" + action,
+                 { method: "POST", headers: { "Accept": "application/json" } })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (env) { renderCatalog(env.payload || env); setStatus("", false); })
+      .catch(function (e) { setStatus("Toggle failed (" + e.message + ").", true); });
+  }
+
   function loadCatalog() {
     setStatus("Loading catalog…", false);
     return fetch(apiBase() + "/v2/catalog", { headers: { "Accept": "application/json" } })
@@ -179,6 +200,7 @@
   if (typeof window !== "undefined") {
     window.renderCatalog = renderCatalog;
     window.loadCatalog = loadCatalog;
+    window.togglePack = togglePack;
   }
 </script>
 </body>

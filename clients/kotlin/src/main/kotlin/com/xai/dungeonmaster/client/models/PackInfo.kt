@@ -27,6 +27,7 @@ import com.squareup.moshi.JsonClass
  * @param version 
  * @param monsters 
  * @param items 
+ * @param enabled 
  */
 
 
@@ -45,7 +46,10 @@ data class PackInfo (
     val monsters: kotlin.Int? = null,
 
     @Json(name = "items")
-    val items: kotlin.Int? = null
+    val items: kotlin.Int? = null,
+
+    @Json(name = "enabled")
+    val enabled: kotlin.Boolean? = null
 
 ) {
 

@@ -2,6 +2,7 @@ package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.dto.CatalogPayload;
 import com.xai.dungeonmaster.dto.Envelope;
+import com.xai.dungeonmaster.dto.ErrorPayload;
 import com.xai.dungeonmaster.dto.NarrationInfo;
 import com.xai.dungeonmaster.dto.PackInfo;
 import com.xai.dungeonmaster.dto.PluginSummary;
@@ -15,25 +16,23 @@ import com.xai.dungeonmaster.plugin.LootTableRegistry;
 import com.xai.dungeonmaster.plugin.QuestScriptRegistry;
 import com.xai.dungeonmaster.plugin.SpellEffectRegistry;
 import com.xai.dungeonmaster.plugin.StorefrontRegistry;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 /**
- * Read-only catalog of everything the engine has loaded — content packs and
- * plugins across all eight SPIs, plus the active narration backend. Backs an
- * in-game content-pack / mod browser.
+ * Read + light-write catalog of everything the engine has loaded — content
+ * packs and plugins across all eight SPIs, plus the active narration backend.
+ * Backs the in-game content-pack / mod browser.
  *
- * GET /v2/catalog → envelope { type: "catalog", payload: { contentPacks, plugins, narration } }
+ * GET  /v2/catalog                     — full catalog envelope
+ * POST /v2/catalog/packs/{id}/enable   — enable a content pack, returns the updated catalog
+ * POST /v2/catalog/packs/{id}/disable  — disable a content pack, returns the updated catalog
  *
- * Sourced entirely from the process-wide registries, so it needs no engine
- * instance and reflects live state (built-ins plus anything packs/mods added).
+ * Sourced from the process-wide registries, so it reflects live state.
  */
 @RestController
 @RequestMapping("/v2/catalog")
@@ -43,7 +42,33 @@ public class CatalogController {
     @GetMapping
     public Envelope<CatalogPayload> catalog(
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        return Envelope.of("catalog", buildPayload(), requestId);
+    }
 
+    @PostMapping("/packs/{id}/enable")
+    public ResponseEntity<Envelope<?>> enablePack(
+            @PathVariable("id") String id,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        return toggle(id, true, requestId);
+    }
+
+    @PostMapping("/packs/{id}/disable")
+    public ResponseEntity<Envelope<?>> disablePack(
+            @PathVariable("id") String id,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        return toggle(id, false, requestId);
+    }
+
+    private ResponseEntity<Envelope<?>> toggle(String id, boolean enabled, String requestId) {
+        if (!ContentRegistry.isKnown(id)) {
+            return ResponseEntity.status(404).body(
+                    Envelope.of("error", new ErrorPayload("Unknown content pack: " + id), requestId));
+        }
+        ContentRegistry.setEnabled(id, enabled);
+        return ResponseEntity.ok(Envelope.of("catalog", buildPayload(), requestId));
+    }
+
+    private CatalogPayload buildPayload() {
         List<PackInfo> packs = new ArrayList<>();
         for (ContentPack pack : ContentRegistry.packs().values()) {
             packs.add(new PackInfo(
@@ -51,7 +76,8 @@ public class CatalogController {
                     pack.displayName(),
                     pack.version(),
                     pack.monsters().size(),
-                    pack.items().size()));
+                    pack.items().size(),
+                    ContentRegistry.isEnabled(pack.id())));
         }
         packs.sort((a, b) -> a.id().compareToIgnoreCase(b.id()));
 
@@ -70,7 +96,7 @@ public class CatalogController {
                 active.health().name(),
                 sorted(LLMProviderRegistry.registeredIds()));
 
-        return Envelope.of("catalog", new CatalogPayload(packs, plugins, narration), requestId);
+        return new CatalogPayload(packs, plugins, narration);
     }
 
     private static List<String> sorted(Collection<String> ids) {

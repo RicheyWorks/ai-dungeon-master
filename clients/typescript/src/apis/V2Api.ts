@@ -43,6 +43,16 @@ import {
     VerifyReceiptRequestToJSON,
 } from '../models/index';
 
+export interface DisablePackV2Request {
+    id: string;
+    xRequestId?: string;
+}
+
+export interface EnablePackV2Request {
+    id: string;
+    xRequestId?: string;
+}
+
 export interface GetCatalogV2Request {
     xRequestId?: string;
 }
@@ -74,6 +84,80 @@ export interface VerifyReceiptV2Request {
  * 
  */
 export class V2Api extends runtime.BaseAPI {
+
+    /**
+     * Disable a content pack; returns the updated catalog.
+     */
+    async disablePackV2Raw(requestParameters: DisablePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CatalogEnvelope>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling disablePackV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/catalog/packs/{id}/disable`.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CatalogEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Disable a content pack; returns the updated catalog.
+     */
+    async disablePackV2(requestParameters: DisablePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CatalogEnvelope> {
+        const response = await this.disablePackV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Enable a content pack; returns the updated catalog.
+     */
+    async enablePackV2Raw(requestParameters: EnablePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CatalogEnvelope>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling enablePackV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/catalog/packs/{id}/enable`.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CatalogEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Enable a content pack; returns the updated catalog.
+     */
+    async enablePackV2(requestParameters: EnablePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CatalogEnvelope> {
+        const response = await this.enablePackV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Installed content packs and registered plugins (mod browser).

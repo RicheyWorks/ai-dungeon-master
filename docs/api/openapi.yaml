@@ -94,6 +94,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CatalogEnvelope'
+  /v2/catalog/packs/{id}/enable:
+    post:
+      tags: [v2]
+      operationId: enablePackV2
+      summary: Enable a content pack; returns the updated catalog.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Updated catalog envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogEnvelope'
+        '404':
+          description: Unknown content pack.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /v2/catalog/packs/{id}/disable:
+    post:
+      tags: [v2]
+      operationId: disablePackV2
+      summary: Disable a content pack; returns the updated catalog.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Updated catalog envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogEnvelope'
+        '404':
+          description: Unknown content pack.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /v2/entitlements/verify:
     post:
       tags: [v2]
@@ -373,6 +421,7 @@ components:
         version: { type: string }
         monsters: { type: integer }
         items: { type: integer }
+        enabled: { type: boolean }
     PluginSummary:
       type: object
       description: Registered plugin ids (or biome tags) grouped by SPI.

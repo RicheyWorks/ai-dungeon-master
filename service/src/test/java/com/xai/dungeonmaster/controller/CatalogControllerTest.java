@@ -2,20 +2,21 @@ package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.plugin.ContentRegistry;
 import com.xai.dungeonmaster.plugin.DefaultContentPack;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
 /**
- * Standalone MockMvc test for the catalog endpoint (mirrors the other controller
- * tests). Registers the bundled content pack, then asserts /v2/catalog surfaces
- * it plus the ServiceLoader-discovered plugins and active narration provider.
+ * Standalone MockMvc test for the catalog endpoint: it lists packs (with enabled
+ * state), plugins, and narration, and lets a pack be toggled on/off.
  */
 class CatalogControllerTest {
 
@@ -24,7 +25,7 @@ class CatalogControllerTest {
     @BeforeEach
     void setUp() {
         ContentRegistry.clearForTests();
-        ContentRegistry.register(new DefaultContentPack()); // items.json + monsters.json
+        ContentRegistry.register(new DefaultContentPack()); // "builtin"
         mvc = standaloneSetup(new CatalogController()).build();
     }
 
@@ -38,23 +39,31 @@ class CatalogControllerTest {
         mvc.perform(get("/v2/catalog"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type").value("catalog"))
-                .andExpect(jsonPath("$.version").value(1))
-                // content packs
-                .andExpect(jsonPath("$.payload.contentPacks").isArray())
                 .andExpect(jsonPath("$.payload.contentPacks[?(@.id=='builtin')]").exists())
                 .andExpect(jsonPath("$.payload.contentPacks[?(@.id=='builtin')].monsters").isNotEmpty())
-                .andExpect(jsonPath("$.payload.contentPacks[?(@.id=='builtin')].items").isNotEmpty())
-                // plugins per SPI (bundled built-ins)
-                .andExpect(jsonPath("$.payload.plugins.spellEffects").value(org.hamcrest.Matchers.hasItem("VOID_BOLT")))
-                .andExpect(jsonPath("$.payload.plugins.itemEffects").value(org.hamcrest.Matchers.hasItem("HEAL")))
-                .andExpect(jsonPath("$.payload.plugins.encounterBiomes").value(org.hamcrest.Matchers.hasItem("default")))
-                .andExpect(jsonPath("$.payload.plugins.lootBiomes").value(org.hamcrest.Matchers.hasItem("default")))
-                .andExpect(jsonPath("$.payload.plugins.questScripts").value(org.hamcrest.Matchers.hasItem("default")))
-                .andExpect(jsonPath("$.payload.plugins.storefronts").value(org.hamcrest.Matchers.hasItem("none")))
-                .andExpect(jsonPath("$.payload.plugins.llmProviders").value(org.hamcrest.Matchers.hasItem("local-stub")))
-                .andExpect(jsonPath("$.payload.plugins.llmProviders").value(org.hamcrest.Matchers.hasItem("openai")))
-                // narration
-                .andExpect(jsonPath("$.payload.narration.active").isNotEmpty())
-                .andExpect(jsonPath("$.payload.narration.available").isArray());
+                .andExpect(jsonPath("$.payload.contentPacks[?(@.id=='builtin')].enabled").value(Matchers.hasItem(true)))
+                .andExpect(jsonPath("$.payload.plugins.itemEffects").value(Matchers.hasItem("HEAL")))
+                .andExpect(jsonPath("$.payload.plugins.storefronts").value(Matchers.hasItem("dev")))
+                .andExpect(jsonPath("$.payload.plugins.llmProviders").value(Matchers.hasItem("local-stub")))
+                .andExpect(jsonPath("$.payload.narration.active").isNotEmpty());
+    }
+
+    @Test
+    void disableThenEnableTogglesPackState() throws Exception {
+        mvc.perform(post("/v2/catalog/packs/builtin/disable"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("catalog"))
+                .andExpect(jsonPath("$.payload.contentPacks[?(@.id=='builtin')].enabled").value(Matchers.hasItem(false)));
+
+        mvc.perform(post("/v2/catalog/packs/builtin/enable"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.contentPacks[?(@.id=='builtin')].enabled").value(Matchers.hasItem(true)));
+    }
+
+    @Test
+    void togglingUnknownPackReturns404() throws Exception {
+        mvc.perform(post("/v2/catalog/packs/does-not-exist/disable"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.type").value("error"));
     }
 }

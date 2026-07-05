@@ -55,5 +55,11 @@ class PackInfoTest : ShouldSpec() {
             //modelInstance.items shouldBe ("TODO")
         }
 
+        // to test the property `enabled`
+        should("test enabled") {
+            // uncomment below to test the property
+            //modelInstance.enabled shouldBe ("TODO")
+        }
+
     }
 }

@@ -18,13 +18,15 @@ public struct PackInfo: Codable, JSONEncodable, Hashable {
     public var version: String?
     public var monsters: Int?
     public var items: Int?
+    public var enabled: Bool?
 
-    public init(id: String? = nil, displayName: String? = nil, version: String? = nil, monsters: Int? = nil, items: Int? = nil) {
+    public init(id: String? = nil, displayName: String? = nil, version: String? = nil, monsters: Int? = nil, items: Int? = nil, enabled: Bool? = nil) {
         self.id = id
         self.displayName = displayName
         self.version = version
         self.monsters = monsters
         self.items = items
+        self.enabled = enabled
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -33,6 +35,7 @@ public struct PackInfo: Codable, JSONEncodable, Hashable {
         case version
         case monsters
         case items
+        case enabled
     }
 
     // Encodable protocol methods
@@ -44,6 +47,7 @@ public struct PackInfo: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(version, forKey: .version)
         try container.encodeIfPresent(monsters, forKey: .monsters)
         try container.encodeIfPresent(items, forKey: .items)
+        try container.encodeIfPresent(enabled, forKey: .enabled)
     }
 }
 

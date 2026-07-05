@@ -57,6 +57,8 @@ All URIs are relative to *http://localhost:8080*
 | *LegacyApi* | [**saveGameLegacy**](docs/LegacyApi.md#savegamelegacy) | **POST** /api/game/save |  |
 | *LegacyApi* | [**startQuestLegacy**](docs/LegacyApi.md#startquestlegacy) | **POST** /api/game/start | (Re)start the quest and return the opening banner. |
 | *LegacyApi* | [**submitActionLegacy**](docs/LegacyApi.md#submitactionlegacy) | **POST** /api/game/action |  |
+| *V2Api* | [**disablePackV2**](docs/V2Api.md#disablepackv2) | **POST** /v2/catalog/packs/{id}/disable | Disable a content pack; returns the updated catalog. |
+| *V2Api* | [**enablePackV2**](docs/V2Api.md#enablepackv2) | **POST** /v2/catalog/packs/{id}/enable | Enable a content pack; returns the updated catalog. |
 | *V2Api* | [**getCatalogV2**](docs/V2Api.md#getcatalogv2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser). |
 | *V2Api* | [**getStatusV2**](docs/V2Api.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope. |
 | *V2Api* | [**listEntitlementsV2**](docs/V2Api.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller's owned products. |

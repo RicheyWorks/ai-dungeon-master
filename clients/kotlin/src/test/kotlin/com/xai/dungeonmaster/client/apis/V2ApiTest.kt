@@ -33,6 +33,24 @@ class V2ApiTest : ShouldSpec() {
         // uncomment below to create an instance of V2Api
         //val apiInstance = V2Api()
 
+        // to test disablePackV2
+        should("test disablePackV2") {
+            // uncomment below to test disablePackV2
+            //val id : kotlin.String = id_example // kotlin.String | 
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : CatalogEnvelope = apiInstance.disablePackV2(id, xRequestId)
+            //result shouldBe ("TODO")
+        }
+
+        // to test enablePackV2
+        should("test enablePackV2") {
+            // uncomment below to test enablePackV2
+            //val id : kotlin.String = id_example // kotlin.String | 
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : CatalogEnvelope = apiInstance.enablePackV2(id, xRequestId)
+            //result shouldBe ("TODO")
+        }
+
         // to test getCatalogV2
         should("test getCatalogV2") {
             // uncomment below to test getCatalogV2

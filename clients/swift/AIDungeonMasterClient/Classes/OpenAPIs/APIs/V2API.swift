@@ -13,6 +13,86 @@ import AnyCodable
 open class V2API {
 
     /**
+     Disable a content pack; returns the updated catalog.
+     
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: CatalogEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func disablePackV2(id: String, xRequestId: String? = nil) async throws -> CatalogEnvelope {
+        return try await disablePackV2WithRequestBuilder(id: id, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Disable a content pack; returns the updated catalog.
+     - POST /v2/catalog/packs/{id}/disable
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<CatalogEnvelope> 
+     */
+    open class func disablePackV2WithRequestBuilder(id: String, xRequestId: String? = nil) -> RequestBuilder<CatalogEnvelope> {
+        var localVariablePath = "/v2/catalog/packs/{id}/disable"
+        let idPreEscape = "\(APIHelper.mapValueToPathItem(id))"
+        let idPostEscape = idPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{id}", with: idPostEscape, options: .literal, range: nil)
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<CatalogEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Enable a content pack; returns the updated catalog.
+     
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: CatalogEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func enablePackV2(id: String, xRequestId: String? = nil) async throws -> CatalogEnvelope {
+        return try await enablePackV2WithRequestBuilder(id: id, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Enable a content pack; returns the updated catalog.
+     - POST /v2/catalog/packs/{id}/enable
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<CatalogEnvelope> 
+     */
+    open class func enablePackV2WithRequestBuilder(id: String, xRequestId: String? = nil) -> RequestBuilder<CatalogEnvelope> {
+        var localVariablePath = "/v2/catalog/packs/{id}/enable"
+        let idPreEscape = "\(APIHelper.mapValueToPathItem(id))"
+        let idPostEscape = idPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{id}", with: idPostEscape, options: .literal, range: nil)
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<CatalogEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Installed content packs and registered plugins (mod browser).
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)

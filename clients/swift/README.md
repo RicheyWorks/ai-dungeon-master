@@ -38,6 +38,8 @@ Class | Method | HTTP request | Description
 *LegacyAPI* | [**saveGameLegacy**](docs/LegacyAPI.md#savegamelegacy) | **POST** /api/game/save | 
 *LegacyAPI* | [**startQuestLegacy**](docs/LegacyAPI.md#startquestlegacy) | **POST** /api/game/start | (Re)start the quest and return the opening banner.
 *LegacyAPI* | [**submitActionLegacy**](docs/LegacyAPI.md#submitactionlegacy) | **POST** /api/game/action | 
+*V2API* | [**disablePackV2**](docs/V2API.md#disablepackv2) | **POST** /v2/catalog/packs/{id}/disable | Disable a content pack; returns the updated catalog.
+*V2API* | [**enablePackV2**](docs/V2API.md#enablepackv2) | **POST** /v2/catalog/packs/{id}/enable | Enable a content pack; returns the updated catalog.
 *V2API* | [**getCatalogV2**](docs/V2API.md#getcatalogv2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser).
 *V2API* | [**getStatusV2**](docs/V2API.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope.
 *V2API* | [**listEntitlementsV2**](docs/V2API.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller&#39;s owned products.

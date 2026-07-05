@@ -76,6 +76,7 @@ stable, self-describing shape:
 | `POST /v2/session` | Create a guest session; returns a JWT + session id |
 | `GET /v2/session/me` | Echo the caller's session (requires a Bearer token) |
 | `GET /v2/catalog` | Installed content packs + registered plugins (mod browser) |
+| `POST /v2/catalog/packs/{id}/enable` · `/disable` | Toggle a content pack on/off at runtime |
 | `POST /v2/entitlements/verify` | Validate a purchase receipt and grant the entitlement |
 | `GET /v2/entitlements` | List the caller's owned products |
 | `GET/POST /api/game/*` | Original unversioned API (kept for existing clients) |
@@ -172,7 +173,8 @@ Game content is data-driven, not hardcoded:
   strings, each loaded end-to-end by tests.
 - A static **mod-browser page** ships at `/mod-browser.html` (served by the
   engine): it renders the `/v2/catalog` data — installed packs, plugins per SPI,
-  and the narration provider — with no build step or dependencies.
+  and the narration provider — and can **enable/disable packs at runtime**, with
+  no build step or dependencies.
 
 ## Project layout
 

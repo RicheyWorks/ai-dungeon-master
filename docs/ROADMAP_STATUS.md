@@ -15,7 +15,7 @@ groundwork shipped.
 | 2 — API v2 + LLM provider | envelope, PartyState, LLM stack + keyed providers, streaming, specs, SDKs, auth, sessions, entitlements | ✅ Done |
 | 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ SDK generated; UI not started |
 | 4 — Steam + iOS | Tauri, SwiftUI on the generated Swift SDK, storefronts | ◐ Swift SDK generated; apps not started |
-| 5 — Content packs & mods | packs, mod browser, signing, sandboxing | ◐ 4 packs + signing + sandbox + catalog API + web mod-browser; install flow remains |
+| 5 — Content packs & mods | packs, mod browser, signing, sandboxing | ◐ 4 packs + signing + sandbox + catalog + web mod-browser w/ enable-disable; pack upload remains |
 
 ## Phase 1 — Headless core + plugin SPI ✅
 
@@ -73,12 +73,14 @@ groundwork shipped.
   `cozy-hearthwood` — each loaded end-to-end by tests. Signing + sandboxing (Phase 1)
   are the security half of the mod story. The read model for a browser is now live
   (`GET /v2/catalog` lists installed packs and every registered plugin) and a
-  static web mod-browser page ships at `/mod-browser.html`; a richer in-game UI
-  and an install flow remain.
+  static web mod-browser page ships at `/mod-browser.html` that also enables and
+  disables packs at runtime (`POST /v2/catalog/packs/{id}/enable|disable`, backed
+  by a provenance-aware ContentRegistry). A richer in-game UI and pack
+  upload/install remain.
 
 ## Remaining backlog
 
-- Richer in-game mod-browser UI + install flow (a static `/mod-browser.html` page and the `/v2/catalog` API are done).
+- Richer in-game mod-browser UI + pack upload/install (the `/mod-browser.html` page, `/v2/catalog`, and runtime enable/disable are done).
 - Keyed-provider live smoke tests (need real API keys); shared session/entitlement datastore for multi-node.
 - Native client apps (Android Compose, iOS SwiftUI, Steam/Tauri) on the generated SDKs.
 - Deeper mod isolation (dedicated process / OS sandbox) beyond the static bytecode scan.

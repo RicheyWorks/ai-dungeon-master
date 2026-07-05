@@ -49,6 +49,12 @@ export interface PackInfo {
      * @memberof PackInfo
      */
     items?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PackInfo
+     */
+    enabled?: boolean;
 }
 
 /**
@@ -73,6 +79,7 @@ export function PackInfoFromJSONTyped(json: any, ignoreDiscriminator: boolean): 
         'version': json['version'] == null ? undefined : json['version'],
         'monsters': json['monsters'] == null ? undefined : json['monsters'],
         'items': json['items'] == null ? undefined : json['items'],
+        'enabled': json['enabled'] == null ? undefined : json['enabled'],
     };
 }
 
@@ -87,6 +94,7 @@ export function PackInfoToJSON(value?: PackInfo | null): any {
         'version': value['version'],
         'monsters': value['monsters'],
         'items': value['items'],
+        'enabled': value['enabled'],
     };
 }
 

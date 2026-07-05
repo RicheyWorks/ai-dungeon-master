@@ -23,6 +23,8 @@ class ModBrowserPageTest {
         }
         assertTrue(html.contains("/v2/catalog"), "page should call the catalog endpoint");
         assertTrue(html.contains("function renderCatalog"), "page should define renderCatalog");
+        assertTrue(html.contains("function togglePack"), "page should define the enable/disable toggle");
+        assertTrue(html.contains("/v2/catalog/packs/"), "page should call the pack toggle endpoints");
         for (String marker : new String[] {"id=\"packs\"", "id=\"plugins\"", "id=\"narration\"", "id=\"reload\""}) {
             assertTrue(html.contains(marker), "page should contain element " + marker);
         }
