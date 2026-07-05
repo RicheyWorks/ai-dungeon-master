@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AI Dungeon Master — Mod Browser</title>
+<style>
+  :root {
+    --bg:#0e0b14; --panel:#171221; --panel2:#1f1830; --edge:#2c2340;
+    --ink:#e9e4f5; --muted:#a99fc4; --accent:#b98cff; --accent2:#63d2b0;
+    --danger:#ff6b8b; --chip:#241c38;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:radial-gradient(1200px 600px at 70% -10%, #241a3a 0%, var(--bg) 60%);
+         color:var(--ink); font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  header { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+           padding:22px 28px; border-bottom:1px solid var(--edge); }
+  h1 { font-size:20px; margin:0; letter-spacing:.3px; }
+  h1 .sub { color:var(--muted); font-weight:400; font-size:13px; margin-left:8px; }
+  .spacer { flex:1; }
+  input, button { font:inherit; color:var(--ink); }
+  input { background:var(--panel2); border:1px solid var(--edge); border-radius:8px; padding:7px 10px; min-width:220px; }
+  button { background:var(--accent); color:#1a1030; border:0; border-radius:8px; padding:8px 14px; font-weight:600; cursor:pointer; }
+  button:hover { filter:brightness(1.08); }
+  main { padding:24px 28px; max-width:1080px; margin:0 auto; }
+  .status { margin:0 0 18px; padding:10px 14px; border-radius:8px; background:var(--panel); border:1px solid var(--edge); color:var(--muted); }
+  .status.error { color:var(--danger); border-color:#4a2233; background:#20141b; }
+  .status.hidden { display:none; }
+  section { margin:0 0 26px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:1.4px; color:var(--accent); margin:0 0 12px; }
+  .packs { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; }
+  .pack { background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--edge);
+          border-radius:12px; padding:14px 16px; }
+  .pack .name { font-weight:600; font-size:15px; }
+  .pack .id { color:var(--muted); font-size:12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
+  .pack .meta { margin-top:10px; display:flex; gap:16px; color:var(--muted); font-size:13px; }
+  .pack .meta b { color:var(--ink); }
+  .group { margin-bottom:14px; }
+  .group .label { color:var(--muted); font-size:12px; margin-bottom:6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:var(--chip); border:1px solid var(--edge); border-radius:999px;
+          padding:3px 10px; font-size:12px; font-family:ui-monospace,Menlo,Consolas,monospace; }
+  .chip.empty { color:var(--muted); font-style:italic; font-family:inherit; }
+  .narration { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+               background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:14px 16px; }
+  .badge { padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .health-OK { background:#12351f; color:var(--accent2); }
+  .health-DEGRADED { background:#3a3312; color:#e6c65a; }
+  .health-DOWN { background:#3a1620; color:var(--danger); }
+  .health-UNKNOWN { background:#20233a; color:var(--muted); }
+  .foot { color:var(--muted); font-size:12px; padding:0 28px 28px; max-width:1080px; margin:0 auto; }
+  code { background:var(--panel2); padding:1px 6px; border-radius:5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔️ AI Dungeon Master <span class="sub">Mod Browser</span></h1>
+  <span class="spacer"></span>
+  <input id="baseUrl" placeholder="API base (blank = same origin)" />
+  <button id="reload" type="button">Reload</button>
+</header>
+<main>
+  <div id="status" class="status">Loading catalog…</div>
+  <section>
+    <h2>Content Packs</h2>
+    <div id="packs" class="packs"></div>
+  </section>
+  <section>
+    <h2>Plugins</h2>
+    <div id="plugins"></div>
+  </section>
+  <section>
+    <h2>Narration</h2>
+    <div id="narration" class="narration"></div>
+  </section>
+</main>
+<p class="foot">Data from <code>GET /v2/catalog</code>. Served by the engine at
+<code>/mod-browser.html</code>, or open this file directly and point the API base at a running server.</p>
+
+<script>
+  "use strict";
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function chips(container, ids) {
+    if (!ids || ids.length === 0) {
+      container.appendChild(el("span", "chip empty", "none"));
+      return;
+    }
+    ids.forEach(function (id) { container.appendChild(el("span", "chip", id)); });
+  }
+
+  function group(label, ids) {
+    var g = el("div", "group");
+    g.appendChild(el("div", "label", label + " (" + (ids ? ids.length : 0) + ")"));
+    var c = el("div", "chips");
+    chips(c, ids);
+    g.appendChild(c);
+    return g;
+  }
+
+  // Render a CatalogPayload { contentPacks, plugins, narration } into the page.
+  function renderCatalog(payload) {
+    payload = payload || {};
+    var packsEl = document.getElementById("packs");
+    var pluginsEl = document.getElementById("plugins");
+    var narrEl = document.getElementById("narration");
+    packsEl.innerHTML = ""; pluginsEl.innerHTML = ""; narrEl.innerHTML = "";
+
+    var packs = payload.contentPacks || [];
+    if (packs.length === 0) packsEl.appendChild(el("div", "status", "No content packs installed."));
+    packs.forEach(function (p) {
+      var card = el("div", "pack");
+      card.appendChild(el("div", "name", p.displayName || p.id));
+      card.appendChild(el("div", "id", p.id + " · v" + (p.version || "?")));
+      var meta = el("div", "meta");
+      var m = el("span", null); m.innerHTML = "<b>" + (p.monsters || 0) + "</b> monsters";
+      var i = el("span", null); i.innerHTML = "<b>" + (p.items || 0) + "</b> items";
+      meta.appendChild(m); meta.appendChild(i);
+      card.appendChild(meta);
+      packsEl.appendChild(card);
+    });
+
+    var pl = payload.plugins || {};
+    pluginsEl.appendChild(group("Spell effects", pl.spellEffects));
+    pluginsEl.appendChild(group("Item effects", pl.itemEffects));
+    pluginsEl.appendChild(group("Encounter biomes", pl.encounterBiomes));
+    pluginsEl.appendChild(group("Loot biomes", pl.lootBiomes));
+    pluginsEl.appendChild(group("Quest scripts", pl.questScripts));
+    pluginsEl.appendChild(group("Storefronts", pl.storefronts));
+    pluginsEl.appendChild(group("LLM providers", pl.llmProviders));
+
+    var n = payload.narration || {};
+    narrEl.appendChild(el("span", null, "Active:"));
+    narrEl.appendChild(el("span", "chip", n.active || "unknown"));
+    var health = el("span", "badge health-" + (n.health || "UNKNOWN"), n.health || "UNKNOWN");
+    narrEl.appendChild(health);
+    var avail = el("div", "chips");
+    chips(avail, n.available);
+    narrEl.appendChild(avail);
+    return payload;
+  }
+
+  function setStatus(msg, isError) {
+    var s = document.getElementById("status");
+    s.textContent = msg || "";
+    s.className = "status" + (isError ? " error" : "") + (msg ? "" : " hidden");
+  }
+
+  function apiBase() {
+    var v = document.getElementById("baseUrl").value.trim();
+    return v.replace(/\/+$/, "");
+  }
+
+  function loadCatalog() {
+    setStatus("Loading catalog…", false);
+    return fetch(apiBase() + "/v2/catalog", { headers: { "Accept": "application/json" } })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (env) { renderCatalog(env.payload || env); setStatus("", false); })
+      .catch(function (e) {
+        setStatus("Could not load /v2/catalog (" + e.message + "). Is the engine running on :8080?", true);
+      });
+  }
+
+  if (typeof document !== "undefined") {
+    document.addEventListener("DOMContentLoaded", function () {
+      var btn = document.getElementById("reload");
+      if (btn) btn.addEventListener("click", loadCatalog);
+      // Only auto-fetch in a real browser; jsdom/tests call renderCatalog directly.
+      if (typeof fetch === "function") loadCatalog();
+    });
+  }
+
+  if (typeof window !== "undefined") {
+    window.renderCatalog = renderCatalog;
+    window.loadCatalog = loadCatalog;
+  }
+</script>
+</body>
+</html>

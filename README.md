@@ -170,6 +170,9 @@ Game content is data-driven, not hardcoded:
 - Four themed packs ship under `content-packs/`: `black-hollows` (horror),
   `dnd-classic`, `sci-fi`, and `cozy-hearthwood` — monsters, items, and localized
   strings, each loaded end-to-end by tests.
+- A static **mod-browser page** ships at `/mod-browser.html` (served by the
+  engine): it renders the `/v2/catalog` data — installed packs, plugins per SPI,
+  and the narration provider — with no build step or dependencies.
 
 ## Project layout
 
