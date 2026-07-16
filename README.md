@@ -93,6 +93,7 @@ stable, self-describing shape:
 | `POST /v2/session` | Create a guest session; returns a JWT + session id |
 | `GET /v2/session/me` | Echo the caller's session (requires a Bearer token) |
 | `GET /v2/catalog` | Installed content packs + registered plugins (mod browser) |
+| `POST /v2/catalog/packs` | Upload + install a content-pack zip at runtime (multipart `file`, `?replace=true` to overwrite) |
 | `POST /v2/catalog/packs/{id}/enable` · `/disable` | Toggle a content pack on/off at runtime |
 | `POST /v2/entitlements/verify` | Validate a purchase receipt and grant the entitlement |
 | `GET /v2/entitlements` | List the caller's owned products |
@@ -205,6 +206,12 @@ Game content is data-driven, not hardcoded:
   engine): it renders the `/v2/catalog` data — installed packs, plugins per SPI,
   and the narration provider — and can **enable/disable packs at runtime**, with
   no build step or dependencies.
+- **Packs install at runtime** via `POST /v2/catalog/packs` (or the mod
+  browser's upload button): zip a pack folder and upload it. Uploads are
+  validated defensively — zip-slip guard, entry/size caps, manifest id checks —
+  extracted under `game.content.packs.dir`, and registered through the same
+  loader as the startup scan (quests and campaigns included). Data only; code
+  mods still go through the signed + sandboxed plugin loader.
 
 ## Project layout
 

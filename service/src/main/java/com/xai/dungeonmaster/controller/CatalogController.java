@@ -29,6 +29,7 @@ import java.util.List;
  * Backs the in-game content-pack / mod browser.
  *
  * GET  /v2/catalog                     — full catalog envelope
+ * POST /v2/catalog/packs               — upload + install a content-pack zip (multipart "file")
  * POST /v2/catalog/packs/{id}/enable   — enable a content pack, returns the updated catalog
  * POST /v2/catalog/packs/{id}/disable  — disable a content pack, returns the updated catalog
  *
@@ -39,10 +40,40 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class CatalogController {
 
+    private final com.xai.dungeonmaster.service.PackUploadService uploads;
+
+    public CatalogController(com.xai.dungeonmaster.service.PackUploadService uploads) {
+        this.uploads = uploads;
+    }
+
     @GetMapping
     public Envelope<CatalogPayload> catalog(
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return Envelope.of("catalog", buildPayload(), requestId);
+    }
+
+    /**
+     * Upload and install a content-pack zip at runtime (roadmap Phase 5).
+     * Returns the refreshed catalog: 201 for a new pack, 200 when replacing,
+     * 400 for invalid zips, 409 for a duplicate id without {@code replace}.
+     */
+    @PostMapping(value = "/packs", consumes = "multipart/form-data")
+    public ResponseEntity<Envelope<?>> uploadPack(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(value = "replace", defaultValue = "false") boolean replace,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        try {
+            com.xai.dungeonmaster.service.PackUploadService.InstalledPack installed =
+                    uploads.install(file.getBytes(), replace);
+            return ResponseEntity.status(installed.replaced() ? 200 : 201)
+                    .body(Envelope.of("catalog", buildPayload(), requestId));
+        } catch (com.xai.dungeonmaster.service.PackUploadService.PackUploadException e) {
+            return ResponseEntity.status(e.isConflict() ? 409 : 400)
+                    .body(Envelope.of("error", new ErrorPayload(e.getMessage()), requestId));
+        } catch (java.io.IOException e) {
+            return ResponseEntity.badRequest()
+                    .body(Envelope.of("error", new ErrorPayload("Unreadable upload: " + e.getMessage()), requestId));
+        }
     }
 
     @PostMapping("/packs/{id}/enable")

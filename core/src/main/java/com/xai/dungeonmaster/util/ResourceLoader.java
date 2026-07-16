@@ -157,6 +157,30 @@ public final class ResourceLoader {
     }
 
     /**
+     * Load a single pack directory (must contain pack.yaml) and register it
+     * in the ContentRegistry — the runtime-install path used by the pack
+     * upload API. Quests and campaigns inside the pack register as part of
+     * the load, exactly as during the startup scan. Returns the pack, or
+     * null if the directory isn't a valid pack.
+     */
+    public static ContentPack loadAndRegisterPack(Path dir) {
+        if (dir == null || !Files.isDirectory(dir)) return null;
+        Path manifest = dir.resolve("pack.yaml");
+        if (!Files.isRegularFile(manifest)) {
+            System.err.println("Not a content pack (no pack.yaml): " + dir);
+            return null;
+        }
+        try {
+            ContentPack pack = loadOnePack(dir, manifest);
+            if (pack != null) ContentRegistry.register(pack);
+            return pack;
+        } catch (Exception e) {
+            System.err.println("Failed to load content pack at " + dir + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Convenience: register the bundled pack + every external pack found
      * under {@code root}. Returns the number of external packs loaded
      * (the bundled pack is not counted).

@@ -70,13 +70,22 @@ public class DungeonGenerator {
     }
 
     public Enemy generateEnemy(boolean isBoss) {
+        return generateEnemy(isBoss, null);
+    }
+
+    /**
+     * World-aware variant: the engine passes its WorldState so encounter
+     * tables can shape spawns from faction reputation and story flags
+     * (ADR-001 Phase 4 follow-up). {@code world} may be null.
+     */
+    public Enemy generateEnemy(boolean isBoss, WorldState world) {
         // Enemy generation is now a dispatchable SPI: route through the
         // EncounterTableRegistry's "default" table (bundled DefaultEncounterTable),
         // which draws monster templates from the ContentRegistry and scales them
         // by difficulty and chaos. Content packs can register biome-keyed tables
         // that override this without touching the engine.
         List<Enemy> rolled = EncounterTableRegistry.dispatch(
-                random, difficulty, chaosLevel, isBoss, EncounterTableRegistry.DEFAULT_BIOME);
+                random, difficulty, chaosLevel, isBoss, EncounterTableRegistry.DEFAULT_BIOME, world);
         if (!rolled.isEmpty()) {
             return rolled.get(0);
         }

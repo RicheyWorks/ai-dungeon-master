@@ -94,6 +94,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CatalogEnvelope'
+  /v2/catalog/packs:
+    post:
+      tags: [v2]
+      operationId: uploadPackV2
+      summary: Upload and install a content-pack zip at runtime; returns the updated catalog.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - name: replace
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+          description: Overwrite an already-installed pack with the same id.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: >-
+                    Pack zip — pack.yaml plus optional items/, monsters/,
+                    strings/, quests/, campaigns/, npcs/, factions/. Pure data;
+                    code-bearing mods use the plugin loader instead.
+      responses:
+        '201':
+          description: Pack installed; updated catalog envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogEnvelope'
+        '200':
+          description: Existing pack replaced; updated catalog envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogEnvelope'
+        '400':
+          description: Invalid upload (bad zip, unsafe paths, missing/invalid pack.yaml, size limits).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Pack id already installed and replace=false.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /v2/catalog/packs/{id}/enable:
     post:
       tags: [v2]

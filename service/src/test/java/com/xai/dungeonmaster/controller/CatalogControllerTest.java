@@ -22,11 +22,15 @@ class CatalogControllerTest {
 
     private MockMvc mvc;
 
+    @org.junit.jupiter.api.io.TempDir
+    java.nio.file.Path packsDir;
+
     @BeforeEach
     void setUp() {
         ContentRegistry.clearForTests();
         ContentRegistry.register(new DefaultContentPack()); // "builtin"
-        mvc = standaloneSetup(new CatalogController()).build();
+        mvc = standaloneSetup(new CatalogController(
+                new com.xai.dungeonmaster.service.PackUploadService(packsDir.toString()))).build();
     }
 
     @AfterEach
@@ -64,6 +68,41 @@ class CatalogControllerTest {
     void togglingUnknownPackReturns404() throws Exception {
         mvc.perform(post("/v2/catalog/packs/does-not-exist/disable"))
                 .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.type").value("error"));
+    }
+
+    @Test
+    void uploadingPackZipInstallsAndReturnsCatalog() throws Exception {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(out)) {
+            zos.putNextEntry(new java.util.zip.ZipEntry("pack.yaml"));
+            zos.write("id: \"api-pack\"\ndisplayName: \"API Pack\"\nversion: \"1.0.0\"\n"
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
+        var file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "api-pack.zip", "application/zip", out.toByteArray());
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/v2/catalog/packs").file(file))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.type").value("catalog"))
+                .andExpect(jsonPath("$.payload.contentPacks[?(@.id=='api-pack')]").exists());
+
+        // Same id again without replace: conflict.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/v2/catalog/packs").file(file))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("error"));
+    }
+
+    @Test
+    void uploadingGarbageReturns400() throws Exception {
+        var file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "junk.zip", "application/zip", "not a zip".getBytes());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/v2/catalog/packs").file(file))
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.type").value("error"));
     }
 }

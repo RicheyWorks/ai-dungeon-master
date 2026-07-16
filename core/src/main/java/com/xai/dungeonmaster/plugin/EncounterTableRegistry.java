@@ -46,6 +46,17 @@ public final class EncounterTableRegistry {
      */
     public static List<Enemy> dispatch(Random random, int difficulty, int chaos,
                                        boolean isBoss, String biome) {
+        return dispatch(random, difficulty, chaos, isBoss, biome, null);
+    }
+
+    /**
+     * World-aware dispatch: passes the engine's {@link com.xai.dungeonmaster.WorldState}
+     * to the table's 5-arg roll so faction reputation and story flags can shape
+     * the encounter. Tables without the override fall back to their 4-arg roll.
+     */
+    public static List<Enemy> dispatch(Random random, int difficulty, int chaos,
+                                       boolean isBoss, String biome,
+                                       com.xai.dungeonmaster.WorldState world) {
         ensureServiceLoader();
         EncounterTable table = resolve(biome);
         if (table == null) {
@@ -55,7 +66,8 @@ public final class EncounterTableRegistry {
                 random != null ? random : new Random(),
                 Math.max(1, difficulty),
                 Math.max(0, chaos),
-                isBoss);
+                isBoss,
+                world);
         return (rolled == null) ? List.of() : rolled;
     }
 

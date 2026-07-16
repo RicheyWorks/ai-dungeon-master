@@ -33,4 +33,19 @@ public interface EncounterTable extends Plugin {
      * @return one or more enemies; never null, never empty
      */
     List<Enemy> roll(Random random, int difficulty, int chaos, boolean isBoss);
+
+    /**
+     * World-aware variant (ADR-001 Phase 4 follow-up): the engine passes its
+     * {@link com.xai.dungeonmaster.WorldState} so tables can read faction
+     * reputation ({@code faction:<id>:reputation} flags), quest outcomes, and
+     * story flags — e.g. spawning hostile parish revenants only after the
+     * party burned the weeping tree.
+     *
+     * Additive default: tables that predate world context ignore it and keep
+     * their 4-arg behavior. {@code world} may be null (no engine context).
+     */
+    default List<Enemy> roll(Random random, int difficulty, int chaos, boolean isBoss,
+                             com.xai.dungeonmaster.WorldState world) {
+        return roll(random, difficulty, chaos, isBoss);
+    }
 }

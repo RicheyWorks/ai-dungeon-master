@@ -427,7 +427,7 @@ public class DungeonMasterEngine {
         boolean isBoss = random.nextInt(100) < 15;
 
         if (isBoss) {
-            Enemy boss = dungeonGenerator.generateEnemy(true);
+            Enemy boss = dungeonGenerator.generateEnemy(true, worldState);
             boss.heal(50);
             boss.addEffect(new StatusEffect("Boss Aura", StatusEffect.EffectType.STAT_BUFF, 3, Integer.MAX_VALUE));
             foes.add(boss);
@@ -437,7 +437,7 @@ public class DungeonMasterEngine {
         }
 
         int count = 1 + random.nextInt(3);
-        for (int i = 0; i < count; i++) foes.add(dungeonGenerator.generateEnemy(false));
+        for (int i = 0; i < count; i++) foes.add(dungeonGenerator.generateEnemy(false, worldState));
         combatState.initialize(party, foes);
         broadcast(">> ALERT: Hostile entities detected.");
     }

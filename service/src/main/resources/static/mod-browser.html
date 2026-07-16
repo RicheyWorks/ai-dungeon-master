@@ -68,6 +68,11 @@
   <section>
     <h2>Content Packs</h2>
     <div id="packs" class="packs"></div>
+    <div style="margin-top:14px">
+      <input id="packFile" type="file" accept=".zip" />
+      <label style="margin:0 6px"><input id="packReplace" type="checkbox" /> replace existing</label>
+      <button id="packUpload" type="button">Upload pack (.zip)</button>
+    </div>
   </section>
   <section>
     <h2>Plugins</h2>
@@ -178,6 +183,29 @@
       .catch(function (e) { setStatus("Toggle failed (" + e.message + ").", true); });
   }
 
+  function uploadPack() {
+    var input = document.getElementById("packFile");
+    var replace = document.getElementById("packReplace").checked;
+    if (!input || !input.files || input.files.length === 0) {
+      setStatus("Choose a pack .zip first.", true);
+      return;
+    }
+    var form = new FormData();
+    form.append("file", input.files[0]);
+    setStatus("Uploading " + input.files[0].name + "…", false);
+    return fetch(apiBase() + "/v2/catalog/packs?replace=" + replace,
+                 { method: "POST", body: form, headers: { "Accept": "application/json" } })
+      .then(function (r) {
+        return r.json().then(function (env) {
+          if (!r.ok) throw new Error((env.payload && env.payload.message) || ("HTTP " + r.status));
+          renderCatalog(env.payload || env);
+          setStatus("Pack installed.", false);
+          input.value = "";
+        });
+      })
+      .catch(function (e) { setStatus("Upload failed: " + e.message, true); });
+  }
+
   function loadCatalog() {
     setStatus("Loading catalog…", false);
     return fetch(apiBase() + "/v2/catalog", { headers: { "Accept": "application/json" } })
@@ -192,6 +220,8 @@
     document.addEventListener("DOMContentLoaded", function () {
       var btn = document.getElementById("reload");
       if (btn) btn.addEventListener("click", loadCatalog);
+      var up = document.getElementById("packUpload");
+      if (up) up.addEventListener("click", uploadPack);
       // Only auto-fetch in a real browser; jsdom/tests call renderCatalog directly.
       if (typeof fetch === "function") loadCatalog();
     });
