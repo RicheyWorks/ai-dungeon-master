@@ -1,6 +1,6 @@
 # ADR-001: Story depth — branching, campaign arc, narrative memory, NPCs
 
-**Status:** Accepted — Phases 1–4 implemented 2026-07-16 (suite: 91 → 130 tests)
+**Status:** Accepted — Phases 1–4 + follow-ups implemented 2026-07-16 (suite: 91 → 135 tests)
 **Date:** 2026-07-16
 **Deciders:** Richmond
 **Scope:** `core` engine + content-pack format; `service` changes are surface-level (envelope fields)
@@ -132,4 +132,6 @@ The offline constraint is the forcing function: any design where the *story itse
 2. [x] Phase 2: `WorldState`, `Campaign` DAG, `ChoiceEffect`/`ChoiceCondition` interpreter (retire the switch and the `Predicate`); `saveVersion` in `GameStateData`; 3-quest Hollows Cycle demo campaign in `black-hollows` (`game.campaign.id=the-hollows-cycle`).
 3. [x] Phase 3: `Chronicle` + compaction, `NarrativePrompt.contextFacts`, stub recap rendering, keyed-provider prompt interpolation; fact-budget test bounded well under the 4000 ceiling.
 4. [x] Phase 4: NPC/faction pack schema merged into `ContentRegistry` (additive `ContentPack` defaults), `MODIFY_DISPOSITION`/`MODIFY_REPUTATION` effects + `DISPOSITION`/`REPUTATION` conditions on WorldState flag namespaces, `Scene.npcId` dialogue scenes with first-meeting Chronicle events and persona narration facts; Mother Brine shipped end-to-end in `black-hollows`.
-5. [ ] Deferred: faction-aware `EncounterTable` context (the SPI's `roll(random, difficulty, chaos, isBoss)` doesn't expose world state — needs an additive default-method overload); update `docs/ROADMAP_STATUS.md` and the OpenAPI spec (`outcome`, chronicle excerpts in `/v2/status`).
+5. [x] Faction-aware `EncounterTable` context: additive default overload `roll(random, difficulty, chaos, isBoss, WorldState)` + world-aware registry dispatch; engine passes its WorldState through combat generation, so tables can shape spawns from faction reputation and story flags. Legacy 4-arg tables unaffected.
+6. [x] `docs/ROADMAP_STATUS.md`, README, and OpenAPI spec updated (`quest` outcome + `recentEvents` in `/v2/status`).
+7. [x] TypeScript/Kotlin/Swift SDKs regenerated from the updated spec (openapi-generator 7.7.0, per `clients/README.md`) — `QuestInfo` + `recentEvents` in all three clients.
