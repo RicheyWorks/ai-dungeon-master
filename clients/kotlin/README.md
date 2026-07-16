@@ -88,6 +88,7 @@ All URIs are relative to *http://localhost:8080*
  - [com.xai.dungeonmaster.client.models.NarrativePayload](docs/NarrativePayload.md)
  - [com.xai.dungeonmaster.client.models.PackInfo](docs/PackInfo.md)
  - [com.xai.dungeonmaster.client.models.PluginSummary](docs/PluginSummary.md)
+ - [com.xai.dungeonmaster.client.models.QuestInfo](docs/QuestInfo.md)
  - [com.xai.dungeonmaster.client.models.VerifyReceiptRequest](docs/VerifyReceiptRequest.md)
 
 

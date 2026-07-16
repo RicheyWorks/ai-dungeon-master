@@ -17,13 +17,18 @@ public struct GameStatusV2: Codable, JSONEncodable, Hashable {
     public var combatActive: Bool?
     public var availableChoices: [String]?
     public var recentHistory: [String]?
+    public var quest: QuestInfo?
+    /** Compact story-memory facts from the engine's Chronicle (newest last), e.g. \"Quest completed: The Weeping Tree\". Bounded server-side. */
+    public var recentEvents: [String]?
 
-    public init(party: [MemberState]? = nil, chaosLevel: Int? = nil, combatActive: Bool? = nil, availableChoices: [String]? = nil, recentHistory: [String]? = nil) {
+    public init(party: [MemberState]? = nil, chaosLevel: Int? = nil, combatActive: Bool? = nil, availableChoices: [String]? = nil, recentHistory: [String]? = nil, quest: QuestInfo? = nil, recentEvents: [String]? = nil) {
         self.party = party
         self.chaosLevel = chaosLevel
         self.combatActive = combatActive
         self.availableChoices = availableChoices
         self.recentHistory = recentHistory
+        self.quest = quest
+        self.recentEvents = recentEvents
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -32,6 +37,8 @@ public struct GameStatusV2: Codable, JSONEncodable, Hashable {
         case combatActive
         case availableChoices
         case recentHistory
+        case quest
+        case recentEvents
     }
 
     // Encodable protocol methods
@@ -43,6 +50,8 @@ public struct GameStatusV2: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(combatActive, forKey: .combatActive)
         try container.encodeIfPresent(availableChoices, forKey: .availableChoices)
         try container.encodeIfPresent(recentHistory, forKey: .recentHistory)
+        try container.encodeIfPresent(quest, forKey: .quest)
+        try container.encodeIfPresent(recentEvents, forKey: .recentEvents)
     }
 }
 

@@ -16,6 +16,7 @@
 package com.xai.dungeonmaster.client.models
 
 import com.xai.dungeonmaster.client.models.MemberState
+import com.xai.dungeonmaster.client.models.QuestInfo
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
@@ -28,6 +29,8 @@ import com.squareup.moshi.JsonClass
  * @param combatActive 
  * @param availableChoices 
  * @param recentHistory 
+ * @param quest 
+ * @param recentEvents Compact story-memory facts from the engine's Chronicle (newest last), e.g. \"Quest completed: The Weeping Tree\". Bounded server-side.
  */
 
 
@@ -46,7 +49,14 @@ data class GameStatusV2 (
     val availableChoices: kotlin.collections.List<kotlin.String>? = null,
 
     @Json(name = "recentHistory")
-    val recentHistory: kotlin.collections.List<kotlin.String>? = null
+    val recentHistory: kotlin.collections.List<kotlin.String>? = null,
+
+    @Json(name = "quest")
+    val quest: QuestInfo? = null,
+
+    /* Compact story-memory facts from the engine's Chronicle (newest last), e.g. \"Quest completed: The Weeping Tree\". Bounded server-side. */
+    @Json(name = "recentEvents")
+    val recentEvents: kotlin.collections.List<kotlin.String>? = null
 
 ) {
 

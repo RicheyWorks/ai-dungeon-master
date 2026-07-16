@@ -68,6 +68,7 @@ Class | Method | HTTP request | Description
  - [NarrativePayload](docs/NarrativePayload.md)
  - [PackInfo](docs/PackInfo.md)
  - [PluginSummary](docs/PluginSummary.md)
+ - [QuestInfo](docs/QuestInfo.md)
  - [VerifyReceiptRequest](docs/VerifyReceiptRequest.md)
 
 

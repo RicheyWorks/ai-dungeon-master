@@ -1,5 +1,4 @@
 .gitignore
-.openapi-generator-ignore
 .swiftformat
 AIDungeonMasterClient.podspec
 AIDungeonMasterClient/Classes/OpenAPIs/APIHelper.swift
@@ -30,6 +29,7 @@ AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrativeEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrativePayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/PackInfo.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/PluginSummary.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/QuestInfo.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/VerifyReceiptRequest.swift
 AIDungeonMasterClient/Classes/OpenAPIs/OpenISO8601DateFormatter.swift
 AIDungeonMasterClient/Classes/OpenAPIs/SynchronizedDictionary.swift
@@ -57,6 +57,7 @@ docs/NarrativeEnvelope.md
 docs/NarrativePayload.md
 docs/PackInfo.md
 docs/PluginSummary.md
+docs/QuestInfo.md
 docs/V2API.md
 docs/VerifyReceiptRequest.md
 git_push.sh
