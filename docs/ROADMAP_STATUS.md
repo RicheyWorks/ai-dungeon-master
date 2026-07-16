@@ -27,7 +27,7 @@ overload; client SDK regeneration for the new status fields.
 | 0 — Hygiene | headless, packages, tests, listeners, sync | ✅ Done |
 | 1 — Headless core + plugin SPI | core module, SPIs, registries, loaders, signing, sandbox | ✅ Done |
 | 2 — API v2 + LLM provider | envelope, PartyState, LLM stack + keyed providers, streaming, specs, SDKs, auth, sessions, entitlements | ✅ Done |
-| 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ SDK generated; UI not started |
+| 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ v1 app scaffolded under `android/` (status, quest+chronicle, choices, narration over the Kotlin SDK); WebSocket stream, sessions, and catalog screen remain |
 | 4 — Steam + iOS | Tauri, SwiftUI on the generated Swift SDK, storefronts | ◐ Swift SDK generated; apps not started |
 | 5 — Content packs & mods | packs, mod browser, signing, sandboxing | ✅ 4 packs + signing + sandbox + catalog + web mod-browser w/ enable-disable + runtime pack upload (`POST /v2/catalog/packs`) |
 
