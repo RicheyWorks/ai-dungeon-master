@@ -19,11 +19,14 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,31 +38,57 @@ import com.xai.dungeonmaster.client.models.GameStatusV2
 import com.xai.dungeonmaster.client.models.MemberState
 
 /**
- * Single-screen v1 client (roadmap Phase 3): party status, quest progress,
- * story memory, choices, and DM narration — all over the generated Kotlin SDK.
+ * v1 client shell (roadmap Phase 3): a Game tab (party, quest, chronicle,
+ * choices, narration) and a Mods tab (catalog + pack toggles) — all over the
+ * generated Kotlin SDK.
  */
 @Composable
 fun GameApp(viewModel: GameViewModel = viewModel()) {
     val ui by viewModel.state.collectAsState()
+    var tab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    LazyColumn(
+    Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { ServerBar(ui.baseUrl, ui.busy, viewModel::setBaseUrl, viewModel::refresh) }
+        ServerBar(ui.baseUrl, ui.busy, viewModel::setBaseUrl, viewModel::refresh)
 
         ui.error?.let { message ->
-            item {
-                Text(
-                    "Error: $message",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
+            Text(
+                "Error: $message",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
 
+        TabRow(selectedTabIndex = tab) {
+            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Game") })
+            Tab(
+                selected = tab == 1,
+                onClick = {
+                    tab = 1
+                    if (ui.catalog == null) viewModel.loadCatalog()
+                },
+                text = { Text("Mods") },
+            )
+        }
+
+        if (tab == 0) {
+            GameScreen(ui, viewModel)
+        } else {
+            ModsScreen(ui.catalog, ui.busy, viewModel::loadCatalog, viewModel::togglePack)
+        }
+    }
+}
+
+@Composable
+private fun GameScreen(ui: GameViewModel.UiState, viewModel: GameViewModel) {
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         ui.status?.let { status ->
             item { QuestCard(status) }
             item { Text("Party", style = MaterialTheme.typography.titleMedium) }

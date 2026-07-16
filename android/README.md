@@ -7,13 +7,20 @@ updates the app with no publishing step.
 
 ## What it does (v1)
 
+**Game tab**
 - Party status with HP/MP bars, levels, statuses, and fallen markers
 - Current quest with outcome + progress, chaos level, combat flag
 - "The story so far" — the engine's Chronicle memory (`recentEvents`)
 - Available choices as buttons → `POST /v2/action`
 - Free-text DM narration → `POST /v2/narrate`
-- Configurable server URL (defaults to `http://10.0.2.2:8080`, the emulator's
-  alias for the host machine)
+
+**Mods tab**
+- Installed content packs with runtime enable/disable switches
+  (`GET /v2/catalog`, `POST /v2/catalog/packs/{id}/enable|disable`)
+- Active narration provider + health, registered plugins per SPI
+
+Server URL is configurable (defaults to `http://10.0.2.2:8080`, the emulator's
+alias for the host machine).
 
 ## Build & run
 
@@ -37,7 +44,8 @@ TLS before shipping anything real.
 app/src/main/java/com/xai/dungeonmaster/android/
   MainActivity.kt   entry point, dark Material 3 theme
   GameViewModel.kt  StateFlow bridge over the synchronous SDK (Dispatchers.IO)
-  GameApp.kt        the single-screen Compose UI
+  GameApp.kt        tab shell + the Game screen
+  ModsScreen.kt     catalog browser with pack enable/disable toggles
 ```
 
 The generated SDK is synchronous (`jvm-okhttp4`); the ViewModel wraps every
@@ -50,4 +58,6 @@ Compose BOM 2024.06) — bump them freely, nothing here is version-sensitive.
 - WebSocket narration stream (`/topic/narrative` via STOMP) — the REST
   `narrate` round-trip is used instead for v1
 - Sessions/JWT (`POST /v2/session`) and entitlements
-- Mod-browser catalog screen (`GET /v2/catalog`)
+- Pack upload from the device (`POST /v2/catalog/packs`) — use the web
+  mod browser; also requires regenerating the Kotlin SDK against the
+  latest spec so `uploadPackV2` exists
