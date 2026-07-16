@@ -1,5 +1,7 @@
 package com.xai.dungeonmaster.config;
 
+import com.xai.dungeonmaster.Campaign;
+import com.xai.dungeonmaster.CampaignRegistry;
 import com.xai.dungeonmaster.DungeonMasterEngine;
 import com.xai.dungeonmaster.plugin.PluginLoader;
 import com.xai.dungeonmaster.plugin.SandboxPolicy;
@@ -57,6 +59,10 @@ public class GameConfig {
     @Value("${game.plugins.dir:plugins}")
     private String pluginsDir;
 
+    /** Active campaign id (from a pack's campaigns/*.json); empty = no campaign. */
+    @Value("${game.campaign.id:}")
+    private String campaignId;
+
     /** Per-session narration token ceiling for the cost guardrail. */
     @Value("${game.narration.token.ceiling:4000}")
     private int narrationTokenCeiling;
@@ -106,6 +112,17 @@ public class GameConfig {
                 new ModerationProvider(LLMProviderRegistry.getActive()),
                 narrationTokenCeiling);
         engine.setNarrator(narrator);
+
+        // 3.7 Campaign: attach the configured story arc, if any. Packs are
+        //     already registered, so the campaign and its quests resolve.
+        if (campaignId != null && !campaignId.isBlank()) {
+            Campaign campaign = CampaignRegistry.get(campaignId);
+            if (campaign != null) {
+                engine.setCampaign(campaign);
+            } else {
+                System.err.println("[campaign] Unknown campaign id '" + campaignId + "' — starting without one.");
+            }
+        }
 
         // 4. WebSocket bridge — addUiListener so subsequent listeners (Swing) coexist.
         engine.addUiListener(text -> messaging.convertAndSend("/topic/narrative", text));

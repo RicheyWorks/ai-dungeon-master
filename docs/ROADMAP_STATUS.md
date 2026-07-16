@@ -1,10 +1,24 @@
 # AI Dungeon Master — Roadmap Status
 
-_Last updated: 2026-07-04 · Baseline: `mvn test` green (69 tests) · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
+_Last updated: 2026-07-16 · Baseline: `mvn test` green (130 tests) · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
 
 Grounded in the current code, not the May plan. Phases 0–1 are complete, Phase 2
 is essentially complete, and Phase 5 (content packs & mods) now has substantial
-groundwork shipped.
+groundwork shipped. **New since 2026-07-16:** the story-depth architecture
+([ADR-001](adr/ADR-001-story-depth.md)) shipped in full — branching scene
+graphs with per-choice `nextSceneId` targets and load-time graph lint;
+data-driven `quests/*.json` via `DataQuestScript`; a persistent `WorldState`
+(flags + quest outcomes) with declarative `ChoiceEffect`/`ChoiceCondition`
+replacing the hardcoded actionKey switch and the non-serializable requirement
+Predicate; flag-gated `Campaign` chains (`game.campaign.id`, demo: the 3-quest
+Hollows Cycle); a bounded `Chronicle` of story events compacted into
+`NarrativePrompt.contextFacts` so both keyed providers and the offline stub
+narrate with continuity; and pack-shipped NPCs/factions with disposition and
+reputation riding the same flag machinery (Mother Brine in `black-hollows`).
+Saves are versioned (`saveVersion: 3`) and all schema changes are additive —
+pre-ADR saves load unchanged. `/v2/status` now exposes `quest` outcome and
+`recentEvents`. Remaining from ADR-001: faction-aware `EncounterTable`
+overload; client SDK regeneration for the new status fields.
 
 ## Snapshot
 

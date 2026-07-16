@@ -46,6 +46,19 @@ class GameV2ControllerTest {
     }
 
     @Test
+    void statusExposesQuestOutcomeAndChronicleEvents() throws Exception {
+        mvc.perform(get("/v2/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.quest.title").isNotEmpty())
+                .andExpect(jsonPath("$.payload.quest.completed").isBoolean())
+                .andExpect(jsonPath("$.payload.quest.failed").isBoolean())
+                .andExpect(jsonPath("$.payload.quest.progress").isNumber())
+                // Engine start records "quest_started" in the Chronicle.
+                .andExpect(jsonPath("$.payload.recentEvents").isArray())
+                .andExpect(jsonPath("$.payload.recentEvents[0]").isNotEmpty());
+    }
+
+    @Test
     void statusEchoesSuppliedRequestId() throws Exception {
         mvc.perform(get("/v2/status").header("X-Request-Id", "abc-123"))
                 .andExpect(status().isOk())

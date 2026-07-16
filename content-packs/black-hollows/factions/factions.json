@@ -1,0 +1,14 @@
+{
+  "parish-survivors": {
+    "id": "parish-survivors",
+    "displayName": "Parish Survivors",
+    "description": "The living remnant of the drowned parish — salt-scatterers, grave-tenders, and the stubborn old.",
+    "baseReputation": 0
+  },
+  "the-drowned": {
+    "id": "the-drowned",
+    "displayName": "The Drowned",
+    "description": "The parish's dead, pulled from rest by the weeping tree. Not evil; only summoned.",
+    "baseReputation": -2
+  }
+}

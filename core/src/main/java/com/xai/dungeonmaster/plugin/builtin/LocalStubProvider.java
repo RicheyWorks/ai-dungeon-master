@@ -42,6 +42,13 @@ public final class LocalStubProvider implements LLMProvider {
         if (!scene.isEmpty()) {
             sb.append("Around you lies ").append(scene).append(". ");
         }
+        // Narrative memory (ADR-001 Phase 3): render the most recent story
+        // fact as a deterministic recap, so offline sessions have continuity.
+        if (prompt != null && !prompt.contextFacts.isEmpty()) {
+            sb.append("You remember: ")
+              .append(prompt.contextFacts.get(prompt.contextFacts.size() - 1))
+              .append(". ");
+        }
         if (!user.isEmpty()) {
             sb.append("As you ").append(lowerFirst(user)).append(", the rift answers in kind.");
         } else {

@@ -1,0 +1,61 @@
+{
+  "id": "black-hollows-weeping-tree",
+  "title": "The Weeping Tree",
+  "description": "Something beneath the drowned parish is crying, and the graves are emptying to answer it.",
+  "scenes": [
+    {
+      "id": "parish-gate",
+      "description": "The lychgate of the drowned parish leans out of black water. Grave-salt crusts the posts, and somewhere past the chapel a slow weeping carries over the marsh.",
+      "choices": [
+        {
+          "label": "Search the graves",
+          "resultText": "You wade between the leaning stones. Half the graves are open — dug out from below.",
+          "nextSceneId": "salt-crypt"
+        },
+        {
+          "label": "Follow the weeping",
+          "resultText": "You push straight for the sound, past the chapel, into the older dark.",
+          "nextSceneId": "tree-heart"
+        }
+      ]
+    },
+    {
+      "id": "salt-crypt",
+      "description": "A crypt beneath the chapel, its floor tiled in salt-lines someone renewed for centuries — until recently. A funeral relic still hums on the altar.",
+      "choices": [
+        {
+          "label": "Take the relic",
+          "actionKey": "GIVE_LOOT",
+          "resultText": "The relic settles into your pack, warm as a held hand. The weeping outside falters, as if noticing.",
+          "nextSceneId": "tree-heart"
+        },
+        {
+          "label": "Renew the salt-lines",
+          "actionKey": "REST_PARTY",
+          "resultText": "You pour the grave-salt along the broken lines. For one clean hour, nothing in the parish moves, and the party breathes.",
+          "nextSceneId": "tree-heart"
+        }
+      ]
+    },
+    {
+      "id": "tree-heart",
+      "description": "At the parish heart stands the weeping tree, roots knuckled through coffin-wood, its sap running down like tears. Every revenant in the Hollows is turned toward it, waiting.",
+      "isFinalScene": true,
+      "choices": [
+        {
+          "label": "Put the tree to rest",
+          "resultText": "You lay hands on the wet bark and speak the parish's names back to it. The weeping slows, then stops. The revenants lie down in their open graves.",
+          "effects": [ { "type": "SET_FLAG", "arg": "tree_fate=1" } ]
+        },
+        {
+          "label": "Burn it",
+          "resultText": "The tree screams as it catches — and every grave in the Hollows answers.",
+          "effects": [
+            { "type": "SET_FLAG", "arg": "tree_fate=2" },
+            { "type": "TRIGGER_COMBAT" }
+          ]
+        }
+      ]
+    }
+  ]
+}

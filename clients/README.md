@@ -10,8 +10,9 @@ with [openapi-generator](https://openapi-generator.tech) **7.7.0**.
 | `kotlin/` | Android / JVM | `kotlin` (jvm-okhttp4 + moshi) | `./gradlew build` |
 | `swift/` | iOS / macOS | `swift5` (URLSession, async/await) | `swift build` or add the SwiftPM package |
 
-All three expose the same surface: a `V2Api`/`V2API` (`getStatusV2`,
-`submitActionV2`, `narrateV2`) and a `LegacyApi`/`LegacyAPI`, over the typed
+All three expose the same surface: a `V2Api`/`V2API` covering every `/v2`
+operation — game status/action/narrate, sessions, catalog and pack toggles, and
+entitlements — plus a `LegacyApi`/`LegacyAPI`, over the typed
 `Envelope { type, version, payload, requestId }` models.
 
 ## Regenerate

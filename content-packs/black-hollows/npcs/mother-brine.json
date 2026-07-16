@@ -1,0 +1,10 @@
+{
+  "mother-brine": {
+    "id": "mother-brine",
+    "displayName": "Mother Brine",
+    "role": "Salt-Keeper of the Parish",
+    "factionId": "parish-survivors",
+    "persona": "An old woman crusted to the elbows in grave-salt, who speaks of the drowned dead as her congregation and trusts no one who hasn't buried someone",
+    "baseDisposition": 0
+  }
+}

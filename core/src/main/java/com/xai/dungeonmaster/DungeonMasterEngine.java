@@ -46,6 +46,24 @@ public class DungeonMasterEngine {
      */
     private volatile Quest currentQuest;
 
+    /** Script id the current quest was built from (campaign bookkeeping). */
+    private volatile String currentQuestScriptId = QuestScriptRegistry.DEFAULT_SCRIPT;
+
+    /** Persistent narrative truth: flags + quest outcomes (ADR-001 Phase 2). */
+    private volatile WorldState worldState = new WorldState();
+
+    /** Active story arc, or null for the historical single-quest behavior. */
+    private volatile Campaign campaign;
+
+    /** Guards the one-time "campaign complete" broadcast. */
+    private volatile boolean campaignExhaustedAnnounced = false;
+
+    /** Structured narrative memory fed to the narrator (ADR-001 Phase 3). */
+    private volatile Chronicle chronicle = new Chronicle();
+
+    /** Facts handed to the narrator per request (bounded by Chronicle caps). */
+    private static final int NARRATION_FACTS = 6;
+
     private final ObjectMapper mapper;
     private final Random random = new Random();
 
@@ -117,6 +135,7 @@ public class DungeonMasterEngine {
         this.currentQuest = (opening != null)
                 ? opening
                 : dungeonGenerator.generateCustomRift("Genesis Rift", 4, difficulty);
+        chronicle.record("quest_started", this.currentQuest.getTitle(), "");
         log("Multiversal Engine Online. Chaos Level " + chaosLevel);
     }
 
@@ -224,8 +243,12 @@ public class DungeonMasterEngine {
     private String handleEnemyDefeated(Entity actor, Entity target) {
         StringBuilder result = new StringBuilder("\nDEFEATED: ").append(target.getName()).append(" has been slain.");
 
+        boolean isBoss = target.getName().toLowerCase(Locale.ROOT).contains("boss");
+        chronicle.record(isBoss ? "boss_slain" : "enemy_slain", target.getName(),
+                "by " + actor.getName());
+
         int xpGain = 20 + random.nextInt(30);
-        if (target.getName().toLowerCase(Locale.ROOT).contains("boss")) xpGain *= 3;
+        if (isBoss) xpGain *= 3;
 
         if (actor instanceof Adventurer adv) {
             String xpText = adv.gainXp(xpGain);
@@ -246,8 +269,16 @@ public class DungeonMasterEngine {
         // Snapshot the quest reference once so a concurrent loadGame() can't
         // swap it out from under us mid-method.
         Quest quest = currentQuest;
+        boolean wasFinished = (quest != null) && quest.isFinished();
         String outcome = choice.execute(this, party.get(0));
-        if (quest != null) quest.advance(this);
+        if (quest != null) {
+            quest.advance(this, choice);
+            if (!wasFinished && quest.isFinished() && quest == currentQuest) {
+                onQuestFinished(quest);
+            } else {
+                noteNpcMeeting(quest);
+            }
+        }
 
         if (random.nextInt(100) < chaosLevel * 5) {
             triggerCombatEncounter();
@@ -255,7 +286,143 @@ public class DungeonMasterEngine {
         return outcome;
     }
 
-    private void triggerCombatEncounter() {
+    // ──────────────────────────────────────────────────────────────────────────
+    // Campaign progression (ADR-001 Phase 2)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Record the finished quest in the world state and, when a campaign is
+     * active, apply the finished node's granted flags and start the next
+     * eligible node. With no campaign (or an exhausted one) the engine keeps
+     * its historical behavior: the finished quest simply stays current.
+     */
+    private void onQuestFinished(Quest quest) {
+        String scriptId = currentQuestScriptId;
+        worldState.recordQuestOutcome(scriptId, quest.isCompleted(), quest.getTitle());
+        chronicle.record(quest.isCompleted() ? "quest_completed" : "quest_failed",
+                quest.getTitle(), "");
+
+        Campaign arc = campaign;
+        if (arc == null) return;
+
+        Campaign.QuestNode finished = arc.nodeFor(scriptId);
+        if (finished != null && quest.isCompleted()) {
+            finished.applyGrants(worldState);
+        }
+
+        Campaign.QuestNode next = arc.nextEligible(worldState);
+        if (next != null) {
+            startQuestById(next.getQuestId());
+        } else if (!campaignExhaustedAnnounced) {
+            campaignExhaustedAnnounced = true;
+            chronicle.record("campaign_complete", arc.getTitle(), "");
+            broadcast("CAMPAIGN COMPLETE: " + arc.getTitle() + " — this world's story is told.");
+        }
+    }
+
+    /**
+     * Replace the current quest with one built from the given script id (via
+     * the QuestScript registry). No-op if the registry can't build it.
+     */
+    public void startQuestById(String scriptId) {
+        if (!QuestScriptRegistry.isRegistered(scriptId)) {
+            log("WARN: unknown quest script '" + scriptId + "' — quest unchanged.");
+            return;
+        }
+        Quest next = QuestScriptRegistry.dispatch(scriptId, this, difficulty, chaosLevel);
+        if (next == null) return;
+        currentQuest = next;
+        currentQuestScriptId = scriptId;
+        chronicle.record("quest_started", next.getTitle(), "");
+        broadcast("NEW QUEST: " + next.getTitle() + " — " + next.getDescription());
+        Scene opening = next.getCurrentScene();
+        if (opening != null) opening.onEnter(this);
+        noteNpcMeeting(next);
+    }
+
+    /**
+     * Activate a story arc. Starts the campaign's first eligible quest
+     * immediately (replacing the opening quest), so the arc owns the session
+     * from turn one. Pass null to detach.
+     */
+    public void setCampaign(Campaign campaign) {
+        this.campaign = campaign;
+        this.campaignExhaustedAnnounced = false;
+        if (campaign == null) return;
+        broadcast("CAMPAIGN: " + campaign.getTitle());
+        Campaign.QuestNode first = campaign.nextEligible(worldState);
+        if (first != null) startQuestById(first.getQuestId());
+    }
+
+    /** The active campaign, or null. */
+    public Campaign getCampaign() {
+        return campaign;
+    }
+
+    /** The current quest, or null. */
+    public Quest getCurrentQuest() {
+        return currentQuest;
+    }
+
+    /** Persistent world flags + quest outcomes. Never null. */
+    public WorldState getWorldState() {
+        return worldState;
+    }
+
+    /** Structured narrative memory. Never null. */
+    public Chronicle getChronicle() {
+        return chronicle;
+    }
+
+    /**
+     * First time the party reaches a scene with an NPC, mark the meeting in
+     * the world state and the Chronicle (ADR-001 Phase 4).
+     */
+    private void noteNpcMeeting(Quest quest) {
+        if (quest == null || quest != currentQuest) return;
+        Scene scene = quest.getCurrentScene();
+        String npcId = (scene != null) ? scene.getNpcId() : null;
+        if (npcId == null) return;
+        if (worldState.getFlag(Npc.metFlag(npcId)) > 0) return;
+        worldState.setFlag(Npc.metFlag(npcId), 1);
+        Npc npc = com.xai.dungeonmaster.plugin.ContentRegistry.npcs().get(npcId);
+        chronicle.record("npc_met", (npc != null) ? npc.getDisplayName() : npcId,
+                (npc != null && !npc.getRole().isEmpty()) ? npc.getRole() : "");
+    }
+
+    /**
+     * Facts for the narrator: chronicle memory plus, when the current scene
+     * has an NPC, that NPC's persona sheet so dialogue stays in character.
+     */
+    private List<String> narrationFacts() {
+        List<String> facts = new ArrayList<>(chronicle.renderFacts(NARRATION_FACTS));
+        Quest quest = currentQuest;
+        Scene scene = (quest != null) ? quest.getCurrentScene() : null;
+        String npcId = (scene != null) ? scene.getNpcId() : null;
+        if (npcId != null) {
+            Npc npc = com.xai.dungeonmaster.plugin.ContentRegistry.npcs().get(npcId);
+            if (npc != null) facts.add(npc.renderFact());
+        }
+        return facts;
+    }
+
+    /** Roll loot for an adventurer (declarative GIVE_LOOT effect). */
+    void grantLoot(Adventurer actor) {
+        Item loot = dungeonGenerator.generateLoot();
+        if (loot != null && actor != null) {
+            actor.addItem(loot);
+            log("LOOT FOUND: " + loot);
+        } else if (actor != null) {
+            log(actor.getName() + " found a glimmering artifact.");
+        }
+    }
+
+    /** Raise the chaos level, capped at 10 (declarative INCREASE_CHAOS effect). */
+    void bumpChaos(int delta) {
+        chaosLevel = Math.min(10, Math.max(0, chaosLevel + delta));
+    }
+
+    void triggerCombatEncounter() {
         List<Enemy> foes = new ArrayList<>();
         boolean isBoss = random.nextInt(100) < 15;
 
@@ -278,6 +445,8 @@ public class DungeonMasterEngine {
     private void handleCombatVictory() {
         combatState.setInactive();
         broadcast("VICTORY: The hostile rift collapses.");
+        Quest quest = currentQuest;
+        chronicle.record("combat_won", (quest != null) ? quest.getTitle() : "", "");
 
         int partyXp = 25 + random.nextInt(40);
         synchronized (party) {
@@ -316,7 +485,9 @@ public class DungeonMasterEngine {
 
     public synchronized void saveGame(String path) {
         try {
-            GameStateData data = new GameStateData(party, currentQuest, chaosLevel, difficulty);
+            GameStateData data = new GameStateData(party, currentQuest, chaosLevel, difficulty,
+                    worldState, currentQuestScriptId,
+                    campaign != null ? campaign.getId() : null, chronicle);
             mapper.writeValue(new File(path), data);
             log("Timeline persisted.");
         } catch (IOException e) {
@@ -332,6 +503,14 @@ public class DungeonMasterEngine {
             currentQuest = data.currentQuest;
             chaosLevel = data.chaosLevel;
             difficulty = data.difficulty;
+            // Phase-2 fields are additive: pre-worldState saves load with fresh
+            // narrative state and no campaign, exactly as they played before.
+            worldState = (data.worldState != null) ? data.worldState : new WorldState();
+            currentQuestScriptId = (data.currentQuestScriptId != null)
+                    ? data.currentQuestScriptId : QuestScriptRegistry.DEFAULT_SCRIPT;
+            campaign = CampaignRegistry.get(data.campaignId);
+            campaignExhaustedAnnounced = false;
+            chronicle = (data.chronicle != null) ? data.chronicle : new Chronicle();
             log("Timeline restored.");
         } catch (IOException e) {
             log("Load failure: " + e.getMessage());
@@ -351,6 +530,7 @@ public class DungeonMasterEngine {
 
         if (combatState.isDefeat()) {
             combatState.setInactive();
+            chronicle.record("party_fallen", "", "");
             broadcast("FATAL: All adventurers are dead.");
             return;
         }
@@ -360,7 +540,7 @@ public class DungeonMasterEngine {
             if (next != null) next.onTurnStart(this);
 
             if (combatState.isVictory()) { handleCombatVictory(); return; }
-            if (combatState.isDefeat())  { combatState.setInactive(); broadcast("FATAL: All adventurers are dead."); return; }
+            if (combatState.isDefeat())  { combatState.setInactive(); chronicle.record("party_fallen", "", ""); broadcast("FATAL: All adventurers are dead."); return; }
         }
 
         maybeAddNarrativeFlavor();
@@ -383,7 +563,14 @@ public class DungeonMasterEngine {
         Quest quest = currentQuest;
         if (quest == null) return Collections.emptyList();
         Scene scene = quest.getCurrentScene();
-        return (scene != null) ? scene.getChoices() : Collections.emptyList();
+        if (scene == null) return Collections.emptyList();
+        // Hide choices whose declarative condition the world doesn't satisfy.
+        Adventurer lead = party.isEmpty() ? null : party.get(0);
+        List<Choice> visible = new ArrayList<>();
+        for (Choice c : scene.getChoices()) {
+            if (c.isAvailable(this, lead)) visible.add(c);
+        }
+        return visible;
     }
 
     /**
@@ -453,7 +640,7 @@ public class DungeonMasterEngine {
         LLMProvider provider = narrator;
         String scene = (currentQuest != null) ? currentQuest.getTitle() : "the drifting rift";
         LLMProvider.NarrativePrompt prompt = new LLMProvider.NarrativePrompt(
-                userPrompt == null ? "" : userPrompt, scene, 256);
+                userPrompt == null ? "" : userPrompt, scene, 256, narrationFacts());
         LLMProvider.NarrativeResponse response = provider.generate(prompt);
         broadcast(response.text);
         return response;
@@ -469,7 +656,7 @@ public class DungeonMasterEngine {
         LLMProvider provider = narrator;
         String scene = (currentQuest != null) ? currentQuest.getTitle() : "the drifting rift";
         LLMProvider.NarrativePrompt prompt = new LLMProvider.NarrativePrompt(
-                userPrompt == null ? "" : userPrompt, scene, 256);
+                userPrompt == null ? "" : userPrompt, scene, 256, narrationFacts());
         return provider.generateStreaming(prompt, onChunk);
     }
 
@@ -526,16 +713,34 @@ public class DungeonMasterEngine {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class GameStateData {
+    /** Bumped when the save schema gains fields; readers treat missing as 1. */
+    public int saveVersion = 3;
+
     public List<Adventurer> party;
     public Quest currentQuest;
     public int chaosLevel;
     public int difficulty;
 
+    // Phase-2 additive fields — null in pre-worldState saves.
+    public WorldState worldState;
+    public String currentQuestScriptId;
+    public String campaignId;
+
+    // Phase-3 additive field — null in pre-chronicle saves.
+    public Chronicle chronicle;
+
     public GameStateData() {}
-    public GameStateData(List<Adventurer> p, Quest q, int c, int d) {
+
+    GameStateData(List<Adventurer> p, Quest q, int c, int d,
+                  WorldState world, String questScriptId, String campaignId,
+                  Chronicle chronicle) {
         this.party = p;
         this.currentQuest = q;
         this.chaosLevel = c;
         this.difficulty = d;
+        this.worldState = world;
+        this.currentQuestScriptId = questScriptId;
+        this.campaignId = campaignId;
+        this.chronicle = chronicle;
     }
 }

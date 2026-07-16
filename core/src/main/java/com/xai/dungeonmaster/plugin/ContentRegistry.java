@@ -37,6 +37,8 @@ public final class ContentRegistry {
     private static volatile Map<String, Item> itemsCache;
     private static volatile Map<String, Enemy> monstersCache;
     private static volatile Map<String, String> stringsCache;
+    private static volatile Map<String, com.xai.dungeonmaster.Npc> npcsCache;
+    private static volatile Map<String, com.xai.dungeonmaster.Faction> factionsCache;
 
     private ContentRegistry() {}
 
@@ -148,6 +150,44 @@ public final class ContentRegistry {
         }
     }
 
+    /** Unmodifiable snapshot of the merged NPC set (enabled packs only). */
+    public static Map<String, com.xai.dungeonmaster.Npc> npcs() {
+        Map<String, com.xai.dungeonmaster.Npc> cached = npcsCache;
+        if (cached != null) return cached;
+        synchronized (LOCK) {
+            if (npcsCache == null) {
+                LinkedHashMap<String, com.xai.dungeonmaster.Npc> merged = new LinkedHashMap<>();
+                for (Map.Entry<String, ContentPack> e : PACKS.entrySet()) {
+                    if (DISABLED.contains(e.getKey())) continue;
+                    for (Map.Entry<String, com.xai.dungeonmaster.Npc> n : e.getValue().npcs().entrySet()) {
+                        if (n.getKey() != null && n.getValue() != null) merged.put(n.getKey(), n.getValue());
+                    }
+                }
+                npcsCache = Collections.unmodifiableMap(merged);
+            }
+            return npcsCache;
+        }
+    }
+
+    /** Unmodifiable snapshot of the merged faction set (enabled packs only). */
+    public static Map<String, com.xai.dungeonmaster.Faction> factions() {
+        Map<String, com.xai.dungeonmaster.Faction> cached = factionsCache;
+        if (cached != null) return cached;
+        synchronized (LOCK) {
+            if (factionsCache == null) {
+                LinkedHashMap<String, com.xai.dungeonmaster.Faction> merged = new LinkedHashMap<>();
+                for (Map.Entry<String, ContentPack> e : PACKS.entrySet()) {
+                    if (DISABLED.contains(e.getKey())) continue;
+                    for (Map.Entry<String, com.xai.dungeonmaster.Faction> f : e.getValue().factions().entrySet()) {
+                        if (f.getKey() != null && f.getValue() != null) merged.put(f.getKey(), f.getValue());
+                    }
+                }
+                factionsCache = Collections.unmodifiableMap(merged);
+            }
+            return factionsCache;
+        }
+    }
+
     /** Currently-registered packs, in registration order (enabled or not). */
     public static Map<String, ContentPack> packs() {
         synchronized (LOCK) {
@@ -180,5 +220,7 @@ public final class ContentRegistry {
         itemsCache = null;
         monstersCache = null;
         stringsCache = null;
+        npcsCache = null;
+        factionsCache = null;
     }
 }

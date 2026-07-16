@@ -4,11 +4,15 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import com.xai.dungeonmaster.Campaign;
+import com.xai.dungeonmaster.CampaignRegistry;
 import com.xai.dungeonmaster.Enemy;
 import com.xai.dungeonmaster.Item;
 import com.xai.dungeonmaster.plugin.ContentPack;
 import com.xai.dungeonmaster.plugin.ContentRegistry;
+import com.xai.dungeonmaster.plugin.DataQuestScript;
 import com.xai.dungeonmaster.plugin.DefaultContentPack;
+import com.xai.dungeonmaster.plugin.QuestScriptRegistry;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -176,8 +180,80 @@ public final class ResourceLoader {
         Map<String, Item> items = mergeJsonDir(dir.resolve("items"), Item.class);
         Map<String, Enemy> monsters = mergeJsonDir(dir.resolve("monsters"), Enemy.class);
         Map<String, String> strings = loadLocaleStrings(dir.resolve("strings"));
+        Map<String, com.xai.dungeonmaster.Npc> npcs =
+                mergeJsonDir(dir.resolve("npcs"), com.xai.dungeonmaster.Npc.class);
+        Map<String, com.xai.dungeonmaster.Faction> factions =
+                mergeJsonDir(dir.resolve("factions"), com.xai.dungeonmaster.Faction.class);
 
-        return new FilesystemContentPack(meta, items, monsters, strings);
+        registerQuestScripts(dir.resolve("quests"), meta.id);
+        registerCampaigns(dir.resolve("campaigns"), meta.id);
+
+        return new FilesystemContentPack(meta, items, monsters, strings, npcs, factions);
+    }
+
+    /**
+     * Scan a pack's {@code campaigns/*.json} and register each valid campaign
+     * in the {@link CampaignRegistry}. Nodes referencing quest scripts that
+     * aren't (yet) registered draw a warning but don't fail the campaign —
+     * the quest may legitimately live in another pack. Returns the number of
+     * campaigns registered.
+     */
+    public static int registerCampaigns(Path campaignsDir, String packId) {
+        if (!Files.isDirectory(campaignsDir)) return 0;
+        int registered = 0;
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(campaignsDir, "*.json")) {
+            for (Path file : stream) {
+                String source = (packId != null ? packId + ":" : "") + file.getFileName();
+                try (InputStream is = Files.newInputStream(file)) {
+                    Campaign campaign = MAPPER.readValue(is, Campaign.class);
+                    if (campaign.getId().isEmpty() || campaign.getNodes().isEmpty()) {
+                        System.err.println("Skipping campaign " + source + ": missing id or nodes");
+                        continue;
+                    }
+                    for (Campaign.QuestNode node : campaign.getNodes()) {
+                        if (!QuestScriptRegistry.isRegistered(node.getQuestId())) {
+                            System.err.println("WARN: campaign " + source + " references unknown quest '"
+                                    + node.getQuestId() + "' (may load from another pack)");
+                        }
+                    }
+                    CampaignRegistry.register(campaign);
+                    registered++;
+                } catch (Exception e) {
+                    System.err.println("Skipping campaign " + source + ": " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to scan " + campaignsDir + " for campaigns: " + e.getMessage());
+        }
+        return registered;
+    }
+
+    /**
+     * Scan a pack's {@code quests/} directory and register each valid quest
+     * document as a {@link DataQuestScript} in the {@link QuestScriptRegistry}.
+     *
+     * Invalid documents (bad JSON, missing id, failed graph lint) are logged
+     * and skipped — one broken quest never takes down the pack. Returns the
+     * number of quests registered.
+     */
+    public static int registerQuestScripts(Path questsDir, String packId) {
+        if (!Files.isDirectory(questsDir)) return 0;
+        int registered = 0;
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(questsDir, "*.json")) {
+            for (Path file : stream) {
+                String source = (packId != null ? packId + ":" : "") + file.getFileName();
+                try (InputStream is = Files.newInputStream(file)) {
+                    DataQuestScript script = DataQuestScript.fromJson(MAPPER.readTree(is), MAPPER, source);
+                    QuestScriptRegistry.register(script);
+                    registered++;
+                } catch (Exception e) {
+                    System.err.println("Skipping quest " + source + ": " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to scan " + questsDir + " for quests: " + e.getMessage());
+        }
+        return registered;
     }
 
     private static <T> Map<String, T> mergeJsonDir(Path dir, Class<T> elementType) {
@@ -240,15 +316,21 @@ public final class ResourceLoader {
         private final Map<String, Item> items;
         private final Map<String, Enemy> monsters;
         private final Map<String, String> strings;
+        private final Map<String, com.xai.dungeonmaster.Npc> npcs;
+        private final Map<String, com.xai.dungeonmaster.Faction> factions;
 
         FilesystemContentPack(PackManifest meta,
                               Map<String, Item> items,
                               Map<String, Enemy> monsters,
-                              Map<String, String> strings) {
+                              Map<String, String> strings,
+                              Map<String, com.xai.dungeonmaster.Npc> npcs,
+                              Map<String, com.xai.dungeonmaster.Faction> factions) {
             this.meta = meta;
             this.items = items;
             this.monsters = monsters;
             this.strings = strings;
+            this.npcs = npcs;
+            this.factions = factions;
         }
 
         @Override public String id() { return meta.id; }
@@ -258,5 +340,7 @@ public final class ResourceLoader {
         @Override public Map<String, Item> items() { return Collections.unmodifiableMap(items); }
         @Override public Map<String, Enemy> monsters() { return Collections.unmodifiableMap(monsters); }
         @Override public Map<String, String> strings() { return Collections.unmodifiableMap(strings); }
+        @Override public Map<String, com.xai.dungeonmaster.Npc> npcs() { return Collections.unmodifiableMap(npcs); }
+        @Override public Map<String, com.xai.dungeonmaster.Faction> factions() { return Collections.unmodifiableMap(factions); }
     }
 }

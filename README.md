@@ -4,7 +4,16 @@ A single-player, AI-narrated dungeon crawler built as a portable game engine: a
 pure-Java core, a Spring Boot server, a versioned REST + WebSocket API, an
 offline-capable LLM narration layer, and a data-driven content-pack system.
 
-> Java 17 · Spring Boot 3.2.5 · Maven multi-module · 69 tests green
+> Java 17 · Spring Boot 3.2.5 · Maven multi-module · 91 tests green
+
+## Highlights
+
+- Typed, versioned REST + STOMP WebSocket API (`/v2/*`) with generated TypeScript, Kotlin, and Swift SDKs.
+- Swappable LLM narration: offline `local-stub` by default, plus keyed OpenAI / Anthropic / xAI / local-llama backends.
+- Eight plugin SPIs, all `ServiceLoader`-driven; code mods are signature-verified and bytecode-sandboxed before loading.
+- Data-driven content packs (four themed packs ship) with a runtime enable/disable mod browser at `/mod-browser.html`.
+- Story depth engine (ADR-001): branching scene graphs, flag-gated campaigns, structured narrative memory fed to the narrator, and NPC/faction dispositions — all authorable as pack JSON, all offline-capable.
+- Optional JWT session identity (in-memory or file-persisted) and storefront receipt validation with per-session entitlements.
 
 ## Overview
 
@@ -32,7 +41,7 @@ Two Maven modules:
 ## Build & test
 
 ```bash
-mvn clean test     # compile both modules and run the suite (69 tests)
+mvn clean test     # compile both modules and run the suite (91 tests)
 mvn package        # build the runnable Spring Boot jar
 ```
 
@@ -56,6 +65,14 @@ The server listens on `http://localhost:8080`. Optional modes (pass as Spring
 
 The JVM stays headless by default; the GUI flag flips `java.awt.headless` before
 Spring boots so AWT can initialise.
+
+Once it's up, open the mod browser at `http://localhost:8080/mod-browser.html`, or
+smoke-test the API:
+
+```bash
+curl -s localhost:8080/v2/status      # typed game_status envelope
+curl -s localhost:8080/v2/catalog     # installed packs + plugins
+```
 
 ## API
 
@@ -92,7 +109,9 @@ Example `GET /v2/status` payload:
   "chaosLevel": 4,
   "combatActive": false,
   "availableChoices": ["Scavenge for parts", "Push deeper into the rift"],
-  "recentHistory": ["..."]
+  "recentHistory": ["..."],
+  "quest": { "title": "The Weeping Tree", "completed": false, "failed": false, "progress": 0.33 },
+  "recentEvents": ["Quest begun: The Weeping Tree", "Boss slain: Grave Warden (by Kael)"]
 }
 ```
 
@@ -102,8 +121,8 @@ request/response correlation.
 ### WebSocket (STOMP)
 
 - Connect: `ws://localhost:8080/ws` (SockJS fallback available)
-- Subscribe: `/topic/narrative` — the narration stream (plain text today; typed
-  `narrative_chunk` then `narrative_update` envelopes for v2 streaming)
+- Subscribe: `/topic/narrative` — the narration stream (typed `narrative_chunk`
+  chunks followed by a final `narrative_update` envelope for v2 streaming)
 - Send: `/app/action` (a choice) or `/app/narrate` (a prompt to stream narration)
 
 ### Specs & client SDKs
@@ -155,12 +174,10 @@ Game content is data-driven, not hardcoded:
   (`game.content.packs.dir`).
 - Code-bearing plugins ship as JARs with a `plugin.yaml` manifest, loaded via a
   scoped classloader (`game.plugins.dir`).
-- Spell and item effects register via Java `ServiceLoader` (`META-INF/services`),
-  so new effects need no engine changes.
-- All eight plugin SPIs are dispatchable through registries — SpellEffect,
-  ItemEffect, EncounterTable, LootTable, QuestScript, LLMProvider,
-  StorefrontIntegration, ContentPack — each with a bundled default that
-  content packs or mods can override.
+- All eight plugin SPIs (SpellEffect, ItemEffect, EncounterTable, LootTable,
+  QuestScript, LLMProvider, StorefrontIntegration, ContentPack) dispatch through
+  registries and are discovered via Java `ServiceLoader` (`META-INF/services`);
+  each ships a bundled default that packs or mods can override — no engine changes.
 - Plugin JARs are signature-checked before any class loads: `PluginLoader`
   hashes the payload (SHA-256, all entries except `plugin.yaml`) and compares
   it to the manifest `signature` under a configurable
@@ -171,6 +188,19 @@ Game content is data-driven, not hardcoded:
 - Four themed packs ship under `content-packs/`: `black-hollows` (horror),
   `dnd-classic`, `sci-fi`, and `cozy-hearthwood` — monsters, items, and localized
   strings, each loaded end-to-end by tests.
+- **Story content is pack data too** (ADR-001). A pack may also ship:
+  - `quests/*.json` — branching quest documents (scenes, per-choice `nextSceneId`
+    targets, declarative `effects` like `SET_FLAG`/`START_QUEST`/`MODIFY_DISPOSITION`
+    and `condition` gates like `FLAG`/`DISPOSITION`/`REPUTATION`), registered as
+    `QuestScript`s and graph-linted at load;
+  - `campaigns/*.json` — flag-gated quest chains the engine walks automatically
+    (activate with `game.campaign.id`);
+  - `npcs/*.json` and `factions/*.json` — characters with persona sheets for the
+    narrator, plus disposition/reputation tracked in the persistent world state.
+  `black-hollows` ships all four end-to-end: the 3-quest **Hollows Cycle** campaign
+  (`game.campaign.id=the-hollows-cycle`), where burning or resting the weeping tree
+  routes the arc to different quests, and Mother Brine, whose blessing unlocks only
+  if you've earned her trust.
 - A static **mod-browser page** ships at `/mod-browser.html` (served by the
   engine): it renders the `/v2/catalog` data — installed packs, plugins per SPI,
   and the narration provider — and can **enable/disable packs at runtime**, with
@@ -199,6 +229,7 @@ content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hea
 | `game.party.names` / `game.party.roles` | `Kael,Lira` / `Warrior,Mage` | Starting party |
 | `game.gui.enabled` | `true` | Launch the Swing GUI |
 | `game.cli.enabled` | `false` | Run the terminal CLI |
+| `game.campaign.id` | _(none)_ | Story arc to run (from a pack's `campaigns/*.json`), e.g. `the-hollows-cycle` |
 | `game.narration.provider` | `local-stub` | Active LLM provider id |
 | `game.narration.token.ceiling` | `4000` | Per-session narration token cap |
 | `game.auth.enabled` | `false` | Enforce JWT auth on `/v2/**` (opt-in) |
@@ -211,15 +242,15 @@ content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hea
 
 ## Roadmap
 
-See [`docs/ROADMAP_STATUS.md`](docs/ROADMAP_STATUS.md) for a detailed,
-code-grounded status. In brief: Phase 0 (hygiene) is complete, Phase 1 (headless
-core + plugin SPI) is complete — all eight SPIs are dispatchable and plugin JARs
-are signature-verified — and Phase 2 (v2 API + LLM provider) is largely built:
-typed envelope, structured party state, the provider stack with guardrails,
-streaming, and keyed OpenAI/Anthropic/xAI/llama backends, validated specs,
-generated TypeScript/Kotlin/Swift clients, and session identity + JWT auth. Plugin
-mods are signed and sandboxed, and four themed content packs ship. The native
-client apps (Steam / Android / iOS) and storefront integrations are future phases.
+See [`docs/ROADMAP_STATUS.md`](docs/ROADMAP_STATUS.md) for the detailed,
+code-grounded status. In brief: Phases 0–1 are complete (headless core, all eight
+plugin SPIs dispatchable, signed and sandboxed mods), and Phase 2 is essentially
+done — the typed envelope API, structured party state, the LLM provider stack with
+guardrails, streaming, and keyed OpenAI/Anthropic/xAI/llama backends, validated
+specs, generated TypeScript/Kotlin/Swift SDKs, JWT session identity with optional
+persistence, and storefront receipt validation with entitlements. Four themed
+content packs ship with a web mod browser. What's left is client-native: the
+Android/iOS/Steam apps on the generated SDKs, and a richer in-game mod-browser UI.
 
 ## License
 

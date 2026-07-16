@@ -1,0 +1,44 @@
+{
+  "id": "black-hollows-embers",
+  "title": "Embers of the Parish",
+  "description": "The weeping tree burned, and what slept beneath its roots woke hungry. The Hollows remember who lit the match.",
+  "scenes": [
+    {
+      "id": "ash-shore",
+      "description": "Ash falls like snow over the black water. The tree's stump still glows, and around it the ground has split into smoking rents.",
+      "choices": [
+        {
+          "label": "Descend into the rents",
+          "resultText": "You climb down through smoke into the root-hollow, where coffin-wood glows like coals.",
+          "nextSceneId": "root-hollow"
+        },
+        {
+          "label": "Circle the stump warily",
+          "resultText": "You keep your distance. Something below exhales, slow and patient.",
+          "effects": [ { "type": "ADD_FLAG", "arg": "hollows_dread" } ],
+          "nextSceneId": "root-hollow"
+        }
+      ]
+    },
+    {
+      "id": "root-hollow",
+      "description": "Beneath the stump, the parish's true founder lies in a cradle of roots — awake now, its grave-shroud smouldering.",
+      "isFinalScene": true,
+      "choices": [
+        {
+          "label": "Offer the founder your torch",
+          "resultText": "It takes the flame like a debt repaid, folds its hands, and lets the fire finish what you started. The Hollows go quiet — scoured, but at peace.",
+          "effects": [ { "type": "SET_FLAG", "arg": "founder_fate=1" } ]
+        },
+        {
+          "label": "Fight it in the smoke",
+          "resultText": "The founder rises, trailing embers.",
+          "effects": [
+            { "type": "SET_FLAG", "arg": "founder_fate=2" },
+            { "type": "TRIGGER_COMBAT" }
+          ]
+        }
+      ]
+    }
+  ]
+}

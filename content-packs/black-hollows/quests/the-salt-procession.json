@@ -1,0 +1,81 @@
+{
+  "id": "black-hollows-salt-procession",
+  "title": "The Salt Procession",
+  "description": "With the tree's fate decided, the parish's survivors walk the old salt-road one last time — and they need wardens.",
+  "scenes": [
+    {
+      "id": "salt-road",
+      "description": "A ragged column of survivors follows the drowned causeway, scattering grave-salt as they go. The marsh watches from both sides.",
+      "choices": [
+        {
+          "label": "Walk point ahead of the column",
+          "resultText": "You take the front. Whatever comes for the procession meets you first.",
+          "effects": [ { "type": "ADD_FLAG", "arg": "parish_hope" } ],
+          "nextSceneId": "drowned-chapel"
+        },
+        {
+          "label": "Guard the stragglers",
+          "resultText": "You fall back with the old and the slow. The column tightens.",
+          "effects": [ { "type": "ADD_FLAG", "arg": "parish_hope=2" } ],
+          "nextSceneId": "drowned-chapel"
+        }
+      ]
+    },
+    {
+      "id": "drowned-chapel",
+      "npcId": "mother-brine",
+      "description": "The procession shelters in the half-sunk chapel while the tide of the marsh turns. Mother Brine, the salt-keeper, watches you re-draw her lines with narrowed eyes.",
+      "choices": [
+        {
+          "label": "Hold the doors until dawn",
+          "resultText": "All night, things test the salt. All night, the lines hold. By morning, Mother Brine nods at you — once.",
+          "effects": [
+            { "type": "MODIFY_DISPOSITION", "arg": "mother-brine=1" },
+            { "type": "MODIFY_REPUTATION", "arg": "parish-survivors=1" }
+          ],
+          "nextSceneId": "causeway-end"
+        },
+        {
+          "label": "Lead a quiet prayer",
+          "resultText": "The words are old and the roof leaks, but for an hour the parish is a parish again. Mother Brine mouths the names with you.",
+          "effects": [
+            { "type": "REST_PARTY" },
+            { "type": "MODIFY_DISPOSITION", "arg": "mother-brine=2" }
+          ],
+          "nextSceneId": "causeway-end"
+        },
+        {
+          "label": "Demand her grave-salt stores",
+          "resultText": "Mother Brine hands over the sack without a word. The survivors move a little further from you.",
+          "effects": [
+            { "type": "GIVE_LOOT" },
+            { "type": "MODIFY_DISPOSITION", "arg": "mother-brine=-2" },
+            { "type": "MODIFY_REPUTATION", "arg": "parish-survivors=-1" }
+          ],
+          "nextSceneId": "causeway-end"
+        }
+      ]
+    },
+    {
+      "id": "causeway-end",
+      "npcId": "mother-brine",
+      "description": "At the causeway's end, dry land — and morning. The survivors count each other, then look back once at the Hollows.",
+      "isFinalScene": true,
+      "choices": [
+        {
+          "label": "See them to the hills",
+          "resultText": "You walk the parish out of its grave. What they build next is theirs; that they build at all is yours."
+        },
+        {
+          "label": "Accept Mother Brine's blessing",
+          "condition": { "type": "DISPOSITION", "key": "mother-brine", "op": "GTE", "value": 2 },
+          "resultText": "She presses a pinch of grave-salt into each of your palms. 'The dead will know you kept faith,' she says. 'So will I.'",
+          "effects": [
+            { "type": "REST_PARTY" },
+            { "type": "MODIFY_REPUTATION", "arg": "parish-survivors=1" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -120,6 +120,8 @@ public class GameV2Controller {
                 engine.getChaosLevel(),
                 engine.getCombatState().isActive(),
                 choices,
-                recent);
+                recent,
+                com.xai.dungeonmaster.dto.QuestInfo.from(engine.getCurrentQuest()),
+                engine.getChronicle().renderFacts(6));
     }
 }

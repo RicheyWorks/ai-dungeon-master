@@ -59,4 +59,14 @@ public interface ContentPack extends Plugin {
     default Map<String, String> strings() {
         return Collections.emptyMap();
     }
+
+    /** NPCs keyed by their id (ADR-001 Phase 4). Additive: packs predating NPCs return empty. */
+    default Map<String, com.xai.dungeonmaster.Npc> npcs() {
+        return Collections.emptyMap();
+    }
+
+    /** Factions keyed by their id (ADR-001 Phase 4). Additive: packs predating factions return empty. */
+    default Map<String, com.xai.dungeonmaster.Faction> factions() {
+        return Collections.emptyMap();
+    }
 }

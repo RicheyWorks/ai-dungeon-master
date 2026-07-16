@@ -1,0 +1,19 @@
+{
+  "id": "the-hollows-cycle",
+  "title": "The Hollows Cycle",
+  "nodes": [
+    {
+      "questId": "black-hollows-weeping-tree"
+    },
+    {
+      "questId": "black-hollows-embers",
+      "requires": { "tree_fate": 2 },
+      "grants": { "hollows_scoured": 1 }
+    },
+    {
+      "questId": "black-hollows-salt-procession",
+      "requires": { "tree_fate": 1 },
+      "grants": { "hollows_saved": 1 }
+    }
+  ]
+}

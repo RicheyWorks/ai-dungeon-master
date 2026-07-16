@@ -389,6 +389,26 @@ components:
         recentHistory:
           type: array
           items: { type: string }
+        quest:
+          $ref: '#/components/schemas/QuestInfo'
+        recentEvents:
+          description: >-
+            Compact story-memory facts from the engine's Chronicle (newest
+            last), e.g. "Quest completed: The Weeping Tree". Bounded server-side.
+          type: array
+          items: { type: string }
+    QuestInfo:
+      description: Outcome snapshot of the current quest.
+      type: object
+      nullable: true
+      properties:
+        title: { type: string }
+        completed: { type: boolean }
+        failed: { type: boolean }
+        progress:
+          description: Scene progress in [0,1].
+          type: number
+          format: double
     NarrativePayload:
       type: object
       properties:

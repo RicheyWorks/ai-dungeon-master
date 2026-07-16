@@ -14,5 +14,7 @@ public record GameStatusV2(
         int chaosLevel,
         boolean combatActive,
         List<String> availableChoices,
-        List<String> recentHistory
+        List<String> recentHistory,
+        QuestInfo quest,
+        List<String> recentEvents
 ) {}

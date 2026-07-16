@@ -40,10 +40,23 @@ public class Scene {
     private final boolean finalScene;
 
     /**
+     * Optional NPC present in this scene (ADR-001 Phase 4). When set, the
+     * engine records the first meeting in the Chronicle and feeds the NPC's
+     * persona sheet to the narrator. Null for ordinary scenes — additive,
+     * so old quests and saves deserialize unchanged.
+     */
+    private final String npcId;
+
+    /**
      * Standard constructor.
      */
     public Scene(String id, String description, List<Choice> choices) {
-        this(id, description, choices, false);
+        this(id, description, choices, false, null);
+    }
+
+    /** Pre-Phase-4 constructor, kept for existing call sites and tests. */
+    public Scene(String id, String description, List<Choice> choices, boolean isFinalScene) {
+        this(id, description, choices, isFinalScene, null);
     }
 
     @JsonCreator
@@ -51,12 +64,14 @@ public class Scene {
             @JsonProperty("id") String id,
             @JsonProperty("description") String description,
             @JsonProperty("choices") List<Choice> choices,
-            @JsonProperty("isFinalScene") boolean isFinalScene) {
+            @JsonProperty("isFinalScene") boolean isFinalScene,
+            @JsonProperty("npcId") String npcId) {
 
         this.id = normalize(id, "Unknown Scene");
         this.description = normalize(description, "");
         this.choices = new ArrayList<>(choices != null ? choices : Collections.emptyList());
         this.finalScene = isFinalScene;
+        this.npcId = (npcId != null && !npcId.isBlank()) ? npcId.trim() : null;
     }
 
     /**
@@ -129,6 +144,11 @@ public class Scene {
     @JsonProperty("isFinalScene")
     public boolean isFinalScene() {
         return finalScene;
+    }
+
+    /** NPC present in this scene, or null. */
+    public String getNpcId() {
+        return npcId;
     }
 
     public boolean isValidChoice(int index) {

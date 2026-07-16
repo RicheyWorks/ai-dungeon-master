@@ -66,10 +66,26 @@ public interface LLMProvider extends Plugin {
         public final String sceneContext;
         public final int maxTokens;
 
+        /**
+         * Compact, deterministic story facts from the engine's Chronicle
+         * (ADR-001 Phase 3) — "Quest completed: The Weeping Tree", "Boss
+         * slain: Grave Warden". Never null; empty when no memory is
+         * available. Providers weave these into their context so narration
+         * has continuity; the offline stub renders them as a recap.
+         */
+        public final java.util.List<String> contextFacts;
+
         public NarrativePrompt(String userPrompt, String sceneContext, int maxTokens) {
+            this(userPrompt, sceneContext, maxTokens, null);
+        }
+
+        public NarrativePrompt(String userPrompt, String sceneContext, int maxTokens,
+                               java.util.List<String> contextFacts) {
             this.userPrompt = userPrompt;
             this.sceneContext = sceneContext;
             this.maxTokens = Math.max(1, maxTokens);
+            this.contextFacts = (contextFacts != null)
+                    ? java.util.List.copyOf(contextFacts) : java.util.List.of();
         }
     }
 

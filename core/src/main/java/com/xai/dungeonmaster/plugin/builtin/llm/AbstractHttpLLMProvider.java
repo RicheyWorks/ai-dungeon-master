@@ -77,12 +77,23 @@ public abstract class AbstractHttpLLMProvider implements LLMProvider {
         return new NarrativeResponse(text, estimateTokens(text), 0.0, true);
     }
 
-    /** Default system instruction woven around the scene context. */
+    /** Default system instruction woven around the scene context and story memory. */
     protected String systemPrompt(NarrativePrompt prompt) {
         String scene = (prompt != null && prompt.sceneContext != null) ? prompt.sceneContext.trim() : "";
-        String base = "You are the Dungeon Master of a dark, multiversal dungeon crawler. "
-                + "Narrate the outcome in 2-4 vivid, second-person sentences. Do not break character.";
-        return scene.isEmpty() ? base : base + " Current scene: " + scene + ".";
+        StringBuilder sb = new StringBuilder(
+                "You are the Dungeon Master of a dark, multiversal dungeon crawler. "
+                + "Narrate the outcome in 2-4 vivid, second-person sentences. Do not break character.");
+        if (!scene.isEmpty()) {
+            sb.append(" Current scene: ").append(scene).append('.');
+        }
+        // Narrative memory (ADR-001 Phase 3): compact facts from the engine's
+        // Chronicle. Reference them for continuity; never contradict them.
+        if (prompt != null && !prompt.contextFacts.isEmpty()) {
+            sb.append(" What has happened so far: ")
+              .append(String.join("; ", prompt.contextFacts))
+              .append(". Stay consistent with these events.");
+        }
+        return sb.toString();
     }
 
     protected String userContent(NarrativePrompt prompt) {
