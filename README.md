@@ -256,7 +256,10 @@ content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hea
 | `game.auth.enabled` | `false` | Enforce JWT auth on `/v2/**` (opt-in) |
 | `game.auth.jwt.secret` | _(insecure dev secret)_ | HMAC-SHA256 token signing secret |
 | `game.auth.jwt.ttl-seconds` | `86400` | Session token lifetime (seconds) |
-| `game.auth.session.store` | `memory` | Session store: `memory` or `file` (survives restart) |
+| `game.auth.session.store` | `memory` | Session store: `memory`, `file`, or `redis` (see `docs/MULTI_NODE.md`) |
+| `game.auth.entitlement.store` | `memory` | Entitlement store: `memory`, `file`, or `redis` |
+| `game.auth.redis.url` | `redis://127.0.0.1:6379` | Redis URL when either store is `redis` |
+
 | `game.auth.session.file` | `sessions.json` | JSON file for the file session store |
 | `game.saves.dir` | `saves` | Per-session game save directory |
 | `game.instances.idle-ttl-seconds` | `3600` | Evict idle per-session engines after N seconds (0 = never) |
