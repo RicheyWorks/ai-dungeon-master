@@ -111,7 +111,13 @@ fun GameApp(viewModel: GameViewModel = viewModel()) {
 
         when (tab) {
             0 -> GameScreen(ui, viewModel)
-            1 -> ModsScreen(ui.catalog, ui.busy, viewModel::loadCatalog, viewModel::togglePack)
+            1 -> ModsScreen(
+                catalog = ui.catalog,
+                busy = ui.busy,
+                onLoad = viewModel::loadCatalog,
+                onToggle = viewModel::togglePack,
+                onUpload = viewModel::uploadPack,
+            )
             else -> EntitlementsScreen(
                 entitlements = ui.entitlements,
                 busy = ui.busy,

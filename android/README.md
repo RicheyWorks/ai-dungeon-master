@@ -33,6 +33,7 @@ updates the app with no publishing step.
 **Mods tab**
 - Installed content packs with runtime enable/disable switches
   (`GET /v2/catalog`, `POST /v2/catalog/packs/{id}/enable|disable`)
+- **Upload pack zip** from device storage (`POST /v2/catalog/packs`, optional replace)
 - Active narration provider + health, registered plugins per SPI
 
 **Store tab**
@@ -95,7 +96,5 @@ Compose BOM 2024.06) — bump them freely, nothing here is version-sensitive.
 ## Not yet wired
 
 - Real Play Billing (dev storefront covers the verify loop for now)
-- Pack upload from the device (`POST /v2/catalog/packs`) — use the web
-  mod browser for now (`uploadPackV2` is in the regenerated SDK)
 - Save/load/reset in the generated SDK (hand-rolled in `SessionClient` until
   the multi-player isolation OpenAPI paths merge)

@@ -1,5 +1,8 @@
 package com.xai.dungeonmaster.android
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,22 +10,29 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.xai.dungeonmaster.client.models.CatalogPayload
 import com.xai.dungeonmaster.client.models.PackInfo
+import java.io.File
 
 /**
  * Mod browser (Android counterpart of /mod-browser.html): installed packs
- * with runtime enable/disable toggles, plugin counts, and the active
- * narration provider. Pack upload stays on the web UI for now.
+ * with runtime enable/disable toggles, zip upload, plugin counts, and the
+ * active narration provider.
  */
 @Composable
 fun ModsScreen(
@@ -30,7 +40,30 @@ fun ModsScreen(
     busy: Boolean,
     onLoad: () -> Unit,
     onToggle: (id: String, enable: Boolean) -> Unit,
+    onUpload: (file: File, replace: Boolean) -> Unit,
 ) {
+    val context = LocalContext.current
+    var replace by remember { mutableStateOf(false) }
+    var lastPickedName by remember { mutableStateOf<String?>(null) }
+
+    val pickZip = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val name = uri.lastPathSegment?.substringAfterLast('/') ?: "pack.zip"
+        lastPickedName = name
+        val dest = File(context.cacheDir, "upload-${System.currentTimeMillis()}.zip")
+        try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            } ?: return@rememberLauncherForActivityResult
+            onUpload(dest, replace)
+        } catch (e: Exception) {
+            // ViewModel surfaces API errors; copy failures are rare — show via reload message path.
+            lastPickedName = "Failed to read: ${e.message}"
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -43,6 +76,43 @@ fun ModsScreen(
                     modifier = Modifier.weight(1f),
                 )
                 OutlinedButton(onClick = onLoad, enabled = !busy) { Text("Reload") }
+            }
+        }
+
+        item {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
+                    Text("Upload pack zip", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Select a content-pack zip (pack.yaml + data). Same endpoint as the web mod browser: POST /v2/catalog/packs.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Replace if exists", modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = replace,
+                            onCheckedChange = { replace = it },
+                            enabled = !busy,
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            pickZip.launch(
+                                arrayOf(
+                                    "application/zip",
+                                    "application/x-zip-compressed",
+                                    "application/octet-stream",
+                                    "*/*",
+                                ),
+                            )
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Choose zip…") }
+                    lastPickedName?.let {
+                        Text("Last pick: $it", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         }
 
@@ -120,6 +190,8 @@ private fun PackCard(pack: PackInfo, busy: Boolean, onToggle: (String, Boolean) 
 
 @Composable
 private fun PluginLine(label: String, ids: List<String>?) {
-    Text("$label: ${ids.orEmpty().joinToString().ifEmpty { "—" }}",
-        style = MaterialTheme.typography.bodySmall)
+    Text(
+        "$label: ${ids.orEmpty().joinToString().ifEmpty { "—" }}",
+        style = MaterialTheme.typography.bodySmall,
+    )
 }

@@ -13,6 +13,7 @@ import com.xai.dungeonmaster.client.models.NarrateRequest
 import com.xai.dungeonmaster.client.models.SessionRequest
 import com.xai.dungeonmaster.client.models.VerifyReceiptRequest
 import com.xai.dungeonmaster.client.infrastructure.ClientException
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -149,6 +150,33 @@ class GameViewModel : ViewModel() {
         val withSession = ensureSession(current)
         val envelope = if (enable) api().enablePackV2(id) else api().disablePackV2(id)
         withSession.copy(catalog = envelope.payload, error = null, info = null)
+    }
+
+    /**
+     * Upload a content-pack zip via multipart `POST /v2/catalog/packs`.
+     * [replace] overwrites an existing pack with the same id (else 409).
+     * The temp [file] is deleted after the request when it lives under cacheDir.
+     */
+    fun uploadPack(file: File, replace: Boolean = false) = launchCall { current ->
+        val withSession = ensureSession(current)
+        try {
+            val envelope = api().uploadPackV2(file = file, replace = replace)
+            withSession.copy(
+                catalog = envelope.payload,
+                info = if (replace) "Pack replaced: ${file.name}" else "Pack uploaded: ${file.name}",
+                error = null,
+            )
+        } catch (e: ClientException) {
+            withSession.copy(
+                error = "Upload failed (${e.statusCode}): ${e.message}",
+                info = null,
+            )
+        } finally {
+            // Best-effort cleanup of SAF cache copies.
+            if (file.name.startsWith("upload-") && file.extension == "zip") {
+                file.delete()
+            }
+        }
     }
 
     fun loadEntitlements() = launchCall { current ->
