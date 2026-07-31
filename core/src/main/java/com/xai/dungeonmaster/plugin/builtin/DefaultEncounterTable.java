@@ -1,6 +1,8 @@
 package com.xai.dungeonmaster.plugin.builtin;
 
 import com.xai.dungeonmaster.Enemy;
+import com.xai.dungeonmaster.Faction;
+import com.xai.dungeonmaster.WorldState;
 import com.xai.dungeonmaster.plugin.ContentRegistry;
 import com.xai.dungeonmaster.plugin.EncounterTable;
 
@@ -15,10 +17,10 @@ import java.util.Random;
  * scales it by difficulty and chaos, falling back to synthetic constants when
  * no content pack is loaded.
  *
- * This is the canonical enemy generation logic — {@code DungeonGenerator}
- * routes {@code generateEnemy} through {@link com.xai.dungeonmaster.plugin.EncounterTableRegistry}
- * to this table, mirroring how {@code Spell.cast} routes through the
- * {@code SpellEffectRegistry}.
+ * When a {@link WorldState} is available, templates tagged with a
+ * {@code factionId} are weighted by the party's effective reputation with that
+ * faction — hostile standing favors those monsters, friendly standing deprioritizes
+ * them (ADR-001 Phase 4 production path).
  */
 public final class DefaultEncounterTable implements EncounterTable {
 
@@ -28,22 +30,27 @@ public final class DefaultEncounterTable implements EncounterTable {
 
     @Override
     public List<Enemy> roll(Random random, int difficulty, int chaos, boolean isBoss) {
+        return roll(random, difficulty, chaos, isBoss, null);
+    }
+
+    @Override
+    public List<Enemy> roll(Random random, int difficulty, int chaos, boolean isBoss,
+                            WorldState world) {
         Random rng = (random != null) ? random : new Random();
         int diff = Math.max(1, difficulty);
         int chaosLevel = Math.max(0, chaos);
 
-        // Draw a template from the loaded content registry when available so
-        // monsters.json stats (HP/AC/attack) and boss flags actually drive
-        // generation; fall back to legacy constants when nothing is loaded.
-        Enemy template = pickMonsterTemplate(rng, isBoss);
+        Enemy template = pickMonsterTemplate(rng, isBoss, world);
 
         String name;
         int baseHp, baseAc, baseAtk;
+        String factionId = null;
         if (template != null) {
             name = template.getName();
             baseHp = template.getMaxHp();
             baseAc = template.getAC();
             baseAtk = template.getAttackBonus();
+            factionId = template.getFactionId();
         } else {
             name = isBoss ? "Harbinger of Entropy" : "Rift Stalker";
             baseHp = isBoss ? 320 : 60;
@@ -63,15 +70,22 @@ public final class DefaultEncounterTable implements EncounterTable {
         Enemy enemy = new Enemy(name, hp, ac, atk, diff);
         if (isBoss) {
             enemy.setDamageDice("2d12");
+            enemy.setBoss(true);
+        } else if (template != null && template.isBoss()) {
+            enemy.setBoss(true);
+        }
+        if (factionId != null) {
+            enemy.setFactionId(factionId);
         }
         return List.of(enemy);
     }
 
     /**
      * Pick a monster template from the registry, preferring one whose boss flag
-     * matches the request. Returns null when no content is loaded.
+     * matches the request. When {@code world} is present, weight by faction
+     * reputation. Returns null when no content is loaded.
      */
-    private Enemy pickMonsterTemplate(Random random, boolean isBoss) {
+    private Enemy pickMonsterTemplate(Random random, boolean isBoss, WorldState world) {
         Map<String, Enemy> registered = ContentRegistry.monsters();
         if (registered.isEmpty()) {
             return null;
@@ -85,6 +99,57 @@ public final class DefaultEncounterTable implements EncounterTable {
         List<Enemy> pool = matching.isEmpty()
                 ? new ArrayList<>(registered.values())
                 : matching;
-        return pool.get(random.nextInt(pool.size()));
+
+        if (world == null || pool.size() == 1) {
+            return pool.get(random.nextInt(pool.size()));
+        }
+        return weightedPick(random, pool, world);
+    }
+
+    /**
+     * Weighted random pick: hostile factions get higher weight, friendly lower.
+     * Untagged monsters stay at weight 1. Weight is always at least 1 so every
+     * template remains reachable.
+     */
+    static Enemy weightedPick(Random random, List<Enemy> pool, WorldState world) {
+        int[] weights = new int[pool.size()];
+        int total = 0;
+        for (int i = 0; i < pool.size(); i++) {
+            int w = weightFor(pool.get(i), world);
+            weights[i] = w;
+            total += w;
+        }
+        int roll = random.nextInt(Math.max(1, total));
+        int cumulative = 0;
+        for (int i = 0; i < pool.size(); i++) {
+            cumulative += weights[i];
+            if (roll < cumulative) {
+                return pool.get(i);
+            }
+        }
+        return pool.get(pool.size() - 1);
+    }
+
+    /**
+     * Effective reputation = pack base + accumulated WorldState delta.
+     * Weight ladder: rep <= -3 → 8, <= -1 → 4, 0 → 2, >= 1 → 1.
+     * Untagged templates always weigh 1.
+     */
+    public static int weightFor(Enemy template, WorldState world) {
+
+        if (template == null || world == null) return 1;
+        String factionId = template.getFactionId();
+        if (factionId == null || factionId.isBlank()) return 1;
+
+        int base = 0;
+        Faction faction = ContentRegistry.factions().get(factionId);
+        if (faction != null) {
+            base = faction.getBaseReputation();
+        }
+        int rep = base + world.getFlag(Faction.reputationFlag(factionId));
+        if (rep <= -3) return 8;
+        if (rep <= -1) return 4;
+        if (rep <= 0) return 2;
+        return 1;
     }
 }

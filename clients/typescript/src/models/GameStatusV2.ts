@@ -19,6 +19,12 @@ import {
     MemberStateFromJSONTyped,
     MemberStateToJSON,
 } from './MemberState';
+import type { QuestInfo } from './QuestInfo';
+import {
+    QuestInfoFromJSON,
+    QuestInfoFromJSONTyped,
+    QuestInfoToJSON,
+} from './QuestInfo';
 
 /**
  * 
@@ -56,6 +62,30 @@ export interface GameStatusV2 {
      * @memberof GameStatusV2
      */
     recentHistory?: Array<string>;
+    /**
+     * 
+     * @type {QuestInfo}
+     * @memberof GameStatusV2
+     */
+    quest?: QuestInfo | null;
+    /**
+     * Compact story-memory facts from the engine's Chronicle (newest last), e.g. "Quest completed: The Weeping Tree". Bounded server-side.
+     * @type {Array<string>}
+     * @memberof GameStatusV2
+     */
+    recentEvents?: Array<string>;
+    /**
+     * Current party location from the engine WorldMap.
+     * @type {string}
+     * @memberof GameStatusV2
+     */
+    location?: string;
+    /**
+     * Named rifts the party has discovered (starting set + completed quests).
+     * @type {Array<string>}
+     * @memberof GameStatusV2
+     */
+    discoveredRifts?: Array<string>;
 }
 
 /**
@@ -80,6 +110,10 @@ export function GameStatusV2FromJSONTyped(json: any, ignoreDiscriminator: boolea
         'combatActive': json['combatActive'] == null ? undefined : json['combatActive'],
         'availableChoices': json['availableChoices'] == null ? undefined : json['availableChoices'],
         'recentHistory': json['recentHistory'] == null ? undefined : json['recentHistory'],
+        'quest': json['quest'] == null ? undefined : QuestInfoFromJSON(json['quest']),
+        'recentEvents': json['recentEvents'] == null ? undefined : json['recentEvents'],
+        'location': json['location'] == null ? undefined : json['location'],
+        'discoveredRifts': json['discoveredRifts'] == null ? undefined : json['discoveredRifts'],
     };
 }
 
@@ -94,6 +128,9 @@ export function GameStatusV2ToJSON(value?: GameStatusV2 | null): any {
         'combatActive': value['combatActive'],
         'availableChoices': value['availableChoices'],
         'recentHistory': value['recentHistory'],
+        'quest': QuestInfoToJSON(value['quest']),
+        'recentEvents': value['recentEvents'],
+        'location': value['location'],
+        'discoveredRifts': value['discoveredRifts'],
     };
 }
-

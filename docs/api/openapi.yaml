@@ -449,6 +449,13 @@ components:
             last), e.g. "Quest completed: The Weeping Tree". Bounded server-side.
           type: array
           items: { type: string }
+        location:
+          description: Current party location from the engine WorldMap.
+          type: string
+        discoveredRifts:
+          description: Named rifts the party has discovered (starting set + completed quests).
+          type: array
+          items: { type: string }
     QuestInfo:
       description: Outcome snapshot of the current quest.
       type: object

@@ -122,6 +122,8 @@ public class GameV2Controller {
                 choices,
                 recent,
                 com.xai.dungeonmaster.dto.QuestInfo.from(engine.getCurrentQuest()),
-                engine.getChronicle().renderFacts(6));
+                engine.getChronicle().renderFacts(6),
+                engine.getWorldMap().getCurrentLocation(),
+                List.copyOf(engine.getWorldMap().getDiscoveredRifts()));
     }
 }
