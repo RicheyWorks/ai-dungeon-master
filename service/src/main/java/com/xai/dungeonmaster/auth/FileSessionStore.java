@@ -1,92 +1,92 @@
 package com.xai.dungeonmaster.auth;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xai.dungeonmaster.store.LockedJsonFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * A {@link SessionStore} that persists sessions as a JSON array on disk, so a
- * JWT issued before a restart still resolves to its session afterwards. Loaded
- * into memory on construction; every {@link #save} rewrites the file. Adequate
- * for single-process v1 scale; a shared datastore is the multi-node upgrade.
+ * JWT issued before a restart still resolves to its session afterwards.
+ *
+ * Every operation reloads under a cross-process file lock, so two service
+ * instances sharing the path see each other's sessions (shared-volume multi-node).
+ * Previously the store only flushed from an in-process cache — fine for single
+ * process, wrong for multi-node.
  */
 public final class FileSessionStore implements SessionStore {
 
-    private final Path file;
-    private final Map<String, SessionService.Session> sessions = new ConcurrentHashMap<>();
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final LockedJsonFile<List<Persisted>> file;
 
-    public FileSessionStore(Path file) {
-        this.file = file;
-        loadFromDisk();
-    }
-
-    private void loadFromDisk() {
-        if (file == null || !Files.isRegularFile(file)) {
-            return;
-        }
-        try {
-            byte[] bytes = Files.readAllBytes(file);
-            if (bytes.length == 0) {
-                return;
-            }
-            List<Persisted> list = mapper.readValue(bytes, new TypeReference<List<Persisted>>() {});
-            for (Persisted p : list) {
-                if (p != null && p.id() != null) {
-                    sessions.put(p.id(),
-                            new SessionService.Session(p.id(), p.displayName(), p.createdAtEpoch(), p.lastSeenEpoch()));
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("WARN: could not read session store " + file + ": " + e.getMessage());
-        }
-    }
-
-    private synchronized void flush() {
-        try {
-            Path parent = file.toAbsolutePath().getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            List<Persisted> list = sessions.values().stream()
-                    .map(s -> new Persisted(s.id(), s.displayName(), s.createdAtEpoch(), s.lastSeenEpoch()))
-                    .collect(Collectors.toList());
-            Files.write(file, mapper.writeValueAsBytes(list));
-        } catch (IOException e) {
-            System.err.println("WARN: could not write session store " + file + ": " + e.getMessage());
-        }
+    public FileSessionStore(Path path) {
+        this.file = new LockedJsonFile<>(
+                path,
+                new TypeReference<List<Persisted>>() {},
+                Collections.emptyList());
     }
 
     @Override
     public void save(SessionService.Session session) {
-        if (session != null && session.id() != null) {
-            sessions.put(session.id(), session);
-            flush();
-        }
+        if (session == null || session.id() == null) return;
+        file.update(current -> {
+            Map<String, Persisted> byId = toMap(current);
+            byId.put(session.id(), new Persisted(
+                    session.id(),
+                    session.displayName(),
+                    session.createdAtEpoch(),
+                    session.lastSeenEpoch()));
+            return new ArrayList<>(byId.values());
+        });
     }
 
     @Override
     public Optional<SessionService.Session> load(String id) {
-        return Optional.ofNullable(id == null ? null : sessions.get(id));
+        if (id == null) return Optional.empty();
+        List<Persisted> all = file.read();
+        for (Persisted p : all) {
+            if (p != null && id.equals(p.id())) {
+                return Optional.of(toSession(p));
+            }
+        }
+        return Optional.empty();
     }
 
     @Override
     public Collection<SessionService.Session> all() {
-        return List.copyOf(sessions.values());
+        List<SessionService.Session> out = new ArrayList<>();
+        for (Persisted p : file.read()) {
+            if (p != null && p.id() != null) {
+                out.add(toSession(p));
+            }
+        }
+        return List.copyOf(out);
     }
 
     @Override
     public int size() {
-        return sessions.size();
+        return all().size();
+    }
+
+    private static Map<String, Persisted> toMap(List<Persisted> list) {
+        Map<String, Persisted> map = new LinkedHashMap<>();
+        if (list == null) return map;
+        for (Persisted p : list) {
+            if (p != null && p.id() != null) {
+                map.put(p.id(), p);
+            }
+        }
+        return map;
+    }
+
+    private static SessionService.Session toSession(Persisted p) {
+        return new SessionService.Session(p.id(), p.displayName(), p.createdAtEpoch(), p.lastSeenEpoch());
     }
 
     /** JSON shape for one persisted session. */
