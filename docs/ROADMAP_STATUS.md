@@ -59,6 +59,12 @@ by reputation via optional `factionId` on pack data) and WorldMap wiring
   or file-backed with cross-process locks (`game.auth.session.store` /
   `game.auth.entitlement.store` = `file`), so multi-node deployments that share a
   volume share identity and purchases.
+  **Per-session game isolation:** authenticated v2 callers each get their own
+  `DungeonMasterEngine` via `GameInstanceService` (lazy); unauthenticated calls
+  and legacy `/api/game/*` still share the process-default engine. Saves are
+  session-scoped under `game.saves.dir` (`POST /v2/save|load|reset`). STOMP
+  connections that CONNECT with a Bearer JWT bind to the same session and
+  stream on `/topic/narrative/{sessionId}` (`/app/action`, `/app/narrate`).
 
 - **Content/mod catalog.** `GET /v2/catalog` lists installed content packs and
   every registered plugin across the SPIs plus the active narration provider —

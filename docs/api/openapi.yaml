@@ -80,6 +80,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NarrativeEnvelope'
+  /v2/save:
+    post:
+      tags: [v2]
+      operationId: saveGameV2
+      summary: Persist the caller's game engine to a session-scoped save file.
+      description: |
+        Authenticated callers save under `game.saves.dir/{sessionId}.json`.
+        Unauthenticated callers share the process-default engine and save as
+        `default.json`. Each authenticated session has its own engine instance.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Save acknowledgement envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSaveEnvelope'
+  /v2/load:
+    post:
+      tags: [v2]
+      operationId: loadGameV2
+      summary: Restore the caller's game engine from its save file.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Restored game status envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameStatusEnvelope'
+        '400':
+          description: No save file for this caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /v2/reset:
+    post:
+      tags: [v2]
+      operationId: resetGameV2
+      summary: Start a fresh engine for the caller (new party/quest).
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Fresh game status envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameStatusEnvelope'
   /v2/catalog:
     get:
       tags: [v2]
@@ -379,6 +431,20 @@ components:
               example: narrative_update
             payload:
               $ref: '#/components/schemas/NarrativePayload'
+    GameSaveEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: game_save
+            payload:
+              type: object
+              properties:
+                saved: { type: boolean }
+                path: { type: string }
+                sessionScoped: { type: boolean }
     ErrorEnvelope:
       allOf:
         - $ref: '#/components/schemas/Envelope'

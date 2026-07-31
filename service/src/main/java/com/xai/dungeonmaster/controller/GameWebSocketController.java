@@ -2,51 +2,48 @@ package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.Choice;
 import com.xai.dungeonmaster.DungeonMasterEngine;
+import com.xai.dungeonmaster.auth.StompAuthChannelInterceptor;
 import com.xai.dungeonmaster.dto.ActionRequest;
+import com.xai.dungeonmaster.service.GameInstanceService;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
 import java.util.stream.Collectors;
 
 /**
- * STOMP WebSocket controller.
+ * STOMP WebSocket controller for player actions.
  *
- * Clients that prefer a persistent connection over polling can send STOMP
- * messages to /app/action and receive narrative echoes back on /topic/narrative.
- *
- * The engine's uiUpdater (wired in GameConfig) already pushes every broadcast
- * to /topic/narrative, so the @SendTo here is just the immediate acknowledgement.
- *
- * Example STOMP client payload:
- *   SEND /app/action
- *   content-type:application/json
- *
- *   { "choiceLabel": "Attack" }
+ * Clients SEND to {@code /app/action} with {@code { "choiceLabel": "Attack" }}.
+ * When the connection was authenticated (Bearer JWT on STOMP CONNECT), the
+ * action runs against that session's isolated engine and the ack is published
+ * to {@code /topic/narrative/{sessionId}}. Unauthenticated connections use the
+ * process-default engine and {@code /topic/narrative}.
  */
 @Controller
 public class GameWebSocketController {
 
-    private final DungeonMasterEngine engine;
+    private final GameInstanceService games;
+    private final SimpMessagingTemplate messaging;
 
-    public GameWebSocketController(DungeonMasterEngine engine) {
-        this.engine = engine;
+    public GameWebSocketController(GameInstanceService games, SimpMessagingTemplate messaging) {
+        this.games = games;
+        this.messaging = messaging;
     }
 
-    /**
-     * Routes a player action through the engine.
-     * The return value is a confirmation string broadcast to all subscribers of
-     * /topic/narrative (in addition to whatever the engine itself broadcasts).
-     */
     @MessageMapping("/action")
-    @SendTo("/topic/narrative")
-    public String handleAction(ActionRequest req) {
+    public void handleAction(ActionRequest req, StompHeaderAccessor accessor) {
+        String sessionId = StompAuthChannelInterceptor.sessionIdOf(accessor);
+        DungeonMasterEngine engine = games.forSession(sessionId);
+        String topic = GameInstanceService.narrativeTopic(sessionId);
+
         if (req == null || req.getChoiceLabel() == null || req.getChoiceLabel().isBlank()) {
-            return "[WS] Empty action received — ignored.";
+            messaging.convertAndSend(topic, "[WS] Empty action received — ignored.");
+            return;
         }
 
         String label = req.getChoiceLabel().trim();
-
         Choice matched = engine.getCurrentAvailableChoices()
                 .stream()
                 .filter(c -> c.getLabel().equalsIgnoreCase(label))
@@ -57,13 +54,13 @@ public class GameWebSocketController {
             String available = engine.getCurrentAvailableChoices().stream()
                     .map(Choice::getLabel)
                     .collect(Collectors.joining(", "));
-            return "[WS] Unknown action: '" + label + "'. Available: " + available;
+            messaging.convertAndSend(topic,
+                    "[WS] Unknown action: '" + label + "'. Available: " + available);
+            return;
         }
 
         engine.handleChoice(matched);
-
-        // The engine's uiUpdater already fired the main narrative events.
-        // Return a minimal ack so the sender knows the server accepted it.
-        return "[WS] Action processed: " + label;
+        // Engine uiListener already pushed narrative events to the same topic.
+        messaging.convertAndSend(topic, "[WS] Action processed: " + label);
     }
 }

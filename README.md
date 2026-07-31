@@ -93,7 +93,10 @@ stable, self-describing shape:
 
 | `POST /v2/action` | Apply a choice (`{ "choiceLabel": "Attack" }`); returns updated status |
 | `POST /v2/narrate` | Generate DM narration via the active LLM provider |
-| `POST /v2/session` | Create a guest session; returns a JWT + session id |
+| `POST /v2/save` | Persist the caller's engine (session-scoped file under `game.saves.dir`) |
+| `POST /v2/load` | Restore the caller's engine from its save file |
+| `POST /v2/reset` | Start a fresh engine for the caller |
+| `POST /v2/session` | Create a guest session; returns a JWT + session id (enables multi-player isolation) |
 | `GET /v2/session/me` | Echo the caller's session (requires a Bearer token) |
 | `GET /v2/catalog` | Installed content packs + registered plugins (mod browser) |
 | `POST /v2/catalog/packs` | Upload + install a content-pack zip at runtime (multipart `file`, `?replace=true` to overwrite) |
@@ -127,8 +130,11 @@ request/response correlation.
 ### WebSocket (STOMP)
 
 - Connect: `ws://localhost:8080/ws` (SockJS fallback available)
-- Subscribe: `/topic/narrative` — the narration stream (typed `narrative_chunk`
-  chunks followed by a final `narrative_update` envelope for v2 streaming)
+- **Multi-player:** CONNECT with `Authorization: Bearer <jwt>` (from
+  `POST /v2/session`), then subscribe to `/topic/narrative/{sessionId}`
+- **Legacy single-player:** subscribe to `/topic/narrative` (shared default engine)
+- Stream: typed `narrative_chunk` / `narrative_update` envelopes plus plain-text
+  engine broadcasts and `[WS]` acks
 - Send: `/app/action` (a choice) or `/app/narrate` (a prompt to stream narration)
 
 ### Specs & client SDKs
@@ -252,10 +258,17 @@ content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hea
 | `game.auth.jwt.ttl-seconds` | `86400` | Session token lifetime (seconds) |
 | `game.auth.session.store` | `memory` | Session store: `memory` or `file` (survives restart) |
 | `game.auth.session.file` | `sessions.json` | JSON file for the file session store |
+| `game.saves.dir` | `saves` | Per-session game save directory |
+| `game.instances.idle-ttl-seconds` | `3600` | Evict idle per-session engines after N seconds (0 = never) |
+| `game.instances.max` | `100` | Max concurrent per-session engines (LRU eviction) |
+| `game.instances.save-on-evict` | `true` | Auto-save when an engine is evicted |
+| `game.instances.autoload` | `true` | Restore session save when minting a new engine |
 | `game.plugins.signature.policy` | `LENIENT` | Plugin signature policy: LENIENT / REQUIRED / DISABLED |
+
 | `game.plugins.sandbox.enabled` | `true` | Sandbox-scan plugin bytecode before loading |
 | `game.plugins.call.timeout-ms` | `2000` | Wall timeout for item/spell plugin SPI calls |
 | `game.plugins.call.guard` | `true` | Enable the runtime call timeout guard |
+
 
 
 ## Roadmap

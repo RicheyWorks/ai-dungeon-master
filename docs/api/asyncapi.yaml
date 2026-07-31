@@ -1,18 +1,25 @@
 asyncapi: '2.6.0'
 info:
   title: AI Dungeon Master WebSocket API
-  version: 2.0.0
+  version: 2.1.0
   description: |
     STOMP-over-WebSocket messaging for the AI Dungeon Master engine.
 
-    Clients connect to the STOMP endpoint `/ws` (SockJS fallback available),
-    subscribe to `/topic/narrative` to receive narration, and SEND player
-    actions to `/app/action`.
+    Clients connect to the STOMP endpoint `/ws` (SockJS fallback available).
 
-    The narrative stream currently carries plain-text messages (engine
-    broadcasts and `[WS]` acks). The v2 direction — mirroring the REST v2
-    envelope — is a typed `narrative_update` envelope; both message shapes are
-    declared on the channel so clients can migrate incrementally.
+    **Multi-player isolation:** pass `Authorization: Bearer <jwt>` (from
+    `POST /v2/session`) as a STOMP CONNECT native header. The server binds the
+    connection to that player session. Then:
+      - subscribe to `/topic/narrative/{sessionId}` for your world only
+      - SEND actions to `/app/action` and narration requests to `/app/narrate`
+
+    Unauthenticated connections keep the legacy single-player path:
+      - subscribe to `/topic/narrative`
+      - share the process-default engine
+
+    The narrative stream carries plain-text messages (engine broadcasts and
+    `[WS]` acks) plus typed v2 envelopes (`narrative_chunk` /
+    `narrative_update`) for streaming narration.
 defaultContentType: application/json
 servers:
   local:
@@ -24,7 +31,8 @@ servers:
       /topic/** destinations; application destinations are prefixed /app.
 channels:
   /topic/narrative:
-    description: Narration stream broadcast by the engine to all subscribers.
+    description: >
+      Legacy global narration stream (unauthenticated / default engine).
     subscribe:
       operationId: receiveNarrative
       summary: Receive narration plus combat and flavor events.
@@ -33,13 +41,40 @@ channels:
           - $ref: '#/components/messages/NarrativeText'
           - $ref: '#/components/messages/NarrativeChunk'
           - $ref: '#/components/messages/NarrativeEnvelope'
+  /topic/narrative/{sessionId}:
+    description: >
+      Session-scoped narration stream for an authenticated player. Subscribe
+      after CONNECT with a Bearer JWT whose `sub` is `{sessionId}`.
+    parameters:
+      sessionId:
+        description: Player session id (JWT subject).
+        schema:
+          type: string
+    subscribe:
+      operationId: receiveSessionNarrative
+      summary: Receive narration for one isolated game world.
+      message:
+        oneOf:
+          - $ref: '#/components/messages/NarrativeText'
+          - $ref: '#/components/messages/NarrativeChunk'
+          - $ref: '#/components/messages/NarrativeEnvelope'
   /app/action:
-    description: Player action commands routed to the engine (STOMP SEND).
+    description: >
+      Player action commands routed to the caller's engine (STOMP SEND).
+      Uses the session bound on CONNECT when present.
     publish:
       operationId: sendAction
       summary: Send a choice for the engine to process.
       message:
         $ref: '#/components/messages/ActionCommand'
+  /app/narrate:
+    description: >
+      Request streaming DM narration for the caller's engine (STOMP SEND).
+    publish:
+      operationId: sendNarrate
+      summary: Stream a narration for a player prompt.
+      message:
+        $ref: '#/components/messages/NarrateCommand'
 components:
   messages:
     NarrativeText:
@@ -70,6 +105,16 @@ components:
       contentType: application/json
       payload:
         $ref: '#/components/schemas/ActionRequest'
+    NarrateCommand:
+      name: narrateCommand
+      title: Narration request
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          prompt:
+            type: string
+            example: I search the altar for traps
   schemas:
     NarrativeEnvelopePayload:
       type: object
@@ -81,13 +126,18 @@ components:
         version:
           type: integer
           example: 1
-        payload:
-          $ref: '#/components/schemas/NarrativePayload'
         requestId:
           type: string
+        payload:
+          type: object
+          properties:
+            text: { type: string }
+            provider: { type: string }
+            tokensUsed: { type: integer }
+            fallback: { type: boolean }
     NarrativeChunkEnvelopePayload:
       type: object
-      required: [type, version, payload, requestId]
+      required: [type, version, payload]
       properties:
         type:
           type: string
@@ -95,19 +145,12 @@ components:
         version:
           type: integer
           example: 1
+        requestId:
+          type: string
         payload:
           type: object
           properties:
-            text: { type: string }
-        requestId:
-          type: string
-    NarrativePayload:
-      type: object
-      properties:
-        text: { type: string }
-        provider: { type: string }
-        tokensUsed: { type: integer }
-        fallback: { type: boolean }
+            chunk: { type: string }
     ActionRequest:
       type: object
       required: [choiceLabel]

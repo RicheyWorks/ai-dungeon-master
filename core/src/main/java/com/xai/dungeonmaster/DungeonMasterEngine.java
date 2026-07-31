@@ -506,12 +506,18 @@ public class DungeonMasterEngine {
 
     public synchronized void saveGame(String path) {
         try {
+            File file = new File(path);
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                parent.mkdirs();
+            }
             WorldMap.Snapshot mapSnap = worldMap.snapshot();
             GameStateData data = new GameStateData(party, currentQuest, chaosLevel, difficulty,
                     worldState, currentQuestScriptId,
                     campaign != null ? campaign.getId() : null, chronicle,
                     mapSnap.currentLocation, mapSnap.discoveredRifts);
-            mapper.writeValue(new File(path), data);
+            mapper.writeValue(file, data);
             log("Timeline persisted.");
         } catch (IOException e) {
             log("Persistence failure: " + e.getMessage());
