@@ -13,13 +13,24 @@ import type { SessionInfo } from "./sessionStore";
 
 export type { CatalogPayload, EntitlementPayload, GameStatusV2 };
 
-/** Create a configured V2 client. Empty basePath = same origin (Vite proxy). */
+/**
+ * Resolve API base URL. Empty / whitespace means same origin (engine-hosted
+ * SPA or Vite proxy) — never fall through to the SDK's localhost default.
+ */
+export function resolveBase(baseUrl: string): string {
+  const trimmed = baseUrl.trim().replace(/\/$/, "");
+  if (trimmed) return trimmed;
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+  return "http://127.0.0.1:8080";
+}
+
+/** Create a configured V2 client. */
 export function createApi(baseUrl: string, token: string | null): V2Api {
-  const basePath = baseUrl.replace(/\/$/, "");
   return new V2Api(
     new Configuration({
-      basePath: basePath || undefined,
-      accessToken: token ? async () => token : undefined,
+      basePath: resolveBase(baseUrl),
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     }),
   );
@@ -29,7 +40,6 @@ export async function mintSession(
   baseUrl: string,
   displayName?: string | null,
 ): Promise<SessionInfo> {
-  // Unauthenticated mint — no Bearer
   const api = createApi(baseUrl, null);
   const req: SessionRequest | undefined = displayName?.trim()
     ? { displayName: displayName.trim() }

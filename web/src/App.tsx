@@ -11,8 +11,9 @@ import {
 import { StompClient } from "./stomp";
 
 const DEFAULT_BASE =
-  typeof window !== "undefined" && window.location.port === "5173"
-    ? "" // same-origin via Vite proxy
+  typeof window !== "undefined" &&
+  (window.location.port === "5173" || window.location.pathname.startsWith("/app"))
+    ? "" // same origin (Vite proxy or engine-hosted /app)
     : "http://127.0.0.1:8080";
 
 type Tab = "game" | "mods" | "store";

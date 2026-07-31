@@ -21,32 +21,38 @@ generated TypeScript SDK (`../clients/typescript`). Suitable as:
 
 ## Run
 
-```bash
-# terminal 1 — engine
-java -jar service/target/ai-dungeon-master-service-*.jar
+### Hosted by the engine (recommended)
 
-# terminal 2 — web UI
-cd web
-npm install
-npm run dev
+```bash
+# stage the SPA into service/src/main/resources/static/app/
+./scripts/build-web.sh
+
+# start the engine (any usual way)
+mvn -pl service -am spring-boot:run
+# → open http://localhost:8080/app/
+#    root / and /play also redirect there
 ```
 
-Open http://localhost:5173 — Vite proxies `/v2` and `/ws-stomp` to
-`http://127.0.0.1:8080`.
-
-Leave **Server** empty to use the proxy (recommended in dev). Point it at
-`http://host:8080` when opening a production build against a remote engine.
+### Standalone Vite (hot reload)
 
 ```bash
-npm run build    # → web/dist
-npm run preview  # serve dist
+# terminal 1 — engine on :8080
+# terminal 2
+cd web && npm install && npm run dev
+# → http://localhost:5173  (proxies /v2 + /ws-stomp → :8080)
+```
+
+Leave **Server** empty to use same origin (proxy or engine host).
+
+```bash
+VITE_BASE=/app/ npm run build   # same as scripts/build-web.sh
 ```
 
 ### Optional: ship as static files on the engine
 
-Copy `web/dist/*` into `service/src/main/resources/static/app/` (or any static
-path the Spring app already serves) so the UI is available at the same origin
-as the API — no CORS, no proxy.
+`scripts/build-web.sh` already copies `web/dist/*` into
+`service/src/main/resources/static/app/`. Re-run after UI changes before
+packaging the fat jar so players always get the latest shell.
 
 ## Layout
 
