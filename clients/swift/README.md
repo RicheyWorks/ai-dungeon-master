@@ -45,7 +45,10 @@ Class | Method | HTTP request | Description
 *V2API* | [**getSessionMeV2**](docs/V2API.md#getsessionmev2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected).
 *V2API* | [**getStatusV2**](docs/V2API.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope.
 *V2API* | [**listEntitlementsV2**](docs/V2API.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller&#39;s owned products.
+*V2API* | [**loadGameV2**](docs/V2API.md#loadgamev2) | **POST** /v2/load | Restore the caller&#39;s game engine from its save file.
 *V2API* | [**narrateV2**](docs/V2API.md#narratev2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider.
+*V2API* | [**resetGameV2**](docs/V2API.md#resetgamev2) | **POST** /v2/reset | Start a fresh engine for the caller (new party/quest).
+*V2API* | [**saveGameV2**](docs/V2API.md#savegamev2) | **POST** /v2/save | Persist the caller&#39;s game engine to a session-scoped save file.
 *V2API* | [**submitActionV2**](docs/V2API.md#submitactionv2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope.
 *V2API* | [**uploadPackV2**](docs/V2API.md#uploadpackv2) | **POST** /v2/catalog/packs | Upload and install a content-pack zip at runtime; returns the updated catalog.
 *V2API* | [**verifyReceiptV2**](docs/V2API.md#verifyreceiptv2) | **POST** /v2/entitlements/verify | Validate a purchase receipt via its storefront and grant the entitlement.
@@ -61,6 +64,8 @@ Class | Method | HTTP request | Description
  - [Envelope](docs/Envelope.md)
  - [ErrorEnvelope](docs/ErrorEnvelope.md)
  - [ErrorPayload](docs/ErrorPayload.md)
+ - [GameSaveEnvelope](docs/GameSaveEnvelope.md)
+ - [GameSaveEnvelopeAllOfPayload](docs/GameSaveEnvelopeAllOfPayload.md)
  - [GameStatusEnvelope](docs/GameStatusEnvelope.md)
  - [GameStatusResponse](docs/GameStatusResponse.md)
  - [GameStatusV2](docs/GameStatusV2.md)

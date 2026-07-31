@@ -19,6 +19,8 @@ AIDungeonMasterClient/Classes/OpenAPIs/Models/EntitlementPayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/Envelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/ErrorEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/ErrorPayload.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/GameSaveEnvelope.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/GameSaveEnvelopeAllOfPayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/GameStatusEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/GameStatusResponse.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/GameStatusV2.swift
@@ -49,6 +51,8 @@ docs/EntitlementPayload.md
 docs/Envelope.md
 docs/ErrorEnvelope.md
 docs/ErrorPayload.md
+docs/GameSaveEnvelope.md
+docs/GameSaveEnvelopeAllOfPayload.md
 docs/GameStatusEnvelope.md
 docs/GameStatusResponse.md
 docs/GameStatusV2.md

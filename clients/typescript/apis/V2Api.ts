@@ -19,6 +19,7 @@ import type {
   CatalogEnvelope,
   EntitlementEnvelope,
   ErrorEnvelope,
+  GameSaveEnvelope,
   GameStatusEnvelope,
   NarrateRequest,
   NarrativeEnvelope,
@@ -35,6 +36,8 @@ import {
     EntitlementEnvelopeToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
+    GameSaveEnvelopeFromJSON,
+    GameSaveEnvelopeToJSON,
     GameStatusEnvelopeFromJSON,
     GameStatusEnvelopeToJSON,
     NarrateRequestFromJSON,
@@ -80,9 +83,21 @@ export interface ListEntitlementsV2Request {
     xRequestId?: string;
 }
 
+export interface LoadGameV2Request {
+    xRequestId?: string;
+}
+
 export interface NarrateV2Request {
     xRequestId?: string;
     narrateRequest?: NarrateRequest;
+}
+
+export interface ResetGameV2Request {
+    xRequestId?: string;
+}
+
+export interface SaveGameV2Request {
+    xRequestId?: string;
 }
 
 export interface SubmitActionV2Request {
@@ -336,6 +351,36 @@ export class V2Api extends runtime.BaseAPI {
     }
 
     /**
+     * Restore the caller\'s game engine from its save file.
+     */
+    async loadGameV2Raw(requestParameters: LoadGameV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GameStatusEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/load`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GameStatusEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Restore the caller\'s game engine from its save file.
+     */
+    async loadGameV2(requestParameters: LoadGameV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameStatusEnvelope> {
+        const response = await this.loadGameV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Generate a dungeon-master narration via the active LLM provider.
      */
     async narrateV2Raw(requestParameters: NarrateV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<NarrativeEnvelope>> {
@@ -365,6 +410,68 @@ export class V2Api extends runtime.BaseAPI {
      */
     async narrateV2(requestParameters: NarrateV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<NarrativeEnvelope> {
         const response = await this.narrateV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Start a fresh engine for the caller (new party/quest).
+     */
+    async resetGameV2Raw(requestParameters: ResetGameV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GameStatusEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/reset`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GameStatusEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Start a fresh engine for the caller (new party/quest).
+     */
+    async resetGameV2(requestParameters: ResetGameV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameStatusEnvelope> {
+        const response = await this.resetGameV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Authenticated callers save under `game.saves.dir/{sessionId}.json`. Unauthenticated callers share the process-default engine and save as `default.json`. Each authenticated session has its own engine instance. 
+     * Persist the caller\'s game engine to a session-scoped save file.
+     */
+    async saveGameV2Raw(requestParameters: SaveGameV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GameSaveEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/save`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GameSaveEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Authenticated callers save under `game.saves.dir/{sessionId}.json`. Unauthenticated callers share the process-default engine and save as `default.json`. Each authenticated session has its own engine instance. 
+     * Persist the caller\'s game engine to a session-scoped save file.
+     */
+    async saveGameV2(requestParameters: SaveGameV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameSaveEnvelope> {
+        const response = await this.saveGameV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 

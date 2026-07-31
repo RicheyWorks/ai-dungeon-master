@@ -64,9 +64,6 @@ class GameViewModel : ViewModel() {
 
     private fun api(): V2Api = V2Api(basePath = base(), client = HttpClients.client())
 
-    /** Save/load/reset until those ops land in the generated SDK. */
-    private fun gameExtras(): SessionClient = SessionClient(base(), HttpClients.client())
-
     fun setBaseUrl(url: String) {
         if (url.trimEnd('/') != _state.value.baseUrl.trimEnd('/')) {
             disconnectStomp()
@@ -253,31 +250,28 @@ class GameViewModel : ViewModel() {
 
     fun saveGame() = launchCall { current ->
         val withSession = ensureSession(current)
-        val token = withSession.session?.token
-            ?: throw IllegalStateException("No session token")
-        val result = gameExtras().save(token)
+        val envelope = api().saveGameV2()
+        val p = envelope.payload
         withSession.copy(
-            lastSavePath = result.path,
-            info = if (result.saved) "Saved${if (result.sessionScoped) " (session)" else ""}" else "Save failed",
+            lastSavePath = p?.path,
+            info = if (p?.saved == true) {
+                "Saved${if (p.sessionScoped == true) " (session)" else ""}"
+            } else {
+                "Save failed"
+            },
             error = null,
         )
     }
 
     fun loadGame() = launchCall { current ->
         val withSession = ensureSession(current)
-        val token = withSession.session?.token
-            ?: throw IllegalStateException("No session token")
-        gameExtras().load(token)
-        val envelope = api().getStatusV2()
+        val envelope = api().loadGameV2()
         withSession.copy(status = envelope.payload, info = "Loaded save", error = null)
     }
 
     fun resetGame() = launchCall { current ->
         val withSession = ensureSession(current)
-        val token = withSession.session?.token
-            ?: throw IllegalStateException("No session token")
-        gameExtras().reset(token)
-        val envelope = api().getStatusV2()
+        val envelope = api().resetGameV2()
         withSession.copy(status = envelope.payload, info = "New adventure started", error = null)
     }
 

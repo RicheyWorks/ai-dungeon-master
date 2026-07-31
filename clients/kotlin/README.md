@@ -64,7 +64,10 @@ All URIs are relative to *http://localhost:8080*
 | *V2Api* | [**getSessionMeV2**](docs/V2Api.md#getsessionmev2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected). |
 | *V2Api* | [**getStatusV2**](docs/V2Api.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope. |
 | *V2Api* | [**listEntitlementsV2**](docs/V2Api.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller's owned products. |
+| *V2Api* | [**loadGameV2**](docs/V2Api.md#loadgamev2) | **POST** /v2/load | Restore the caller's game engine from its save file. |
 | *V2Api* | [**narrateV2**](docs/V2Api.md#narratev2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider. |
+| *V2Api* | [**resetGameV2**](docs/V2Api.md#resetgamev2) | **POST** /v2/reset | Start a fresh engine for the caller (new party/quest). |
+| *V2Api* | [**saveGameV2**](docs/V2Api.md#savegamev2) | **POST** /v2/save | Persist the caller's game engine to a session-scoped save file. |
 | *V2Api* | [**submitActionV2**](docs/V2Api.md#submitactionv2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope. |
 | *V2Api* | [**uploadPackV2**](docs/V2Api.md#uploadpackv2) | **POST** /v2/catalog/packs | Upload and install a content-pack zip at runtime; returns the updated catalog. |
 | *V2Api* | [**verifyReceiptV2**](docs/V2Api.md#verifyreceiptv2) | **POST** /v2/entitlements/verify | Validate a purchase receipt via its storefront and grant the entitlement. |
@@ -81,6 +84,8 @@ All URIs are relative to *http://localhost:8080*
  - [com.xai.dungeonmaster.client.models.Envelope](docs/Envelope.md)
  - [com.xai.dungeonmaster.client.models.ErrorEnvelope](docs/ErrorEnvelope.md)
  - [com.xai.dungeonmaster.client.models.ErrorPayload](docs/ErrorPayload.md)
+ - [com.xai.dungeonmaster.client.models.GameSaveEnvelope](docs/GameSaveEnvelope.md)
+ - [com.xai.dungeonmaster.client.models.GameSaveEnvelopeAllOfPayload](docs/GameSaveEnvelopeAllOfPayload.md)
  - [com.xai.dungeonmaster.client.models.GameStatusEnvelope](docs/GameStatusEnvelope.md)
  - [com.xai.dungeonmaster.client.models.GameStatusResponse](docs/GameStatusResponse.md)
  - [com.xai.dungeonmaster.client.models.GameStatusV2](docs/GameStatusV2.md)

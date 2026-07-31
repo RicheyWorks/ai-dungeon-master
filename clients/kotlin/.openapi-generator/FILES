@@ -8,6 +8,8 @@ docs/EntitlementPayload.md
 docs/Envelope.md
 docs/ErrorEnvelope.md
 docs/ErrorPayload.md
+docs/GameSaveEnvelope.md
+docs/GameSaveEnvelopeAllOfPayload.md
 docs/GameStatusEnvelope.md
 docs/GameStatusResponse.md
 docs/GameStatusV2.md
@@ -57,6 +59,8 @@ src/main/kotlin/com/xai/dungeonmaster/client/models/EntitlementPayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/Envelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/ErrorEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/ErrorPayload.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/GameSaveEnvelope.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/GameSaveEnvelopeAllOfPayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/GameStatusEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/GameStatusResponse.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/GameStatusV2.kt
@@ -72,6 +76,5 @@ src/main/kotlin/com/xai/dungeonmaster/client/models/SessionEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/SessionPayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/SessionRequest.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/VerifyReceiptRequest.kt
-src/test/kotlin/com/xai/dungeonmaster/client/models/SessionEnvelopeTest.kt
-src/test/kotlin/com/xai/dungeonmaster/client/models/SessionPayloadTest.kt
-src/test/kotlin/com/xai/dungeonmaster/client/models/SessionRequestTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/GameSaveEnvelopeAllOfPayloadTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/GameSaveEnvelopeTest.kt

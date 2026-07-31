@@ -11,7 +11,10 @@ Method | HTTP request | Description
 [**getSessionMeV2**](V2API.md#getsessionmev2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected).
 [**getStatusV2**](V2API.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope.
 [**listEntitlementsV2**](V2API.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller&#39;s owned products.
+[**loadGameV2**](V2API.md#loadgamev2) | **POST** /v2/load | Restore the caller&#39;s game engine from its save file.
 [**narrateV2**](V2API.md#narratev2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider.
+[**resetGameV2**](V2API.md#resetgamev2) | **POST** /v2/reset | Start a fresh engine for the caller (new party/quest).
+[**saveGameV2**](V2API.md#savegamev2) | **POST** /v2/save | Persist the caller&#39;s game engine to a session-scoped save file.
 [**submitActionV2**](V2API.md#submitactionv2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope.
 [**uploadPackV2**](V2API.md#uploadpackv2) | **POST** /v2/catalog/packs | Upload and install a content-pack zip at runtime; returns the updated catalog.
 [**verifyReceiptV2**](V2API.md#verifyreceiptv2) | **POST** /v2/entitlements/verify | Validate a purchase receipt via its storefront and grant the entitlement.
@@ -361,6 +364,54 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **loadGameV2**
+```swift
+    open class func loadGameV2(xRequestId: String? = nil, completion: @escaping (_ data: GameStatusEnvelope?, _ error: Error?) -> Void)
+```
+
+Restore the caller's game engine from its save file.
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+
+// Restore the caller's game engine from its save file.
+V2API.loadGameV2(xRequestId: xRequestId) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+
+### Return type
+
+[**GameStatusEnvelope**](GameStatusEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **narrateV2**
 ```swift
     open class func narrateV2(xRequestId: String? = nil, narrateRequest: NarrateRequest? = nil, completion: @escaping (_ data: NarrativeEnvelope?, _ error: Error?) -> Void)
@@ -407,6 +458,104 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **resetGameV2**
+```swift
+    open class func resetGameV2(xRequestId: String? = nil, completion: @escaping (_ data: GameStatusEnvelope?, _ error: Error?) -> Void)
+```
+
+Start a fresh engine for the caller (new party/quest).
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+
+// Start a fresh engine for the caller (new party/quest).
+V2API.resetGameV2(xRequestId: xRequestId) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+
+### Return type
+
+[**GameStatusEnvelope**](GameStatusEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **saveGameV2**
+```swift
+    open class func saveGameV2(xRequestId: String? = nil, completion: @escaping (_ data: GameSaveEnvelope?, _ error: Error?) -> Void)
+```
+
+Persist the caller's game engine to a session-scoped save file.
+
+Authenticated callers save under `game.saves.dir/{sessionId}.json`. Unauthenticated callers share the process-default engine and save as `default.json`. Each authenticated session has its own engine instance. 
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+
+// Persist the caller's game engine to a session-scoped save file.
+V2API.saveGameV2(xRequestId: xRequestId) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+
+### Return type
+
+[**GameSaveEnvelope**](GameSaveEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

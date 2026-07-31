@@ -19,7 +19,7 @@ by reputation via optional `factionId` on pack data) and WorldMap wiring
 | 0 — Hygiene | headless, packages, tests, listeners, sync | ✅ Done |
 | 1 — Headless core + plugin SPI | core module, SPIs, registries, loaders, signing, sandbox | ✅ Done |
 | 2 — API v2 + LLM provider | envelope, PartyState, LLM stack + keyed providers, streaming, specs, SDKs, auth, sessions, entitlements | ✅ Done |
-| 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ v1 app scaffolded under `android/` (status, quest+chronicle, choices, narration, Mods tab); WebSocket stream and sessions remain |
+| 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ v1 under `android/` — session+Bearer, STOMP live narrate, Mods (upload), Store (entitlements); polish + Play Billing remain |
 | 4 — Steam + iOS | Tauri, SwiftUI on the generated Swift SDK, storefronts | ◐ Swift SDK generated; apps not started |
 | 5 — Content packs & mods | packs, mod browser, signing, sandboxing | ✅ 4 packs + signing + sandbox + catalog + web mod-browser w/ enable-disable + runtime pack upload (`POST /v2/catalog/packs`) |
 

@@ -8,6 +8,8 @@ export * from './EntitlementPayload';
 export * from './Envelope';
 export * from './ErrorEnvelope';
 export * from './ErrorPayload';
+export * from './GameSaveEnvelope';
+export * from './GameSaveEnvelopeAllOfPayload';
 export * from './GameStatusEnvelope';
 export * from './GameStatusResponse';
 export * from './GameStatusV2';

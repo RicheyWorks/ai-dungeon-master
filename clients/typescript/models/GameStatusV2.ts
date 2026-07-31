@@ -134,3 +134,4 @@ export function GameStatusV2ToJSON(value?: GameStatusV2 | null): any {
         'discoveredRifts': value['discoveredRifts'],
     };
 }
+

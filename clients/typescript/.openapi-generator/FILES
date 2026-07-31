@@ -10,6 +10,8 @@ models/EntitlementPayload.ts
 models/Envelope.ts
 models/ErrorEnvelope.ts
 models/ErrorPayload.ts
+models/GameSaveEnvelope.ts
+models/GameSaveEnvelopeAllOfPayload.ts
 models/GameStatusEnvelope.ts
 models/GameStatusResponse.ts
 models/GameStatusV2.ts

@@ -79,14 +79,12 @@ app/src/main/java/com/xai/dungeonmaster/android/
   ModsScreen.kt       catalog browser with pack enable/disable toggles
   EntitlementsScreen.kt  owned SKUs + dev purchase + receipt verify
   DevReceipts.kt      HMAC mint matching server DevStorefront
-  SessionClient.kt    save/load/reset until those ops land in the SDK
   HttpClients.kt      OkHttp Bearer interceptor shared with generated V2Api
   StompClient.kt      Minimal STOMP 1.2 over native WebSocket (/ws-stomp)
 ```
 
-Session mint uses generated `V2Api.createSessionV2` (SDK regenerated from
-`docs/api/openapi.yaml`). Save/load/reset stay in `SessionClient` until the
-multi-player isolation endpoints are added to the OpenAPI spec and regen'd.
+Session mint, save, load, and reset all use the generated `V2Api`
+(`createSessionV2`, `saveGameV2`, `loadGameV2`, `resetGameV2`).
 
 The generated SDK is synchronous (`jvm-okhttp4`); the ViewModel wraps every
 call in `withContext(Dispatchers.IO)` and folds results/errors into one
@@ -96,5 +94,3 @@ Compose BOM 2024.06) — bump them freely, nothing here is version-sensitive.
 ## Not yet wired
 
 - Real Play Billing (dev storefront covers the verify loop for now)
-- Save/load/reset in the generated SDK (hand-rolled in `SessionClient` until
-  the multi-player isolation OpenAPI paths merge)

@@ -64,3 +64,4 @@ public struct GameStatusV2: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(discoveredRifts, forKey: .discoveredRifts)
     }
 }
+
