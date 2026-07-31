@@ -8,6 +8,8 @@ SwiftUI client for the engine's v2 API, built on the generated Swift SDK in
 **Session identity**
 - Auto-mints a guest session on first contact (`POST /v2/session`)
 - Attaches `Authorization: Bearer <jwt>` via `AIDungeonMasterClientAPI.customHeaders`
+- **Persists** session + server URL in `UserDefaults`; relaunch restores the JWT
+  (validated via `GET /v2/session/me`) so the per-session world continues
 - UI shows display name + short session id; **New session** re-mints
 
 **Live narration (STOMP)**
@@ -83,6 +85,7 @@ ios/
     ContentView.swift          tab shell + server bar
     GameViewModel.swift        session, REST, STOMP, store, mods
     SessionInfo.swift
+    SessionStore.swift         UserDefaults persistence
     Networking/
       StompClient.swift        STOMP 1.2 over URLSessionWebSocketTask
       DevReceipts.swift        DevStorefront-compatible HMAC mint
@@ -95,5 +98,5 @@ ios/
 ## Not yet wired
 
 - Real StoreKit 2 purchases (dev storefront covers the verify loop)
-- Background session restore of JWT across app launches
+- Encrypted keychain storage for JWT (UserDefaults is fine for guest tokens)
 - Push notifications

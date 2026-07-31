@@ -6,7 +6,7 @@ import AIDungeonMasterClient
 public final class GameViewModel: ObservableObject {
     public static let defaultBaseURL = "http://127.0.0.1:8080"
 
-    @Published public var baseURL: String = GameViewModel.defaultBaseURL
+    @Published public var baseURL: String
     @Published public var session: SessionInfo?
     @Published public var status: GameStatusV2?
     @Published public var narration: String?
@@ -19,11 +19,28 @@ public final class GameViewModel: ObservableObject {
     @Published public var error: String?
     @Published public var info: String?
 
+    private let store: SessionStore
     private var stomp: StompClient?
 
-    public init() {}
+    public init(store: SessionStore = SessionStore()) {
+        self.store = store
+        let url = store.loadBaseURL(default: GameViewModel.defaultBaseURL)
+        self.baseURL = url
+        if let saved = store.loadSession(), !saved.isExpired() {
+            self.session = saved
+            AIDungeonMasterClientAPI.basePath = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            AIDungeonMasterClientAPI.customHeaders["Authorization"] = "Bearer \(saved.token)"
+            self.info = "Restored session \(saved.shortId) · \(saved.displayName)"
+        } else {
+            if store.loadSession() != nil {
+                store.clearSession()
+            }
+            self.session = nil
+        }
+    }
 
     public func setBaseURL(_ url: String) {
+        store.saveBaseURL(url)
         let trimmed = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard trimmed != baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) else {
             baseURL = url
@@ -31,10 +48,12 @@ public final class GameViewModel: ObservableObject {
         }
         disconnectStomp()
         clearBearer()
+        store.clearSession()
         baseURL = url
         session = nil
         status = nil
         stompConnected = false
+        info = "Server changed — new session on next sync"
     }
 
     public func refresh() {
@@ -43,16 +62,17 @@ public final class GameViewModel: ObservableObject {
             self.connectStomp()
             let envelope = try await V2API.getStatusV2()
             self.status = envelope.payload
-            self.info = nil
         }
     }
 
     public func startSession(displayName: String? = nil) {
         run {
             self.disconnectStomp()
+            self.store.clearSession()
             let info = try await self.mintSession(displayName: displayName)
             self.session = info
             self.applyBearer(info.token)
+            self.store.saveSession(info)
             self.connectStomp()
             self.info = "Session \(info.shortId) · \(info.displayName)"
         }
@@ -117,7 +137,6 @@ public final class GameViewModel: ObservableObject {
         run {
             try await self.ensureSession()
             let data = try Data(contentsOf: fileURL)
-            // Generated upload API expects a file URL path; write a temp copy for the SDK.
             let temp = FileManager.default.temporaryDirectory
                 .appendingPathComponent("upload-\(UUID().uuidString).zip")
             try data.write(to: temp)
@@ -140,9 +159,9 @@ public final class GameViewModel: ObservableObject {
         run {
             try await self.ensureSession()
             let req = VerifyReceiptRequest(
+                storefront: storefront.isEmpty ? DevReceipts.storefrontId : storefront,
                 productId: productId,
-                receipt: receipt,
-                storefront: storefront.isEmpty ? DevReceipts.storefrontId : storefront
+                receipt: receipt
             )
             do {
                 let envelope = try await V2API.verifyReceiptV2(verifyReceiptRequest: req)
@@ -202,7 +221,6 @@ public final class GameViewModel: ObservableObject {
 
     private func mintSession(displayName: String?) async throws -> SessionInfo {
         applyBasePath()
-        // Mint without a stale Bearer.
         clearBearer()
         let req = displayName.flatMap { $0.isEmpty ? nil : SessionRequest(displayName: $0) }
         let envelope = try await V2API.createSessionV2(sessionRequest: req)
@@ -223,12 +241,32 @@ public final class GameViewModel: ObservableObject {
 
     private func ensureSession() async throws {
         applyBasePath()
-        if session != nil, AIDungeonMasterClientAPI.customHeaders["Authorization"] != nil {
-            return
+        var candidate = session
+        if candidate == nil || AIDungeonMasterClientAPI.customHeaders["Authorization"] == nil {
+            if let fromDisk = store.loadSession(), !fromDisk.isExpired() {
+                candidate = fromDisk
+                applyBearer(fromDisk.token)
+            }
         }
-        let info = try await mintSession(displayName: session?.displayName)
+
+        if let candidate, !candidate.isExpired(),
+           AIDungeonMasterClientAPI.customHeaders["Authorization"] != nil {
+            do {
+                _ = try await V2API.getSessionMeV2()
+                session = candidate
+                store.saveSession(candidate)
+                return
+            } catch {
+                // Stale JWT — mint below.
+            }
+        }
+
+        store.clearSession()
+        let info = try await mintSession(displayName: candidate?.displayName)
         session = info
         applyBearer(info.token)
+        store.saveSession(info)
+        self.info = "New session \(info.shortId)"
     }
 
     private func applyBasePath() {

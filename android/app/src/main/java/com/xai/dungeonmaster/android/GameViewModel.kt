@@ -1,6 +1,7 @@
 package com.xai.dungeonmaster.android
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -28,9 +29,12 @@ import java.util.concurrent.atomic.AtomicReference
  * On first contact the ViewModel mints a guest session via the generated
  * `createSessionV2` call and attaches the JWT to every subsequent request
  * through [HttpClients]. After a session is ready it also opens a native
- * STOMP socket (`/ws-stomp`) for live narration.
+ * STOMP socket (`/ws-stomp`) for live narration. Session + server URL are
+ * restored from [SessionStore] across process restarts.
  */
-class GameViewModel : ViewModel() {
+class GameViewModel(
+    private val store: SessionStore,
+) : ViewModel() {
 
     /** 10.0.2.2 is the emulator's alias for the host machine's localhost. */
     companion object {
@@ -53,26 +57,47 @@ class GameViewModel : ViewModel() {
         val info: String? = null,
     )
 
-    private val _state = MutableStateFlow(UiState())
+    private val _state = MutableStateFlow(restoreInitialState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private val stompRef = AtomicReference<StompClient?>(null)
     private val moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
     private val envelopeAdapter = moshi.adapter(WsEnvelope::class.java)
 
+    private fun restoreInitialState(): UiState {
+        val url = store.loadBaseUrl(DEFAULT_BASE_URL)
+        val saved = store.loadSession()
+        if (saved != null && !saved.isExpired()) {
+            HttpClients.setToken(saved.token)
+            return UiState(
+                baseUrl = url,
+                session = saved,
+                info = "Restored session ${saved.shortId()} · ${saved.displayName}",
+            )
+        }
+        if (saved != null) {
+            store.clearSession()
+        }
+        HttpClients.clearToken()
+        return UiState(baseUrl = url)
+    }
+
     private fun base(): String = _state.value.baseUrl.trimEnd('/')
 
     private fun api(): V2Api = V2Api(basePath = base(), client = HttpClients.client())
 
     fun setBaseUrl(url: String) {
+        store.saveBaseUrl(url)
         if (url.trimEnd('/') != _state.value.baseUrl.trimEnd('/')) {
             disconnectStomp()
             HttpClients.clearToken()
+            store.clearSession()
             _state.value = _state.value.copy(
                 baseUrl = url,
                 session = null,
                 status = null,
                 stompConnected = false,
+                info = "Server changed — new session on next sync",
             )
         } else {
             _state.value = _state.value.copy(baseUrl = url)
@@ -82,8 +107,10 @@ class GameViewModel : ViewModel() {
     /** Mint a guest session (or re-mint) via generated SDK and open STOMP. */
     fun startSession(displayName: String? = null) = launchCall { current ->
         disconnectStomp()
+        store.clearSession()
         val info = mintSession(displayName)
         HttpClients.setToken(info.token)
+        store.saveSession(info)
         connectStomp(info)
         current.copy(
             session = info,
@@ -97,7 +124,7 @@ class GameViewModel : ViewModel() {
         val withSession = ensureSession(current)
         connectStomp(withSession.session!!)
         val envelope = api().getStatusV2()
-        withSession.copy(status = envelope.payload, error = null, info = null)
+        withSession.copy(status = envelope.payload, error = null, info = withSession.info)
     }
 
     fun act(choiceLabel: String) = launchCall { current ->
@@ -169,7 +196,6 @@ class GameViewModel : ViewModel() {
                 info = null,
             )
         } finally {
-            // Best-effort cleanup of SAF cache copies.
             if (file.name.startsWith("upload-") && file.extension == "zip") {
                 file.delete()
             }
@@ -204,7 +230,6 @@ class GameViewModel : ViewModel() {
                 error = null,
             )
         } catch (e: ClientException) {
-            // 402 from a rejected receipt — refresh list and show reason.
             val listed = try {
                 api().listEntitlementsV2().payload
             } catch (_: Exception) {
@@ -277,7 +302,6 @@ class GameViewModel : ViewModel() {
 
     private fun mintSession(displayName: String?): SessionInfo {
         val req = displayName?.takeIf { it.isNotBlank() }?.let { SessionRequest(displayName = it) }
-        // Unauthenticated mint: use a clean client so we don't send a stale Bearer.
         val bare = V2Api(basePath = base())
         val envelope = bare.createSessionV2(sessionRequest = req)
         val p = envelope.payload
@@ -291,14 +315,35 @@ class GameViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Prefer in-memory session, then disk. Validate with `/v2/session/me`; on
+     * failure mint a fresh guest session and persist it.
+     */
     private fun ensureSession(current: UiState): UiState {
-        val existing = current.session
-        if (existing != null && HttpClients.token() != null) {
-            return current
+        var candidate = current.session
+        if (candidate == null || HttpClients.token() == null) {
+            val fromDisk = store.loadSession()
+            if (fromDisk != null && !fromDisk.isExpired()) {
+                candidate = fromDisk
+                HttpClients.setToken(fromDisk.token)
+            }
         }
-        val info = mintSession(existing?.displayName)
+
+        if (candidate != null && !candidate.isExpired() && HttpClients.token() != null) {
+            try {
+                api().getSessionMeV2()
+                store.saveSession(candidate)
+                return current.copy(session = candidate)
+            } catch (_: Exception) {
+                // Stale JWT — fall through to mint.
+            }
+        }
+
+        store.clearSession()
+        val info = mintSession(candidate?.displayName)
         HttpClients.setToken(info.token)
-        return current.copy(session = info)
+        store.saveSession(info)
+        return current.copy(session = info, info = "New session ${info.shortId()}")
     }
 
     private fun connectStomp(session: SessionInfo) {
@@ -403,6 +448,16 @@ class GameViewModel : ViewModel() {
     override fun onCleared() {
         disconnectStomp()
         super.onCleared()
+    }
+
+    class Factory(private val store: SessionStore) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(GameViewModel::class.java)) {
+                return GameViewModel(store) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
+        }
     }
 }
 
