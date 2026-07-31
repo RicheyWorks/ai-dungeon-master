@@ -41,9 +41,12 @@ overload; client SDK regeneration for the new status fields.
   before load, under a configurable `SignaturePolicy`.
 - **Plugin bytecode sandboxed.** `SandboxedClassLoader` scans each plugin-defined
   class's constant pool via `SandboxVerifier` and refuses any that reference blocked
-  APIs (process execution, reflection, raw networking, filesystem, JDK internals)
-  before instantiation, under `SandboxPolicy` (`game.plugins.sandbox.enabled`,
-  default on). Signing (integrity) + sandbox (capability) are the two load-time gates.
+  APIs (process execution, reflection, classloaders, raw networking, filesystem,
+  RMI/JMX, JDK internals) or declare `native` methods, before instantiation, under
+  `SandboxPolicy` (`game.plugins.sandbox.enabled`, default on). SPI dispatches run
+  under `PluginCallGuard` (wall timeout, default 2s via `game.plugins.call.timeout-ms`).
+  Signing (integrity) + sandbox (capability) + call guard (runaway) are the three gates.
+
 
 ## Phase 2 — API v2 + LLM provider ✅ (nearly)
 
@@ -74,8 +77,11 @@ overload; client SDK regeneration for the new status fields.
 
 **Remaining**
 
-- Keyed-provider live smoke tests (need real API keys) and a shared datastore for
-  sessions/entitlements across nodes. Nothing else blocks Phase 2.
+- Keyed-provider live smoke is opt-in (`LLM_LIVE_SMOKE=true` + provider keys;
+  see `KeyedLlmLiveSmokeTest`). Fake-transport unit coverage for all keyed
+  providers is complete. Shared multi-node session/entitlement store is a separate
+  PR when needed. Nothing else blocks Phase 2.
+
 
 ## Phases 3–5
 
@@ -95,6 +101,7 @@ overload; client SDK regeneration for the new status fields.
 ## Remaining backlog
 
 - Richer in-game mod-browser UI + pack upload/install (the `/mod-browser.html` page, `/v2/catalog`, and runtime enable/disable are done).
-- Keyed-provider live smoke tests (need real API keys); shared session/entitlement datastore for multi-node.
+- Optional networked multi-node session/entitlement store (Redis/Postgres) beyond shared-volume file stores.
 - Native client apps (Android Compose, iOS SwiftUI, Steam/Tauri) on the generated SDKs.
-- Deeper mod isolation (dedicated process / OS sandbox) beyond the static bytecode scan.
+- Optional OS-level / dedicated-process plugin isolation beyond the in-JVM sandbox + call guard.
+

@@ -1,5 +1,6 @@
 package com.xai.dungeonmaster.plugin.builtin.llm;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xai.dungeonmaster.plugin.LLMProvider;
 import com.xai.dungeonmaster.plugin.LLMProvider.NarrativePrompt;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,7 +18,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Tests the keyed HTTP providers via an injected fake transport — no network,
  * no API keys. Covers request shaping, response parsing, error fallback, the
- * no-key DOWN path, and ServiceLoader/registry discovery + fallback.
+ * no-key DOWN path, ServiceLoader/registry discovery + fallback, contextFacts
+ * interpolation, and every built-in keyed provider (OpenAI, xAI, Anthropic, llama).
  */
 class KeyedLLMProviderTest {
 
@@ -24,6 +27,11 @@ class KeyedLLMProviderTest {
 
     private NarrativePrompt prompt() {
         return new NarrativePrompt("kick down the door", "the drowned chapel", 200);
+    }
+
+    private NarrativePrompt promptWithFacts() {
+        return new NarrativePrompt("kick down the door", "the drowned chapel", 200,
+                List.of("Quest completed: The Weeping Tree", "Boss slain: Grave Warden"));
     }
 
     /** Records the last request and returns a canned response. */
@@ -49,6 +57,10 @@ class KeyedLLMProviderTest {
         }
     }
 
+    private static final String OPENAI_OK =
+            "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"The door splinters inward.\"}}],"
+                    + "\"usage\":{\"total_tokens\":42}}";
+
     @AfterEach
     void reset() {
         LLMProviderRegistry.clearForTests();
@@ -56,9 +68,7 @@ class KeyedLLMProviderTest {
 
     @Test
     void openAiParsesCompletionAndShapesRequest() throws Exception {
-        FakeTransport t = new FakeTransport(200,
-                "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"The door splinters inward.\"}}],"
-                        + "\"usage\":{\"total_tokens\":42}}");
+        FakeTransport t = new FakeTransport(200, OPENAI_OK);
         OpenAiProvider p = new OpenAiProvider("sk-test", "gpt-4o-mini", "https://api.openai.com/v1", t);
 
         NarrativeResponse r = p.generate(prompt());
@@ -72,6 +82,48 @@ class KeyedLLMProviderTest {
         assertEquals("Bearer sk-test", t.lastHeaders.get("Authorization"));
         assertEquals("gpt-4o-mini", json.readTree(t.lastBody).get("model").asText());
         assertEquals("user", json.readTree(t.lastBody).get("messages").get(1).get("role").asText());
+    }
+
+    @Test
+    void xaiAndLlamaShareOpenAiCompatibleShape() throws Exception {
+        FakeTransport tX = new FakeTransport(200, OPENAI_OK);
+        XaiProvider xai = new XaiProvider("xai-key", "grok-2-latest", "https://api.x.ai/v1", tX);
+        NarrativeResponse rx = xai.generate(prompt());
+        assertFalse(rx.wasFallback);
+        assertEquals("https://api.x.ai/v1/chat/completions", tX.lastUrl);
+        assertEquals("Bearer xai-key", tX.lastHeaders.get("Authorization"));
+
+        FakeTransport tL = new FakeTransport(200, OPENAI_OK);
+        // llama: key not required
+        LlamaProvider llama = new LlamaProvider(null, "local-model", "http://localhost:8080/v1", tL);
+        assertNotEquals(LLMProvider.HealthStatus.DOWN, llama.health(),
+                "local llama should not require a key");
+        NarrativeResponse rl = llama.generate(prompt());
+        assertFalse(rl.wasFallback);
+        assertEquals("http://localhost:8080/v1/chat/completions", tL.lastUrl);
+        assertNull(tL.lastHeaders.get("Authorization"), "no key → no Authorization header");
+    }
+
+    @Test
+    void contextFactsAreWovenIntoSystemPrompt() throws Exception {
+        FakeTransport t = new FakeTransport(200, OPENAI_OK);
+        OpenAiProvider p = new OpenAiProvider("sk-test", "m", "https://api.openai.com/v1", t);
+        p.generate(promptWithFacts());
+        JsonNode messages = json.readTree(t.lastBody).get("messages");
+        String system = messages.get(0).get("content").asText();
+        assertTrue(system.contains("Weeping Tree"), "chronicle fact missing from system prompt: " + system);
+        assertTrue(system.contains("Grave Warden"), system);
+        assertTrue(system.contains("Stay consistent"), system);
+    }
+
+    @Test
+    void emptyCompletionFallsBack() {
+        FakeTransport t = new FakeTransport(200,
+                "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"\"}}],\"usage\":{\"total_tokens\":1}}");
+        OpenAiProvider p = new OpenAiProvider("sk-test", "m", "https://api.openai.com/v1", t);
+        NarrativeResponse r = p.generate(prompt());
+        assertTrue(r.wasFallback);
+        assertEquals(LLMProvider.HealthStatus.DEGRADED, p.health());
     }
 
     @Test

@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * Thread-safety: ConcurrentHashMap. Registration is idempotent — registering
  * the same id twice replaces the previous binding (with a warning log).
+ * Dispatches run under {@link PluginCallGuard} so a runaway mod cannot hang
+ * the game loop.
  */
 public final class SpellEffectRegistry {
 
@@ -60,7 +62,9 @@ public final class SpellEffectRegistry {
             return (caster != null ? caster.getName() : "Someone")
                     + " chants an ancient rhyme, but the rift remains silent.";
         }
-        return effect.execute(engine, caster, target, spell);
+        String who = caster != null ? caster.getName() : "Someone";
+        return PluginCallGuard.run(key, () -> effect.execute(engine, caster, target, spell),
+                reason -> who + "'s spell fizzles (" + reason + ").");
     }
 
     /** True if the id is registered. */

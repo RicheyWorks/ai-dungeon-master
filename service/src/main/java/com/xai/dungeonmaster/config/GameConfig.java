@@ -79,8 +79,22 @@ public class GameConfig {
     @Value("${game.plugins.sandbox.enabled:true}")
     private boolean pluginSandboxEnabled;
 
+    /** Wall-clock timeout (ms) for plugin SPI calls (item/spell effects). */
+    @Value("${game.plugins.call.timeout-ms:2000}")
+    private long pluginCallTimeoutMs;
+
+    /** Whether to run plugin SPI calls under the timeout guard. */
+    @Value("${game.plugins.call.guard:true}")
+    private boolean pluginCallGuard;
+
     @Bean
     public DungeonMasterEngine dungeonMasterEngine(SimpMessagingTemplate messaging) {
+
+        // Runtime isolation: apply call-guard props before any plugin SPI may fire.
+        System.setProperty(com.xai.dungeonmaster.plugin.PluginCallGuard.PROP_TIMEOUT_MS,
+                Long.toString(Math.max(50L, pluginCallTimeoutMs)));
+        System.setProperty(com.xai.dungeonmaster.plugin.PluginCallGuard.PROP_ENABLED,
+                Boolean.toString(pluginCallGuard));
 
         // 1. Content packs: bundled first, then any external packs on disk.
         int externalPacks = ResourceLoader.registerAllContentPacks(Paths.get(contentPacksDir));
@@ -95,7 +109,8 @@ public class GameConfig {
         SandboxPolicy sandboxPolicy = pluginSandboxEnabled ? SandboxPolicy.defaults() : SandboxPolicy.disabled();
         PluginLoader.LoadReport report = PluginLoader.loadAll(Paths.get(pluginsDir), sigPolicy, sandboxPolicy);
         if (!report.loaded.isEmpty() || !report.failed.isEmpty() || !report.rejected.isEmpty()) {
-            System.out.println("[plugins] " + report + " (signature policy: " + sigPolicy + ")");
+            System.out.println("[plugins] " + report + " (signature policy: " + sigPolicy
+                    + ", call-guard=" + pluginCallGuard + "/" + pluginCallTimeoutMs + "ms)");
             report.rejected.forEach(r -> System.err.println("[plugins] REJECTED " + r));
             report.failed.forEach(f -> System.err.println("[plugins] FAILED " + f));
         }

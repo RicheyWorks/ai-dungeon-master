@@ -184,8 +184,11 @@ Game content is data-driven, not hardcoded:
   it to the manifest `signature` under a configurable
   `game.plugins.signature.policy` (LENIENT / REQUIRED / DISABLED).
 - Plugin bytecode is sandboxed before instantiation: `SandboxedClassLoader`
-  rejects classes referencing blocked APIs (process exec, reflection, raw net/fs,
-  JDK internals) under `game.plugins.sandbox.enabled` (default on).
+  rejects classes referencing blocked APIs (process exec, reflection, classloaders,
+  raw net/fs, JNI/`native` methods, JDK internals) under `game.plugins.sandbox.enabled`
+  (default on). SPI calls also run under a wall-clock timeout
+  (`game.plugins.call.timeout-ms`, default 2000) so a hung mod cannot freeze the loop.
+
 - Four themed packs ship under `content-packs/`: `black-hollows` (horror),
   `dnd-classic`, `sci-fi`, and `cozy-hearthwood` — monsters, items, and localized
   strings, each loaded end-to-end by tests.
@@ -246,6 +249,9 @@ content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hea
 | `game.auth.session.file` | `sessions.json` | JSON file for the file session store |
 | `game.plugins.signature.policy` | `LENIENT` | Plugin signature policy: LENIENT / REQUIRED / DISABLED |
 | `game.plugins.sandbox.enabled` | `true` | Sandbox-scan plugin bytecode before loading |
+| `game.plugins.call.timeout-ms` | `2000` | Wall timeout for item/spell plugin SPI calls |
+| `game.plugins.call.guard` | `true` | Enable the runtime call timeout guard |
+
 
 ## Roadmap
 

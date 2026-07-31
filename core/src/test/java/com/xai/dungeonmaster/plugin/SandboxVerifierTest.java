@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Verifier logic tests that need no compilation: they feed the bytecode of real,
  * already-loaded classes to {@link SandboxVerifier}. ResourceLoader genuinely
- * uses java.nio.file, so it must trip the denylist; Item touches none of the
- * blocked APIs, so it must pass.
+ * uses blocked APIs (filesystem / ClassLoader), so it must trip the denylist;
+ * Item touches none of the blocked APIs, so it must pass.
  */
 class SandboxVerifierTest {
 
@@ -26,15 +26,19 @@ class SandboxVerifierTest {
 
     @Test
     void flagsClassThatUsesFilesystemApi() throws Exception {
-        byte[] bytes = bytesOf(ResourceLoader.class); // uses java.nio.file.*
+        byte[] bytes = bytesOf(ResourceLoader.class);
         String violation = SandboxVerifier.firstViolation(bytes, SandboxPolicy.defaults());
-        assertNotNull(violation, "ResourceLoader references java.nio.file and should be flagged");
-        assertTrue(violation.startsWith("java/nio/file"), "unexpected violation: " + violation);
+        assertNotNull(violation, "ResourceLoader references blocked APIs and should be flagged");
+        assertTrue(
+                violation.startsWith("java/nio/file")
+                        || violation.startsWith("java/io/File")
+                        || violation.startsWith("java/lang/ClassLoader"),
+                "unexpected violation: " + violation);
     }
 
     @Test
     void passesCleanClass() throws Exception {
-        byte[] bytes = bytesOf(Item.class); // strings, enums, jackson annotations — nothing blocked
+        byte[] bytes = bytesOf(Item.class);
         assertNull(SandboxVerifier.firstViolation(bytes, SandboxPolicy.defaults()),
                 "Item uses no blocked API and should pass");
     }
@@ -44,6 +48,13 @@ class SandboxVerifierTest {
         byte[] bytes = bytesOf(ResourceLoader.class);
         assertNull(SandboxVerifier.firstViolation(bytes, SandboxPolicy.disabled()),
                 "a disabled policy must not scan");
+    }
+
+    @Test
+    void classLoaderIsDenied() {
+        assertTrue(SandboxPolicy.defaults().isDenied("java/lang/ClassLoader"));
+        assertTrue(SandboxPolicy.defaults().isDenied("java/lang/ClassLoader$1"));
+        assertTrue(SandboxPolicy.defaults().isDenied("java/net/URLClassLoader"));
     }
 
     @Test
@@ -58,5 +69,31 @@ class SandboxVerifierTest {
     void garbageBytesAreTreatedAsViolation() {
         String v = SandboxVerifier.firstViolation(new byte[] { 1, 2, 3, 4 }, SandboxPolicy.defaults());
         assertNotNull(v, "non-class bytes should be rejected, not silently passed");
+    }
+
+    @Test
+    void nativeMethodIsRejected() throws Exception {
+        javax.tools.JavaCompiler jc = javax.tools.ToolProvider.getSystemJavaCompiler();
+        org.junit.jupiter.api.Assumptions.assumeTrue(jc != null, "no system JavaCompiler");
+
+        java.nio.file.Path work = java.nio.file.Files.createTempDirectory("native-scan");
+        try {
+            java.nio.file.Path src = work.resolve("NativeEscape.java");
+            java.nio.file.Files.writeString(src,
+                    "public class NativeEscape { public native void pwn(); }");
+            java.nio.file.Path out = work.resolve("out");
+            java.nio.file.Files.createDirectories(out);
+            int rc = jc.run(null, null, null, "-d", out.toString(), src.toString());
+            assertEquals(0, rc, "compile native method class");
+            byte[] bytes = java.nio.file.Files.readAllBytes(out.resolve("NativeEscape.class"));
+            String v = SandboxVerifier.firstViolation(bytes, SandboxPolicy.defaults());
+            assertNotNull(v, "native method must be flagged");
+            assertTrue(v.startsWith("native method"), "unexpected: " + v);
+        } finally {
+            try (var walk = java.nio.file.Files.walk(work)) {
+                walk.sorted(java.util.Comparator.reverseOrder())
+                        .forEach(p -> { try { java.nio.file.Files.deleteIfExists(p); } catch (Exception ignored) {} });
+            }
+        }
     }
 }
