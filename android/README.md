@@ -69,10 +69,14 @@ app/src/main/java/com/xai/dungeonmaster/android/
   GameViewModel.kt    StateFlow bridge + session + STOMP stream
   GameApp.kt          tab shell + Game screen + session chrome
   ModsScreen.kt       catalog browser with pack enable/disable toggles
-  SessionClient.kt    POST /v2/session (+ save/load/reset until SDK regen)
+  SessionClient.kt    save/load/reset until those ops land in the SDK
   HttpClients.kt      OkHttp Bearer interceptor shared with generated V2Api
   StompClient.kt      Minimal STOMP 1.2 over native WebSocket (/ws-stomp)
 ```
+
+Session mint uses generated `V2Api.createSessionV2` (SDK regenerated from
+`docs/api/openapi.yaml`). Save/load/reset stay in `SessionClient` until the
+multi-player isolation endpoints are added to the OpenAPI spec and regen'd.
 
 The generated SDK is synchronous (`jvm-okhttp4`); the ViewModel wraps every
 call in `withContext(Dispatchers.IO)` and folds results/errors into one
@@ -83,7 +87,6 @@ Compose BOM 2024.06) — bump them freely, nothing here is version-sensitive.
 
 - Entitlement receipt verification UI
 - Pack upload from the device (`POST /v2/catalog/packs`) — use the web
-  mod browser; also requires regenerating the Kotlin SDK against the
-  latest spec so `uploadPackV2` exists
-- Regenerating the Kotlin SDK so `createSessionV2` lives in `V2Api` (session
-  paths are now in `docs/api/openapi.yaml`)
+  mod browser for now (`uploadPackV2` is in the regenerated SDK)
+- Save/load/reset in the generated SDK (hand-rolled in `SessionClient` until
+  the multi-player isolation OpenAPI paths merge)

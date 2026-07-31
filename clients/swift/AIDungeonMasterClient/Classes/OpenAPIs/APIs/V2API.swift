@@ -13,6 +13,45 @@ import AnyCodable
 open class V2API {
 
     /**
+     Mint a guest player session and JWT.
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter sessionRequest: (body)  (optional)
+     - returns: SessionEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func createSessionV2(xRequestId: String? = nil, sessionRequest: SessionRequest? = nil) async throws -> SessionEnvelope {
+        return try await createSessionV2WithRequestBuilder(xRequestId: xRequestId, sessionRequest: sessionRequest).execute().body
+    }
+
+    /**
+     Mint a guest player session and JWT.
+     - POST /v2/session
+     - Public endpoint. Returns a session id plus a Bearer token used on all subsequent `/v2/_*` calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter sessionRequest: (body)  (optional)
+     - returns: RequestBuilder<SessionEnvelope> 
+     */
+    open class func createSessionV2WithRequestBuilder(xRequestId: String? = nil, sessionRequest: SessionRequest? = nil) -> RequestBuilder<SessionEnvelope> {
+        let localVariablePath = "/v2/session"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters = JSONEncodingHelper.encodingParameters(forEncodableObject: sessionRequest)
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "Content-Type": "application/json",
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<SessionEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Disable a content pack; returns the updated catalog.
      
      - parameter id: (path)  
@@ -123,6 +162,41 @@ open class V2API {
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
         let localVariableRequestBuilder: RequestBuilder<CatalogEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Echo the authenticated session (no token reflected).
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: SessionEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func getSessionMeV2(xRequestId: String? = nil) async throws -> SessionEnvelope {
+        return try await getSessionMeV2WithRequestBuilder(xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Echo the authenticated session (no token reflected).
+     - GET /v2/session/me
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<SessionEnvelope> 
+     */
+    open class func getSessionMeV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<SessionEnvelope> {
+        let localVariablePath = "/v2/session/me"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<SessionEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
@@ -269,6 +343,54 @@ open class V2API {
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
         let localVariableRequestBuilder: RequestBuilder<GameStatusEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Upload and install a content-pack zip at runtime; returns the updated catalog.
+     
+     - parameter file: (form) Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead. 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter replace: (query) Overwrite an already-installed pack with the same id. (optional, default to false)
+     - returns: CatalogEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func uploadPackV2(file: URL, xRequestId: String? = nil, replace: Bool? = nil) async throws -> CatalogEnvelope {
+        return try await uploadPackV2WithRequestBuilder(file: file, xRequestId: xRequestId, replace: replace).execute().body
+    }
+
+    /**
+     Upload and install a content-pack zip at runtime; returns the updated catalog.
+     - POST /v2/catalog/packs
+     - parameter file: (form) Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead. 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter replace: (query) Overwrite an already-installed pack with the same id. (optional, default to false)
+     - returns: RequestBuilder<CatalogEnvelope> 
+     */
+    open class func uploadPackV2WithRequestBuilder(file: URL, xRequestId: String? = nil, replace: Bool? = nil) -> RequestBuilder<CatalogEnvelope> {
+        let localVariablePath = "/v2/catalog/packs"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableFormParams: [String: Any?] = [
+            "file": file.encodeToJSON(),
+        ]
+
+        let localVariableNonNullParameters = APIHelper.rejectNil(localVariableFormParams)
+        let localVariableParameters = APIHelper.convertBoolToString(localVariableNonNullParameters)
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "replace": (wrappedValue: replace?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "Content-Type": "multipart/form-data",
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<CatalogEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }

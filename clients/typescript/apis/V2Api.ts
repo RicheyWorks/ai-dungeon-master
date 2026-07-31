@@ -22,6 +22,8 @@ import type {
   GameStatusEnvelope,
   NarrateRequest,
   NarrativeEnvelope,
+  SessionEnvelope,
+  SessionRequest,
   VerifyReceiptRequest,
 } from '../models/index';
 import {
@@ -39,9 +41,18 @@ import {
     NarrateRequestToJSON,
     NarrativeEnvelopeFromJSON,
     NarrativeEnvelopeToJSON,
+    SessionEnvelopeFromJSON,
+    SessionEnvelopeToJSON,
+    SessionRequestFromJSON,
+    SessionRequestToJSON,
     VerifyReceiptRequestFromJSON,
     VerifyReceiptRequestToJSON,
 } from '../models/index';
+
+export interface CreateSessionV2Request {
+    xRequestId?: string;
+    sessionRequest?: SessionRequest;
+}
 
 export interface DisablePackV2Request {
     id: string;
@@ -54,6 +65,10 @@ export interface EnablePackV2Request {
 }
 
 export interface GetCatalogV2Request {
+    xRequestId?: string;
+}
+
+export interface GetSessionMeV2Request {
     xRequestId?: string;
 }
 
@@ -75,6 +90,12 @@ export interface SubmitActionV2Request {
     xRequestId?: string;
 }
 
+export interface UploadPackV2Request {
+    file: Blob;
+    xRequestId?: string;
+    replace?: boolean;
+}
+
 export interface VerifyReceiptV2Request {
     verifyReceiptRequest: VerifyReceiptRequest;
     xRequestId?: string;
@@ -84,6 +105,41 @@ export interface VerifyReceiptV2Request {
  * 
  */
 export class V2Api extends runtime.BaseAPI {
+
+    /**
+     * Public endpoint. Returns a session id plus a Bearer token used on all subsequent `/v2/_*` calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
+     * Mint a guest player session and JWT.
+     */
+    async createSessionV2Raw(requestParameters: CreateSessionV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SessionEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/session`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: SessionRequestToJSON(requestParameters['sessionRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SessionEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Public endpoint. Returns a session id plus a Bearer token used on all subsequent `/v2/_*` calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
+     * Mint a guest player session and JWT.
+     */
+    async createSessionV2(requestParameters: CreateSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SessionEnvelope> {
+        const response = await this.createSessionV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Disable a content pack; returns the updated catalog.
@@ -186,6 +242,36 @@ export class V2Api extends runtime.BaseAPI {
      */
     async getCatalogV2(requestParameters: GetCatalogV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CatalogEnvelope> {
         const response = await this.getCatalogV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Echo the authenticated session (no token reflected).
+     */
+    async getSessionMeV2Raw(requestParameters: GetSessionMeV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SessionEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/session/me`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SessionEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Echo the authenticated session (no token reflected).
+     */
+    async getSessionMeV2(requestParameters: GetSessionMeV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SessionEnvelope> {
+        const response = await this.getSessionMeV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -319,6 +405,68 @@ export class V2Api extends runtime.BaseAPI {
      */
     async submitActionV2(requestParameters: SubmitActionV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameStatusEnvelope> {
         const response = await this.submitActionV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Upload and install a content-pack zip at runtime; returns the updated catalog.
+     */
+    async uploadPackV2Raw(requestParameters: UploadPackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CatalogEnvelope>> {
+        if (requestParameters['file'] == null) {
+            throw new runtime.RequiredError(
+                'file',
+                'Required parameter "file" was null or undefined when calling uploadPackV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['replace'] != null) {
+            queryParameters['replace'] = requestParameters['replace'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const consumes: runtime.Consume[] = [
+            { contentType: 'multipart/form-data' },
+        ];
+        // @ts-ignore: canConsumeForm may be unused
+        const canConsumeForm = runtime.canConsumeForm(consumes);
+
+        let formParams: { append(param: string, value: any): any };
+        let useForm = false;
+        // use FormData to transmit files using content-type "multipart/form-data"
+        useForm = canConsumeForm;
+        if (useForm) {
+            formParams = new FormData();
+        } else {
+            formParams = new URLSearchParams();
+        }
+
+        if (requestParameters['file'] != null) {
+            formParams.append('file', requestParameters['file'] as any);
+        }
+
+        const response = await this.request({
+            path: `/v2/catalog/packs`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: formParams,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CatalogEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Upload and install a content-pack zip at runtime; returns the updated catalog.
+     */
+    async uploadPackV2(requestParameters: UploadPackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CatalogEnvelope> {
+        const response = await this.uploadPackV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 

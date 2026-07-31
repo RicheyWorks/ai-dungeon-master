@@ -26,6 +26,8 @@ import com.xai.dungeonmaster.client.models.ErrorEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
 import com.xai.dungeonmaster.client.models.NarrativeEnvelope
+import com.xai.dungeonmaster.client.models.SessionEnvelope
+import com.xai.dungeonmaster.client.models.SessionRequest
 import com.xai.dungeonmaster.client.models.VerifyReceiptRequest
 
 import com.squareup.moshi.Json
@@ -50,6 +52,82 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         val defaultBasePath: String by lazy {
             System.getProperties().getProperty(ApiClient.baseUrlKey, "http://localhost:8080")
         }
+    }
+
+    /**
+     * Mint a guest player session and JWT.
+     * Public endpoint. Returns a session id plus a Bearer token used on all subsequent &#x60;/v2/_*&#x60; calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param sessionRequest  (optional)
+     * @return SessionEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun createSessionV2(xRequestId: kotlin.String? = null, sessionRequest: SessionRequest? = null) : SessionEnvelope {
+        val localVarResponse = createSessionV2WithHttpInfo(xRequestId = xRequestId, sessionRequest = sessionRequest)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as SessionEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Mint a guest player session and JWT.
+     * Public endpoint. Returns a session id plus a Bearer token used on all subsequent &#x60;/v2/_*&#x60; calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param sessionRequest  (optional)
+     * @return ApiResponse<SessionEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun createSessionV2WithHttpInfo(xRequestId: kotlin.String?, sessionRequest: SessionRequest?) : ApiResponse<SessionEnvelope?> {
+        val localVariableConfig = createSessionV2RequestConfig(xRequestId = xRequestId, sessionRequest = sessionRequest)
+
+        return request<SessionRequest, SessionEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation createSessionV2
+     *
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param sessionRequest  (optional)
+     * @return RequestConfig
+     */
+    fun createSessionV2RequestConfig(xRequestId: kotlin.String?, sessionRequest: SessionRequest?) : RequestConfig<SessionRequest> {
+        val localVariableBody = sessionRequest
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Content-Type"] = "application/json"
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.POST,
+            path = "/v2/session",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
     }
 
     /**
@@ -267,6 +345,78 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         return RequestConfig(
             method = RequestMethod.GET,
             path = "/v2/catalog",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Echo the authenticated session (no token reflected).
+     * 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return SessionEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun getSessionMeV2(xRequestId: kotlin.String? = null) : SessionEnvelope {
+        val localVarResponse = getSessionMeV2WithHttpInfo(xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as SessionEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Echo the authenticated session (no token reflected).
+     * 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<SessionEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun getSessionMeV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<SessionEnvelope?> {
+        val localVariableConfig = getSessionMeV2RequestConfig(xRequestId = xRequestId)
+
+        return request<Unit, SessionEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation getSessionMeV2
+     *
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun getSessionMeV2RequestConfig(xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/session/me",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,
@@ -563,6 +713,90 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         return RequestConfig(
             method = RequestMethod.POST,
             path = "/v2/action",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Upload and install a content-pack zip at runtime; returns the updated catalog.
+     * 
+     * @param file Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param replace Overwrite an already-installed pack with the same id. (optional, default to false)
+     * @return CatalogEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun uploadPackV2(file: java.io.File, xRequestId: kotlin.String? = null, replace: kotlin.Boolean? = false) : CatalogEnvelope {
+        val localVarResponse = uploadPackV2WithHttpInfo(file = file, xRequestId = xRequestId, replace = replace)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as CatalogEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Upload and install a content-pack zip at runtime; returns the updated catalog.
+     * 
+     * @param file Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param replace Overwrite an already-installed pack with the same id. (optional, default to false)
+     * @return ApiResponse<CatalogEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun uploadPackV2WithHttpInfo(file: java.io.File, xRequestId: kotlin.String?, replace: kotlin.Boolean?) : ApiResponse<CatalogEnvelope?> {
+        val localVariableConfig = uploadPackV2RequestConfig(file = file, xRequestId = xRequestId, replace = replace)
+
+        return request<Map<String, PartConfig<*>>, CatalogEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation uploadPackV2
+     *
+     * @param file Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param replace Overwrite an already-installed pack with the same id. (optional, default to false)
+     * @return RequestConfig
+     */
+    fun uploadPackV2RequestConfig(file: java.io.File, xRequestId: kotlin.String?, replace: kotlin.Boolean?) : RequestConfig<Map<String, PartConfig<*>>> {
+        val localVariableBody = mapOf(
+            "file" to PartConfig(body = file, headers = mutableMapOf()),)
+        val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
+            .apply {
+                if (replace != null) {
+                    put("replace", listOf(replace.toString()))
+                }
+            }
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf("Content-Type" to "multipart/form-data")
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.POST,
+            path = "/v2/catalog/packs",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,

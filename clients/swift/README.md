@@ -38,13 +38,16 @@ Class | Method | HTTP request | Description
 *LegacyAPI* | [**saveGameLegacy**](docs/LegacyAPI.md#savegamelegacy) | **POST** /api/game/save | 
 *LegacyAPI* | [**startQuestLegacy**](docs/LegacyAPI.md#startquestlegacy) | **POST** /api/game/start | (Re)start the quest and return the opening banner.
 *LegacyAPI* | [**submitActionLegacy**](docs/LegacyAPI.md#submitactionlegacy) | **POST** /api/game/action | 
+*V2API* | [**createSessionV2**](docs/V2API.md#createsessionv2) | **POST** /v2/session | Mint a guest player session and JWT.
 *V2API* | [**disablePackV2**](docs/V2API.md#disablepackv2) | **POST** /v2/catalog/packs/{id}/disable | Disable a content pack; returns the updated catalog.
 *V2API* | [**enablePackV2**](docs/V2API.md#enablepackv2) | **POST** /v2/catalog/packs/{id}/enable | Enable a content pack; returns the updated catalog.
 *V2API* | [**getCatalogV2**](docs/V2API.md#getcatalogv2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser).
+*V2API* | [**getSessionMeV2**](docs/V2API.md#getsessionmev2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected).
 *V2API* | [**getStatusV2**](docs/V2API.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope.
 *V2API* | [**listEntitlementsV2**](docs/V2API.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller&#39;s owned products.
 *V2API* | [**narrateV2**](docs/V2API.md#narratev2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider.
 *V2API* | [**submitActionV2**](docs/V2API.md#submitactionv2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope.
+*V2API* | [**uploadPackV2**](docs/V2API.md#uploadpackv2) | **POST** /v2/catalog/packs | Upload and install a content-pack zip at runtime; returns the updated catalog.
 *V2API* | [**verifyReceiptV2**](docs/V2API.md#verifyreceiptv2) | **POST** /v2/entitlements/verify | Validate a purchase receipt via its storefront and grant the entitlement.
 
 
@@ -69,6 +72,9 @@ Class | Method | HTTP request | Description
  - [PackInfo](docs/PackInfo.md)
  - [PluginSummary](docs/PluginSummary.md)
  - [QuestInfo](docs/QuestInfo.md)
+ - [SessionEnvelope](docs/SessionEnvelope.md)
+ - [SessionPayload](docs/SessionPayload.md)
+ - [SessionRequest](docs/SessionRequest.md)
  - [VerifyReceiptRequest](docs/VerifyReceiptRequest.md)
 
 

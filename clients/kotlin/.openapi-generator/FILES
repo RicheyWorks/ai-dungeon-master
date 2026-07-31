@@ -20,6 +20,9 @@ docs/NarrativePayload.md
 docs/PackInfo.md
 docs/PluginSummary.md
 docs/QuestInfo.md
+docs/SessionEnvelope.md
+docs/SessionPayload.md
+docs/SessionRequest.md
 docs/V2Api.md
 docs/VerifyReceiptRequest.md
 gradle/wrapper/gradle-wrapper.jar
@@ -65,5 +68,10 @@ src/main/kotlin/com/xai/dungeonmaster/client/models/NarrativePayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/PackInfo.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/PluginSummary.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/QuestInfo.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/SessionEnvelope.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/SessionPayload.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/SessionRequest.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/VerifyReceiptRequest.kt
-src/test/kotlin/com/xai/dungeonmaster/client/models/QuestInfoTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/SessionEnvelopeTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/SessionPayloadTest.kt
+src/test/kotlin/com/xai/dungeonmaster/client/models/SessionRequestTest.kt

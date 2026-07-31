@@ -9,11 +9,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 
 /**
- * Hand-written client for session identity + optional save/load/reset.
+ * Hand-written helpers for ops not yet in the generated Kotlin SDK
+ * (save / load / reset — multi-player isolation server branch).
  *
- * Session endpoints ship on main but are not yet in the generated Kotlin SDK
- * (regenerate from openapi when ready). Until then this tiny client covers the
- * multi-player identity path the Android app needs.
+ * Session minting now goes through generated `V2Api.createSessionV2`.
  */
 class SessionClient(
     private val baseUrl: String,
@@ -23,54 +22,9 @@ class SessionClient(
         .add(KotlinJsonAdapterFactory())
         .build()
 
-    private val sessionEnvelopeAdapter = moshi.adapter(SessionEnvelope::class.java)
     private val saveEnvelopeAdapter = moshi.adapter(SaveEnvelope::class.java)
     private val statusEnvelopeAdapter = moshi.adapter(StatusEnvelope::class.java)
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()
-
-    fun createSession(displayName: String? = null): SessionInfo {
-        val bodyJson = if (displayName.isNullOrBlank()) {
-            "{}"
-        } else {
-            """{"displayName":${jsonString(displayName)}}"""
-        }
-        val request = Request.Builder()
-            .url(url("/v2/session"))
-            .post(bodyJson.toRequestBody(jsonMedia))
-            .header("Accept", "application/json")
-            .build()
-        val envelope = execute(request, sessionEnvelopeAdapter)
-            ?: throw IOException("Empty session response")
-        val p = envelope.payload ?: throw IOException("Session payload missing")
-        val token = p.token ?: throw IOException("Session token missing")
-        val id = p.sessionId ?: throw IOException("Session id missing")
-        return SessionInfo(
-            sessionId = id,
-            token = token,
-            displayName = p.displayName ?: "Guest",
-            expiresAtEpochSeconds = p.expiresAtEpochSeconds ?: 0L,
-            createdAtEpochSeconds = p.createdAtEpochSeconds ?: 0L,
-        )
-    }
-
-    fun me(token: String): SessionInfo {
-        val request = Request.Builder()
-            .url(url("/v2/session/me"))
-            .get()
-            .header("Accept", "application/json")
-            .header("Authorization", "Bearer $token")
-            .build()
-        val envelope = execute(request, sessionEnvelopeAdapter)
-            ?: throw IOException("Empty /session/me response")
-        val p = envelope.payload ?: throw IOException("Session payload missing")
-        return SessionInfo(
-            sessionId = p.sessionId ?: "",
-            token = token,
-            displayName = p.displayName ?: "Guest",
-            expiresAtEpochSeconds = p.expiresAtEpochSeconds ?: 0L,
-            createdAtEpochSeconds = p.createdAtEpochSeconds ?: 0L,
-        )
-    }
 
     /** Requires server with `POST /v2/save` (multi-player isolation PR). */
     fun save(token: String): SaveResult {
@@ -126,9 +80,6 @@ class SessionClient(
             return adapter.fromJson(body)
         }
     }
-
-    private fun jsonString(value: String): String =
-        "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
 
 data class SessionInfo(
@@ -146,23 +97,6 @@ data class SaveResult(
     val saved: Boolean,
     val path: String?,
     val sessionScoped: Boolean,
-)
-
-// ── wire models (Moshi reflection; no kapt) ──────────────────────────────────
-
-data class SessionEnvelope(
-    val type: String? = null,
-    val version: Int? = null,
-    val payload: SessionPayloadDto? = null,
-    val requestId: String? = null,
-)
-
-data class SessionPayloadDto(
-    val sessionId: String? = null,
-    val token: String? = null,
-    val displayName: String? = null,
-    val expiresAtEpochSeconds: Long? = null,
-    val createdAtEpochSeconds: Long? = null,
 )
 
 data class SaveEnvelope(

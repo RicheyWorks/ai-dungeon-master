@@ -57,13 +57,16 @@ All URIs are relative to *http://localhost:8080*
 | *LegacyApi* | [**saveGameLegacy**](docs/LegacyApi.md#savegamelegacy) | **POST** /api/game/save |  |
 | *LegacyApi* | [**startQuestLegacy**](docs/LegacyApi.md#startquestlegacy) | **POST** /api/game/start | (Re)start the quest and return the opening banner. |
 | *LegacyApi* | [**submitActionLegacy**](docs/LegacyApi.md#submitactionlegacy) | **POST** /api/game/action |  |
+| *V2Api* | [**createSessionV2**](docs/V2Api.md#createsessionv2) | **POST** /v2/session | Mint a guest player session and JWT. |
 | *V2Api* | [**disablePackV2**](docs/V2Api.md#disablepackv2) | **POST** /v2/catalog/packs/{id}/disable | Disable a content pack; returns the updated catalog. |
 | *V2Api* | [**enablePackV2**](docs/V2Api.md#enablepackv2) | **POST** /v2/catalog/packs/{id}/enable | Enable a content pack; returns the updated catalog. |
 | *V2Api* | [**getCatalogV2**](docs/V2Api.md#getcatalogv2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser). |
+| *V2Api* | [**getSessionMeV2**](docs/V2Api.md#getsessionmev2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected). |
 | *V2Api* | [**getStatusV2**](docs/V2Api.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope. |
 | *V2Api* | [**listEntitlementsV2**](docs/V2Api.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller's owned products. |
 | *V2Api* | [**narrateV2**](docs/V2Api.md#narratev2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider. |
 | *V2Api* | [**submitActionV2**](docs/V2Api.md#submitactionv2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope. |
+| *V2Api* | [**uploadPackV2**](docs/V2Api.md#uploadpackv2) | **POST** /v2/catalog/packs | Upload and install a content-pack zip at runtime; returns the updated catalog. |
 | *V2Api* | [**verifyReceiptV2**](docs/V2Api.md#verifyreceiptv2) | **POST** /v2/entitlements/verify | Validate a purchase receipt via its storefront and grant the entitlement. |
 
 
@@ -89,6 +92,9 @@ All URIs are relative to *http://localhost:8080*
  - [com.xai.dungeonmaster.client.models.PackInfo](docs/PackInfo.md)
  - [com.xai.dungeonmaster.client.models.PluginSummary](docs/PluginSummary.md)
  - [com.xai.dungeonmaster.client.models.QuestInfo](docs/QuestInfo.md)
+ - [com.xai.dungeonmaster.client.models.SessionEnvelope](docs/SessionEnvelope.md)
+ - [com.xai.dungeonmaster.client.models.SessionPayload](docs/SessionPayload.md)
+ - [com.xai.dungeonmaster.client.models.SessionRequest](docs/SessionRequest.md)
  - [com.xai.dungeonmaster.client.models.VerifyReceiptRequest](docs/VerifyReceiptRequest.md)
 
 

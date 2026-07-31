@@ -21,6 +21,9 @@ models/NarrativePayload.ts
 models/PackInfo.ts
 models/PluginSummary.ts
 models/QuestInfo.ts
+models/SessionEnvelope.ts
+models/SessionPayload.ts
+models/SessionRequest.ts
 models/VerifyReceiptRequest.ts
 models/index.ts
 runtime.ts

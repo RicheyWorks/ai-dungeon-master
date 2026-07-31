@@ -9,6 +9,7 @@ import com.xai.dungeonmaster.client.models.ActionRequest
 import com.xai.dungeonmaster.client.models.CatalogPayload
 import com.xai.dungeonmaster.client.models.GameStatusV2
 import com.xai.dungeonmaster.client.models.NarrateRequest
+import com.xai.dungeonmaster.client.models.SessionRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,9 +21,10 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * Bridges the synchronous generated SDK (jvm-okhttp4) to Compose.
  *
- * On first contact the ViewModel mints a guest session (`POST /v2/session`) and
- * attaches the JWT to every subsequent call via [HttpClients]. After a session
- * is ready it also opens a native STOMP socket (`/ws-stomp`) for live narration.
+ * On first contact the ViewModel mints a guest session via the generated
+ * `createSessionV2` call and attaches the JWT to every subsequent request
+ * through [HttpClients]. After a session is ready it also opens a native
+ * STOMP socket (`/ws-stomp`) for live narration.
  */
 class GameViewModel : ViewModel() {
 
@@ -57,7 +59,8 @@ class GameViewModel : ViewModel() {
 
     private fun api(): V2Api = V2Api(basePath = base(), client = HttpClients.client())
 
-    private fun sessions(): SessionClient = SessionClient(base(), HttpClients.client())
+    /** Save/load/reset until those ops land in the generated SDK. */
+    private fun gameExtras(): SessionClient = SessionClient(base(), HttpClients.client())
 
     fun setBaseUrl(url: String) {
         if (url.trimEnd('/') != _state.value.baseUrl.trimEnd('/')) {
@@ -74,18 +77,17 @@ class GameViewModel : ViewModel() {
         }
     }
 
-    /** Mint a guest session (or re-mint) and open STOMP. */
+    /** Mint a guest session (or re-mint) via generated SDK and open STOMP. */
     fun startSession(displayName: String? = null) = launchCall { current ->
         disconnectStomp()
-        val info = sessions().createSession(displayName)
+        val info = mintSession(displayName)
         HttpClients.setToken(info.token)
-        val next = current.copy(
+        connectStomp(info)
+        current.copy(
             session = info,
             error = null,
             info = "Session ${info.shortId()} · ${info.displayName}",
         )
-        connectStomp(info)
-        next
     }
 
     /** Ensure a session exists, then fetch game status. */
@@ -99,12 +101,10 @@ class GameViewModel : ViewModel() {
     fun act(choiceLabel: String) = launchCall { current ->
         val withSession = ensureSession(current)
         connectStomp(withSession.session!!)
-        // Prefer STOMP action when connected; fall back to REST.
         val stomp = stompRef.get()
         if (stomp != null && stomp.isConnected()) {
             val body = """{"choiceLabel":${jsonString(choiceLabel)}}"""
             stomp.send("/app/action", body)
-            // Refresh status shortly after the action is processed.
             val envelope = api().getStatusV2()
             withSession.copy(status = envelope.payload, error = null, info = "Action sent via WS")
         } else {
@@ -151,7 +151,7 @@ class GameViewModel : ViewModel() {
         val withSession = ensureSession(current)
         val token = withSession.session?.token
             ?: throw IllegalStateException("No session token")
-        val result = sessions().save(token)
+        val result = gameExtras().save(token)
         withSession.copy(
             lastSavePath = result.path,
             info = if (result.saved) "Saved${if (result.sessionScoped) " (session)" else ""}" else "Save failed",
@@ -163,7 +163,7 @@ class GameViewModel : ViewModel() {
         val withSession = ensureSession(current)
         val token = withSession.session?.token
             ?: throw IllegalStateException("No session token")
-        sessions().load(token)
+        gameExtras().load(token)
         val envelope = api().getStatusV2()
         withSession.copy(status = envelope.payload, info = "Loaded save", error = null)
     }
@@ -172,9 +172,25 @@ class GameViewModel : ViewModel() {
         val withSession = ensureSession(current)
         val token = withSession.session?.token
             ?: throw IllegalStateException("No session token")
-        sessions().reset(token)
+        gameExtras().reset(token)
         val envelope = api().getStatusV2()
         withSession.copy(status = envelope.payload, info = "New adventure started", error = null)
+    }
+
+    private fun mintSession(displayName: String?): SessionInfo {
+        val req = displayName?.takeIf { it.isNotBlank() }?.let { SessionRequest(displayName = it) }
+        // Unauthenticated mint: use a clean client so we don't send a stale Bearer.
+        val bare = V2Api(basePath = base())
+        val envelope = bare.createSessionV2(sessionRequest = req)
+        val p = envelope.payload
+        val token = p.token ?: throw IllegalStateException("Session token missing from createSessionV2")
+        return SessionInfo(
+            sessionId = p.sessionId,
+            token = token,
+            displayName = p.displayName,
+            expiresAtEpochSeconds = p.expiresAtEpochSeconds ?: 0L,
+            createdAtEpochSeconds = p.createdAtEpochSeconds ?: 0L,
+        )
     }
 
     private fun ensureSession(current: UiState): UiState {
@@ -182,7 +198,7 @@ class GameViewModel : ViewModel() {
         if (existing != null && HttpClients.token() != null) {
             return current
         }
-        val info = sessions().createSession(existing?.displayName)
+        val info = mintSession(existing?.displayName)
         HttpClients.setToken(info.token)
         return current.copy(session = info)
     }
@@ -195,7 +211,6 @@ class GameViewModel : ViewModel() {
         val url = StompClient.stompUrl(base())
         val client = StompClient(url, session.token, object : StompClient.Listener {
             override fun onConnected() {
-                // Global topic always; session topic when multi-player isolation is live.
                 stompRef.get()?.subscribe("/topic/narrative")
                 stompRef.get()?.subscribe("/topic/narrative/${session.sessionId}")
                 publish { it.copy(stompConnected = true, info = "Live stream connected") }
@@ -221,7 +236,6 @@ class GameViewModel : ViewModel() {
         val trimmed = body.trim()
         if (trimmed.isEmpty()) return
 
-        // Typed envelope?
         if (trimmed.startsWith("{")) {
             try {
                 val env = envelopeAdapter.fromJson(trimmed)
@@ -252,7 +266,6 @@ class GameViewModel : ViewModel() {
             }
         }
 
-        // Plain-text engine broadcast or [WS] ack.
         publish {
             val nextNarration = if (trimmed.startsWith("[WS]")) {
                 it.narration
@@ -271,7 +284,6 @@ class GameViewModel : ViewModel() {
     }
 
     private fun publish(block: (UiState) -> UiState) {
-        // STOMP callbacks arrive on OkHttp threads — update StateFlow directly (thread-safe).
         val cur = _state.value
         _state.value = block(cur)
     }
