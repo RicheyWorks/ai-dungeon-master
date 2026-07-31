@@ -11,6 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Process-wide registry of ItemEffect plugins. Mirrors SpellEffectRegistry's
  * design — ServiceLoader + explicit register() — applied to items.
+ * Dispatches run under {@link PluginCallGuard} so a runaway mod cannot hang
+ * the game loop.
  */
 public final class ItemEffectRegistry {
 
@@ -41,7 +43,8 @@ public final class ItemEffectRegistry {
         if (effect == null) {
             return logPrefix + "The item hums with a strange frequency, but nothing happens in this dimension.";
         }
-        return effect.execute(engine, user, item);
+        return PluginCallGuard.run(key, () -> effect.execute(engine, user, item),
+                reason -> logPrefix + "The magic fizzles (" + reason + ").");
     }
 
     public static boolean isRegistered(String id) {

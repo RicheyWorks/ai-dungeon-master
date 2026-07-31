@@ -33,9 +33,12 @@ by reputation via optional `factionId` on pack data) and WorldMap wiring
   before load, under a configurable `SignaturePolicy`.
 - **Plugin bytecode sandboxed.** `SandboxedClassLoader` scans each plugin-defined
   class's constant pool via `SandboxVerifier` and refuses any that reference blocked
-  APIs (process execution, reflection, raw networking, filesystem, JDK internals)
-  before instantiation, under `SandboxPolicy` (`game.plugins.sandbox.enabled`,
-  default on). Signing (integrity) + sandbox (capability) are the two load-time gates.
+  APIs (process execution, reflection, classloaders, raw networking, filesystem,
+  RMI/JMX, JDK internals) or declare `native` methods, before instantiation, under
+  `SandboxPolicy` (`game.plugins.sandbox.enabled`, default on). SPI dispatches run
+  under `PluginCallGuard` (wall timeout, default 2s via `game.plugins.call.timeout-ms`).
+  Signing (integrity) + sandbox (capability) + call guard (runaway) are the three gates.
+
 
 ## Phase 2 — API v2 + LLM provider ✅ (nearly)
 
@@ -71,9 +74,10 @@ by reputation via optional `factionId` on pack data) and WorldMap wiring
 
 **Remaining**
 
-- Keyed-provider live smoke tests (need real API keys). Shared file-backed
-  session/entitlement stores (cross-process locked) cover multi-node when
-  nodes share a volume; a networked DB remains optional at larger scale.
+- Keyed-provider live smoke is opt-in (`LLM_LIVE_SMOKE=true` + provider keys;
+  see `KeyedLlmLiveSmokeTest`). Fake-transport unit coverage for all keyed
+  providers is complete. Shared file-backed session/entitlement stores cover
+  multi-node when nodes share a volume; a networked DB remains optional.
   Nothing else blocks Phase 2.
 
 
@@ -103,8 +107,7 @@ by reputation via optional `factionId` on pack data) and WorldMap wiring
 
 ## Remaining backlog
 
-- Keyed-provider live smoke tests (need real API keys).
 - Networked multi-node session/entitlement store (Redis/Postgres) if shared-volume file stores are not enough.
 - Native client apps (Android Compose polish; iOS SwiftUI; Steam/Tauri) on the generated SDKs.
-- Deeper mod isolation (dedicated process / OS sandbox) beyond the static bytecode scan.
+- Optional OS-level / dedicated-process plugin isolation beyond the in-JVM sandbox + call guard.
 - Richer in-game mod-browser UI (the `/mod-browser.html` page, `/v2/catalog`, enable/disable, and pack upload are done).
