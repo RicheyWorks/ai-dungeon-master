@@ -113,7 +113,8 @@ by reputation via optional `factionId` on pack data) and WorldMap wiring
 
 ## Remaining backlog
 
-- Networked multi-node session/entitlement store: **Redis** via `game.auth.*.store=redis` (see `docs/MULTI_NODE.md`). Postgres still optional.
+- Networked multi-node session/entitlement store: **Redis** (`store=redis`) and **JDBC/Postgres** (`store=jdbc`) — see `docs/MULTI_NODE.md`.
+
 
 - Native client apps (Android Compose polish; iOS SwiftUI; Steam/Tauri) on the generated SDKs.
 - Optional OS-level / dedicated-process plugin isolation beyond the in-JVM sandbox + call guard.
