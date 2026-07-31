@@ -68,6 +68,18 @@ public class GameConfig {
     @Value("${game.saves.dir:saves}")
     private String savesDir;
 
+    /** Idle TTL for per-session engines (seconds). 0 = never idle-evict. */
+    @Value("${game.instances.idle-ttl-seconds:3600}")
+    private long instanceIdleTtlSeconds;
+
+    /** Max concurrent per-session engines (LRU eviction when exceeded). */
+    @Value("${game.instances.max:100}")
+    private int instanceMaxSessions;
+
+    /** Auto-save a session engine to disk when it is evicted/destroyed. */
+    @Value("${game.instances.save-on-evict:true}")
+    private boolean instanceSaveOnEvict;
+
     @Bean
     public GameEngineFactory gameEngineFactory(SimpMessagingTemplate messaging) {
         // 1. Content packs once per process.
@@ -101,7 +113,12 @@ public class GameConfig {
     @Bean
     public GameInstanceService gameInstanceService(GameEngineFactory factory,
                                                    DungeonMasterEngine defaultEngine) {
-        return new GameInstanceService(factory, defaultEngine, Paths.get(savesDir));
+        GameInstanceService.Policy policy = new GameInstanceService.Policy(
+                instanceIdleTtlSeconds, instanceMaxSessions, instanceSaveOnEvict);
+        System.out.println("[game-instances] policy: idleTtl=" + policy.idleTtlSeconds()
+                + "s max=" + policy.maxSessions()
+                + " saveOnEvict=" + policy.saveOnEvict());
+        return new GameInstanceService(factory, defaultEngine, Paths.get(savesDir), policy);
     }
 
     /** Parse the configured signature policy, defaulting to LENIENT on anything unrecognised. */

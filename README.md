@@ -250,8 +250,13 @@ content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hea
 | `game.auth.jwt.ttl-seconds` | `86400` | Session token lifetime (seconds) |
 | `game.auth.session.store` | `memory` | Session store: `memory` or `file` (survives restart) |
 | `game.auth.session.file` | `sessions.json` | JSON file for the file session store |
+| `game.saves.dir` | `saves` | Per-session game save directory |
+| `game.instances.idle-ttl-seconds` | `3600` | Evict idle per-session engines after N seconds (0 = never) |
+| `game.instances.max` | `100` | Max concurrent per-session engines (LRU eviction) |
+| `game.instances.save-on-evict` | `true` | Auto-save when an engine is evicted |
 | `game.plugins.signature.policy` | `LENIENT` | Plugin signature policy: LENIENT / REQUIRED / DISABLED |
 | `game.plugins.sandbox.enabled` | `true` | Sandbox-scan plugin bytecode before loading |
+
 
 ## Roadmap
 

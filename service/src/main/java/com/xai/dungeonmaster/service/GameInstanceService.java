@@ -3,13 +3,15 @@ package com.xai.dungeonmaster.service;
 import com.xai.dungeonmaster.DungeonMasterEngine;
 import com.xai.dungeonmaster.auth.SessionService;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Per-session game isolation.
+ * Per-session game isolation with idle eviction and a hard capacity cap.
  *
  * Historically the process held a single {@link DungeonMasterEngine} bean, so
  * every client shared one party / quest / chronicle. This service keeps that
@@ -18,23 +20,60 @@ import java.util.concurrent.ConcurrentHashMap;
  * authenticated session id (lazy, on first touch).
  *
  * Saves land under {@code game.saves.dir}/{sessionId}.json (or
- * {@code default.json} for the shared engine).
+ * {@code default.json} for the shared engine). Idle engines are reaped after
+ * {@link Policy#idleTtlSeconds()} (auto-saved when {@link Policy#saveOnEvict()}
+ * is true); when {@link Policy#maxSessions()} is reached the least-recently-used
+ * instance is evicted first.
  */
 public class GameInstanceService {
 
     public static final String DEFAULT_SAVE_NAME = "default.json";
 
+    /** Tunables for capacity and idle reaping. */
+    public record Policy(long idleTtlSeconds, int maxSessions, boolean saveOnEvict) {
+        public static Policy defaults() {
+            return new Policy(3_600L, 100, true);
+        }
+
+        public Policy {
+            if (idleTtlSeconds < 0) idleTtlSeconds = 0;
+            if (maxSessions < 1) maxSessions = 1;
+        }
+    }
+
+    private static final class Entry {
+        final DungeonMasterEngine engine;
+        final AtomicLong lastAccessMs = new AtomicLong(System.currentTimeMillis());
+
+        Entry(DungeonMasterEngine engine) {
+            this.engine = engine;
+        }
+
+        void touch() {
+            lastAccessMs.set(System.currentTimeMillis());
+        }
+    }
+
     private final GameEngineFactory factory;
     private final DungeonMasterEngine defaultEngine;
     private final Path savesDir;
-    private final ConcurrentHashMap<String, DungeonMasterEngine> bySession = new ConcurrentHashMap<>();
+    private final Policy policy;
+    private final ConcurrentHashMap<String, Entry> bySession = new ConcurrentHashMap<>();
 
     public GameInstanceService(GameEngineFactory factory,
                                DungeonMasterEngine defaultEngine,
                                Path savesDir) {
+        this(factory, defaultEngine, savesDir, Policy.defaults());
+    }
+
+    public GameInstanceService(GameEngineFactory factory,
+                               DungeonMasterEngine defaultEngine,
+                               Path savesDir,
+                               Policy policy) {
         this.factory = factory;
         this.defaultEngine = defaultEngine;
         this.savesDir = savesDir != null ? savesDir : Paths.get("saves");
+        this.policy = policy != null ? policy : Policy.defaults();
     }
 
     /** Convenience for unit tests — no factory (cannot mint new sessions). */
@@ -53,6 +92,10 @@ public class GameInstanceService {
         };
     }
 
+    public Policy policy() {
+        return policy;
+    }
+
     /** Process-default engine (legacy + unauthenticated). */
     public DungeonMasterEngine getDefault() {
         return defaultEngine;
@@ -68,7 +111,7 @@ public class GameInstanceService {
         return forSession(session.id());
     }
 
-    /** Lazy per-session engine. */
+    /** Lazy per-session engine; refreshes last-access for idle tracking. */
     public DungeonMasterEngine forSession(String sessionId) {
         if (sessionId == null || sessionId.isBlank()) {
             return defaultEngine;
@@ -76,7 +119,19 @@ public class GameInstanceService {
         if (factory == null) {
             return defaultEngine;
         }
-        return bySession.computeIfAbsent(sessionId, factory::create);
+        Entry existing = bySession.get(sessionId);
+        if (existing != null) {
+            existing.touch();
+            return existing.engine;
+        }
+        enforceCapacity();
+        Entry created = new Entry(factory.create(sessionId));
+        Entry race = bySession.putIfAbsent(sessionId, created);
+        if (race != null) {
+            race.touch();
+            return race.engine;
+        }
+        return created.engine;
     }
 
     /**
@@ -91,20 +146,54 @@ public class GameInstanceService {
         if (factory == null) {
             return defaultEngine;
         }
-        DungeonMasterEngine fresh = factory.create(sessionId);
+        Entry fresh = new Entry(factory.create(sessionId));
         bySession.put(sessionId, fresh);
-        return fresh;
+        return fresh.engine;
     }
 
     public DungeonMasterEngine reset(SessionService.Session session) {
         return reset(session != null ? session.id() : null);
     }
 
-    /** Drop a session's engine (e.g. logout / eviction). */
+    /**
+     * Drop a session's engine. When {@link Policy#saveOnEvict()} is true the
+     * current state is written to the session save path first.
+     */
     public void destroy(String sessionId) {
-        if (sessionId != null) {
-            bySession.remove(sessionId);
+        destroy(sessionId, policy.saveOnEvict());
+    }
+
+    public void destroy(String sessionId, boolean saveFirst) {
+        if (sessionId == null) return;
+        Entry removed = bySession.remove(sessionId);
+        if (removed != null && saveFirst) {
+            persistQuietly(sessionId, removed.engine);
         }
+    }
+
+    /**
+     * Evict engines whose last access is older than {@link Policy#idleTtlSeconds()}.
+     * A TTL of 0 disables idle eviction. Returns how many were removed.
+     */
+    public int evictIdle() {
+        return evictIdle(System.currentTimeMillis());
+    }
+
+    /** Test hook with injectable clock. */
+    public int evictIdle(long nowMs) {
+        long ttlSec = policy.idleTtlSeconds();
+        if (ttlSec <= 0) {
+            return 0;
+        }
+        long cutoff = nowMs - ttlSec * 1_000L;
+        int removed = 0;
+        for (var e : bySession.entrySet()) {
+            if (e.getValue().lastAccessMs.get() < cutoff) {
+                destroy(e.getKey(), policy.saveOnEvict());
+                removed++;
+            }
+        }
+        return removed;
     }
 
     /** Number of live per-session engines (excludes the default). */
@@ -153,6 +242,55 @@ public class GameInstanceService {
 
     public Optional<DungeonMasterEngine> peek(String sessionId) {
         if (sessionId == null) return Optional.empty();
-        return Optional.ofNullable(bySession.get(sessionId));
+        Entry e = bySession.get(sessionId);
+        return Optional.ofNullable(e != null ? e.engine : null);
+    }
+
+    /** Last-access epoch millis for a live session, or empty. */
+    public Optional<Long> lastAccessMs(String sessionId) {
+        Entry e = sessionId == null ? null : bySession.get(sessionId);
+        return e == null ? Optional.empty() : Optional.of(e.lastAccessMs.get());
+    }
+
+    // ── capacity / persistence ───────────────────────────────────────────────
+
+    /** Evict least-recently-used sessions until there is room for one more. */
+    private void enforceCapacity() {
+        int max = policy.maxSessions();
+        while (bySession.size() >= max) {
+            String lru = findLruKey();
+            if (lru == null) break;
+            System.err.println("[game-instances] capacity " + max
+                    + " reached — evicting least-recently-used session " + lru);
+            destroy(lru, policy.saveOnEvict());
+        }
+    }
+
+    private String findLruKey() {
+        String best = null;
+        long bestTs = Long.MAX_VALUE;
+        for (var e : bySession.entrySet()) {
+            long ts = e.getValue().lastAccessMs.get();
+            if (ts < bestTs) {
+                bestTs = ts;
+                best = e.getKey();
+            }
+        }
+        return best;
+    }
+
+    private void persistQuietly(String sessionId, DungeonMasterEngine engine) {
+        if (engine == null) return;
+        try {
+            Path path = savePath(sessionId);
+            Path parent = path.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            engine.saveGame(path.toString());
+        } catch (Exception e) {
+            System.err.println("[game-instances] auto-save failed for " + sessionId
+                    + ": " + e.getMessage());
+        }
     }
 }
