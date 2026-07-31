@@ -60,8 +60,11 @@ overload; client SDK regeneration for the new status fields.
   `game.narration.provider`.
 - **Session identity + JWT auth.** `POST /v2/session` mints a guest session + HS256
   JWT; `JwtAuthFilter` guards `/v2/**` when `game.auth.enabled=true` (opt-in).
-  Sessions persist through a pluggable `SessionStore` — in-memory (default) or
-  file-backed (survives restart), selected by `game.auth.session.store`.
+  Sessions and entitlements persist through pluggable stores — in-memory (default)
+  or file-backed with cross-process locks (`game.auth.session.store` /
+  `game.auth.entitlement.store` = `file`), so multi-node deployments that share a
+  volume share identity and purchases.
+
 - **Content/mod catalog.** `GET /v2/catalog` lists installed content packs and
   every registered plugin across the SPIs plus the active narration provider —
   the read model behind an in-game mod browser.
@@ -74,8 +77,11 @@ overload; client SDK regeneration for the new status fields.
 
 **Remaining**
 
-- Keyed-provider live smoke tests (need real API keys) and a shared datastore for
-  sessions/entitlements across nodes. Nothing else blocks Phase 2.
+- Keyed-provider live smoke tests (need real API keys). Shared file-backed
+  session/entitlement stores (cross-process locked) cover multi-node when
+  nodes share a volume; a networked DB remains optional at larger scale.
+  Nothing else blocks Phase 2.
+
 
 ## Phases 3–5
 
@@ -95,6 +101,8 @@ overload; client SDK regeneration for the new status fields.
 ## Remaining backlog
 
 - Richer in-game mod-browser UI + pack upload/install (the `/mod-browser.html` page, `/v2/catalog`, and runtime enable/disable are done).
-- Keyed-provider live smoke tests (need real API keys); shared session/entitlement datastore for multi-node.
+- Keyed-provider live smoke tests (need real API keys).
+- Networked multi-node session/entitlement store (Redis/Postgres) if shared-volume file stores are not enough.
 - Native client apps (Android Compose, iOS SwiftUI, Steam/Tauri) on the generated SDKs.
 - Deeper mod isolation (dedicated process / OS sandbox) beyond the static bytecode scan.
+

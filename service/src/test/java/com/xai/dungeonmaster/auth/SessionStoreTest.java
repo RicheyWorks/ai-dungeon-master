@@ -11,7 +11,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Session store + persistence tests. The file store must survive a "restart"
  * (a fresh store/service instance over the same file), while the in-memory
- * store must not — proving persistence is actually doing something.
+ * store must not — proving persistence is actually doing something. Two live
+ * instances on the same path must also share writes (multi-node).
  */
 class SessionStoreTest {
 
@@ -39,6 +40,21 @@ class SessionStoreTest {
         assertEquals("Lira", got.get().displayName());
         assertEquals(1234L, got.get().createdAtEpoch());
         assertEquals(5678L, got.get().lastSeenEpoch(), "lastSeen should round-trip through JSON");
+    }
+
+    @Test
+    void twoInstancesShareSessionsOnSameFile(@TempDir Path tmp) {
+        Path file = tmp.resolve("sessions.json");
+        FileSessionStore nodeA = new FileSessionStore(file);
+        FileSessionStore nodeB = new FileSessionStore(file);
+
+        nodeA.save(new SessionService.Session("shared", "Kael", 100L, 200L));
+        Optional<SessionService.Session> fromB = nodeB.load("shared");
+        assertTrue(fromB.isPresent(), "shared file session store must be visible across instances");
+        assertEquals("Kael", fromB.get().displayName());
+
+        nodeB.save(new SessionService.Session("shared", "Kael", 100L, 999L));
+        assertEquals(999L, nodeA.load("shared").orElseThrow().lastSeenEpoch());
     }
 
     @Test

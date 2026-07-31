@@ -13,7 +13,8 @@ offline-capable LLM narration layer, and a data-driven content-pack system.
 - Eight plugin SPIs, all `ServiceLoader`-driven; code mods are signature-verified and bytecode-sandboxed before loading.
 - Data-driven content packs (four themed packs ship) with a runtime enable/disable mod browser at `/mod-browser.html`.
 - Story depth engine (ADR-001): branching scene graphs, flag-gated campaigns, structured narrative memory fed to the narrator, and NPC/faction dispositions — all authorable as pack JSON, all offline-capable.
-- Optional JWT session identity (in-memory or file-persisted) and storefront receipt validation with per-session entitlements.
+- Optional JWT session identity (in-memory or file-persisted, cross-process locked) and storefront receipt validation with pluggable entitlement stores.
+
 
 ## Overview
 
