@@ -3,11 +3,13 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 const clientRoot = path.resolve(__dirname, "../clients/typescript");
+// Production (engine-hosted) builds use /app/; local `npm run dev` keeps /.
+const base = process.env.VITE_BASE ?? "/";
 
 export default defineConfig({
+  base,
   plugins: [react()],
   resolve: {
-    // Prefer source TS over CJS dist so Vite can tree-shake cleanly.
     alias: {
       "@ai-dungeon-master/client": path.join(clientRoot, "index.ts"),
     },
@@ -25,12 +27,12 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: true,
+    emptyOutDir: true,
     commonjsOptions: {
       include: [/clients\/typescript/, /node_modules/],
     },
   },
   optimizeDeps: {
-    include: [],
     exclude: ["@ai-dungeon-master/client"],
   },
 });
