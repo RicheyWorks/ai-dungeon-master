@@ -125,8 +125,11 @@ request/response correlation.
 ### WebSocket (STOMP)
 
 - Connect: `ws://localhost:8080/ws` (SockJS fallback available)
-- Subscribe: `/topic/narrative` — the narration stream (typed `narrative_chunk`
-  chunks followed by a final `narrative_update` envelope for v2 streaming)
+- **Multi-player:** CONNECT with `Authorization: Bearer <jwt>` (from
+  `POST /v2/session`), then subscribe to `/topic/narrative/{sessionId}`
+- **Legacy single-player:** subscribe to `/topic/narrative` (shared default engine)
+- Stream: typed `narrative_chunk` / `narrative_update` envelopes plus plain-text
+  engine broadcasts and `[WS]` acks
 - Send: `/app/action` (a choice) or `/app/narrate` (a prompt to stream narration)
 
 ### Specs & client SDKs

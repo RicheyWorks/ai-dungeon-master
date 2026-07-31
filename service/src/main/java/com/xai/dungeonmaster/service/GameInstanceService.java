@@ -112,6 +112,18 @@ public class GameInstanceService {
         return bySession.size();
     }
 
+    /**
+     * STOMP topic for a session's narrative stream. Unauthenticated / default
+     * engines use the legacy {@code /topic/narrative}; authenticated sessions
+     * get {@code /topic/narrative/{sessionId}}.
+     */
+    public static String narrativeTopic(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return "/topic/narrative";
+        }
+        return "/topic/narrative/" + sessionId;
+    }
+
     public Path savePath(String sessionId) {
         String name;
         if (sessionId == null || sessionId.isBlank()) {
