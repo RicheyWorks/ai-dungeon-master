@@ -62,6 +62,11 @@ overload; client SDK regeneration for the new status fields.
   JWT; `JwtAuthFilter` guards `/v2/**` when `game.auth.enabled=true` (opt-in).
   Sessions persist through a pluggable `SessionStore` — in-memory (default) or
   file-backed (survives restart), selected by `game.auth.session.store`.
+  **Per-session game isolation:** authenticated v2 callers each get their own
+  `DungeonMasterEngine` via `GameInstanceService` (lazy); unauthenticated calls
+  and legacy `/api/game/*` still share the process-default engine. Saves are
+  session-scoped under `game.saves.dir` (`POST /v2/save|load|reset`).
+
 - **Content/mod catalog.** `GET /v2/catalog` lists installed content packs and
   every registered plugin across the SPIs plus the active narration provider —
   the read model behind an in-game mod browser.

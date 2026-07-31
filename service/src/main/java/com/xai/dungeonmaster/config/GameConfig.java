@@ -1,14 +1,10 @@
 package com.xai.dungeonmaster.config;
 
-import com.xai.dungeonmaster.Campaign;
-import com.xai.dungeonmaster.CampaignRegistry;
 import com.xai.dungeonmaster.DungeonMasterEngine;
 import com.xai.dungeonmaster.plugin.PluginLoader;
 import com.xai.dungeonmaster.plugin.SandboxPolicy;
-import com.xai.dungeonmaster.plugin.LLMProvider;
-import com.xai.dungeonmaster.plugin.LLMProviderRegistry;
-import com.xai.dungeonmaster.plugin.builtin.ModerationProvider;
-import com.xai.dungeonmaster.plugin.builtin.TokenBudgetProvider;
+import com.xai.dungeonmaster.service.GameEngineFactory;
+import com.xai.dungeonmaster.service.GameInstanceService;
 import com.xai.dungeonmaster.util.ResourceLoader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -18,21 +14,10 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.nio.file.Paths;
 
 /**
- * Builds the DungeonMasterEngine as a singleton Spring bean.
- *
- * Party composition and difficulty come from application.properties so you
- * never need to recompile to tweak the game parameters.
- *
- * Startup sequence (in this order — order matters):
- *   1. Register the bundled content pack + any external content packs found
- *      under {@code game.content.packs.dir} (defaults to "content-packs").
- *   2. Discover and load code-bearing plugins under {@code game.plugins.dir}
- *      (defaults to "plugins"). Each plugin registers SpellEffects /
- *      ItemEffects / ContentPacks before any engine code runs.
- *   3. Construct the DungeonMasterEngine. By the time it generates its
- *      first quest, all plugin content is already in the registries.
- *   4. Wire the WebSocket SimpMessagingTemplate as a listener so every
- *      engine.broadcast() pushes to /topic/narrative.
+ * Boots content packs / plugins once, then exposes a {@link GameEngineFactory}
+ * that mints configured engines, a process-default {@link DungeonMasterEngine}
+ * (legacy single-player + GUI), and a {@link GameInstanceService} that isolates
+ * authenticated v2 clients onto their own engines.
  */
 @Configuration
 public class GameConfig {
@@ -79,18 +64,20 @@ public class GameConfig {
     @Value("${game.plugins.sandbox.enabled:true}")
     private boolean pluginSandboxEnabled;
 
-    @Bean
-    public DungeonMasterEngine dungeonMasterEngine(SimpMessagingTemplate messaging) {
+    /** Directory for per-session save files. */
+    @Value("${game.saves.dir:saves}")
+    private String savesDir;
 
-        // 1. Content packs: bundled first, then any external packs on disk.
+    @Bean
+    public GameEngineFactory gameEngineFactory(SimpMessagingTemplate messaging) {
+        // 1. Content packs once per process.
         int externalPacks = ResourceLoader.registerAllContentPacks(Paths.get(contentPacksDir));
         if (externalPacks > 0) {
             System.out.println("[plugins] Loaded " + externalPacks + " external content pack(s) from "
                     + contentPacksDir);
         }
 
-        // 2. Code-bearing plugins (mods). Verify JAR signatures per the
-        //    configured policy before any plugin code is loaded.
+        // 2. Code-bearing plugins once per process.
         PluginLoader.SignaturePolicy sigPolicy = parseSignaturePolicy(pluginSignaturePolicy);
         SandboxPolicy sandboxPolicy = pluginSandboxEnabled ? SandboxPolicy.defaults() : SandboxPolicy.disabled();
         PluginLoader.LoadReport report = PluginLoader.loadAll(Paths.get(pluginsDir), sigPolicy, sandboxPolicy);
@@ -100,34 +87,21 @@ public class GameConfig {
             report.failed.forEach(f -> System.err.println("[plugins] FAILED " + f));
         }
 
-        // 3. Engine.
-        DungeonMasterEngine engine = new DungeonMasterEngine(
-                difficulty, chaos, partyNames, partyRoles);
+        return new GameEngineFactory(
+                difficulty, chaos, partyNames, partyRoles,
+                campaignId, narrationProviderId, narrationTokenCeiling,
+                messaging);
+    }
 
-        // 3.5 Narration provider: registry-selected backend wrapped in the
-        //     cost-guardrail + moderation decorators. The offline stub is the
-        //     default until a keyed provider (OpenAI/Anthropic/xAI) is added.
-        LLMProviderRegistry.setActive(narrationProviderId);
-        LLMProvider narrator = new TokenBudgetProvider(
-                new ModerationProvider(LLMProviderRegistry.getActive()),
-                narrationTokenCeiling);
-        engine.setNarrator(narrator);
+    @Bean
+    public DungeonMasterEngine dungeonMasterEngine(GameEngineFactory factory) {
+        return factory.createDefault();
+    }
 
-        // 3.7 Campaign: attach the configured story arc, if any. Packs are
-        //     already registered, so the campaign and its quests resolve.
-        if (campaignId != null && !campaignId.isBlank()) {
-            Campaign campaign = CampaignRegistry.get(campaignId);
-            if (campaign != null) {
-                engine.setCampaign(campaign);
-            } else {
-                System.err.println("[campaign] Unknown campaign id '" + campaignId + "' — starting without one.");
-            }
-        }
-
-        // 4. WebSocket bridge — addUiListener so subsequent listeners (Swing) coexist.
-        engine.addUiListener(text -> messaging.convertAndSend("/topic/narrative", text));
-
-        return engine;
+    @Bean
+    public GameInstanceService gameInstanceService(GameEngineFactory factory,
+                                                   DungeonMasterEngine defaultEngine) {
+        return new GameInstanceService(factory, defaultEngine, Paths.get(savesDir));
     }
 
     /** Parse the configured signature policy, defaulting to LENIENT on anything unrecognised. */

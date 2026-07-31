@@ -90,7 +90,10 @@ stable, self-describing shape:
 | `GET /v2/status` | Full snapshot — structured party, chaos, choices, recent log |
 | `POST /v2/action` | Apply a choice (`{ "choiceLabel": "Attack" }`); returns updated status |
 | `POST /v2/narrate` | Generate DM narration via the active LLM provider |
-| `POST /v2/session` | Create a guest session; returns a JWT + session id |
+| `POST /v2/save` | Persist the caller's engine (session-scoped file under `game.saves.dir`) |
+| `POST /v2/load` | Restore the caller's engine from its save file |
+| `POST /v2/reset` | Start a fresh engine for the caller |
+| `POST /v2/session` | Create a guest session; returns a JWT + session id (enables multi-player isolation) |
 | `GET /v2/session/me` | Echo the caller's session (requires a Bearer token) |
 | `GET /v2/catalog` | Installed content packs + registered plugins (mod browser) |
 | `POST /v2/catalog/packs` | Upload + install a content-pack zip at runtime (multipart `file`, `?replace=true` to overwrite) |
