@@ -33,17 +33,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xai.dungeonmaster.client.models.GameStatusV2
 import com.xai.dungeonmaster.client.models.MemberState
 
 /**
- * v1 client shell (roadmap Phase 3): a Game tab (party, quest, chronicle,
- * choices, narration) and a Mods tab (catalog + pack toggles) — all over the
- * generated Kotlin SDK, with guest session identity + Bearer auth.
+ * v1 client shell (roadmap Phase 3): Game / Mods / Store tabs over the
+ * generated Kotlin SDK, with guest session identity + Bearer auth. Session
+ * identity is restored from disk across process restarts.
  */
 @Composable
-fun GameApp(viewModel: GameViewModel = viewModel()) {
+fun GameApp() {
+    val context = LocalContext.current
+    val viewModel: GameViewModel = viewModel(
+        factory = GameViewModel.Factory(SessionStore(context)),
+    )
     val ui by viewModel.state.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
 

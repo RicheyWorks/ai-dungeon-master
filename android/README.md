@@ -10,8 +10,10 @@ updates the app with no publishing step.
 **Session identity**
 - Auto-mints a guest session on first contact (`POST /v2/session`)
 - Attaches `Authorization: Bearer <jwt>` to every subsequent `/v2/*` call
-- UI shows display name + short session id; **New session** re-mints
-- Changing the server URL clears the token (fresh session on next sync)
+- **Persists** session + server URL in SharedPreferences; relaunch restores the
+  same JWT (validated via `GET /v2/session/me`) so the per-session world continues
+- UI shows display name + short session id; **New session** re-mints and overwrites storage
+- Changing the server URL clears the stored token (fresh session on next sync)
 
 **Live narration (STOMP)**
 - Native WebSocket to `ws://…/ws-stomp` (SockJS stays for browsers on `/ws`)
@@ -79,6 +81,8 @@ app/src/main/java/com/xai/dungeonmaster/android/
   ModsScreen.kt       catalog browser with pack enable/disable toggles
   EntitlementsScreen.kt  owned SKUs + dev purchase + receipt verify
   DevReceipts.kt      HMAC mint matching server DevStorefront
+  SessionInfo.kt      session id + JWT model
+  SessionStore.kt     SharedPreferences persistence for session + base URL
   HttpClients.kt      OkHttp Bearer interceptor shared with generated V2Api
   StompClient.kt      Minimal STOMP 1.2 over native WebSocket (/ws-stomp)
 ```
