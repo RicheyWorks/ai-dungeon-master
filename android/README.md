@@ -13,6 +13,14 @@ updates the app with no publishing step.
 - UI shows display name + short session id; **New session** re-mints
 - Changing the server URL clears the token (fresh session on next sync)
 
+**Live narration (STOMP)**
+- Native WebSocket to `ws://…/ws-stomp` (SockJS stays for browsers on `/ws`)
+- CONNECT with Bearer token; subscribe to `/topic/narrative` and
+  `/topic/narrative/{sessionId}`
+- **Stream narrate** sends `/app/narrate` and renders `narrative_chunk` frames
+  live; falls back to REST if the socket is down
+- Choices prefer `/app/action` when connected
+
 **Game tab**
 - Party status with HP/MP bars, levels, statuses, and fallen markers
 - Current quest with outcome + progress, chaos level, combat flag
@@ -58,11 +66,12 @@ the process-default engine, but each still carries a distinct JWT identity.
 ```
 app/src/main/java/com/xai/dungeonmaster/android/
   MainActivity.kt     entry point, dark Material 3 theme
-  GameViewModel.kt    StateFlow bridge + session ensure + Bearer client
+  GameViewModel.kt    StateFlow bridge + session + STOMP stream
   GameApp.kt          tab shell + Game screen + session chrome
   ModsScreen.kt       catalog browser with pack enable/disable toggles
   SessionClient.kt    POST /v2/session (+ save/load/reset until SDK regen)
   HttpClients.kt      OkHttp Bearer interceptor shared with generated V2Api
+  StompClient.kt      Minimal STOMP 1.2 over native WebSocket (/ws-stomp)
 ```
 
 The generated SDK is synchronous (`jvm-okhttp4`); the ViewModel wraps every
@@ -72,8 +81,6 @@ Compose BOM 2024.06) — bump them freely, nothing here is version-sensitive.
 
 ## Not yet wired
 
-- WebSocket narration stream (`/topic/narrative/{sessionId}` via STOMP) — the
-  REST `narrate` round-trip is used instead for v1
 - Entitlement receipt verification UI
 - Pack upload from the device (`POST /v2/catalog/packs`) — use the web
   mod browser; also requires regenerating the Kotlin SDK against the

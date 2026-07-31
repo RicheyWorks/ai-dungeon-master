@@ -64,9 +64,16 @@ fun GameApp(viewModel: GameViewModel = viewModel()) {
 
         ui.session?.let { session ->
             Text(
-                "Playing as ${session.displayName} · ${session.shortId()}",
+                buildString {
+                    append("Playing as ${session.displayName} · ${session.shortId()}")
+                    if (ui.stompConnected) append(" · LIVE")
+                },
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = if (ui.stompConnected) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
             )
         }
 
@@ -132,7 +139,15 @@ private fun GameScreen(ui: GameViewModel.UiState, viewModel: GameViewModel) {
         }
 
         item { HorizontalDivider() }
-        item { NarrationPanel(ui.narration, ui.busy, viewModel::narrate) }
+        item {
+            NarrationPanel(
+                narration = ui.narration,
+                streamBuffer = ui.streamBuffer,
+                stompConnected = ui.stompConnected,
+                busy = ui.busy,
+                onNarrate = viewModel::narrate,
+            )
+        }
     }
 }
 
@@ -273,10 +288,19 @@ private fun ChoiceButtons(status: GameStatusV2, busy: Boolean, onAct: (String) -
 }
 
 @Composable
-private fun NarrationPanel(narration: String?, busy: Boolean, onNarrate: (String) -> Unit) {
+private fun NarrationPanel(
+    narration: String?,
+    streamBuffer: String,
+    stompConnected: Boolean,
+    busy: Boolean,
+    onNarrate: (String) -> Unit,
+) {
     var prompt by remember { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Ask the Dungeon Master", style = MaterialTheme.typography.titleMedium)
+        Text(
+            if (stompConnected) "Ask the Dungeon Master (live stream)" else "Ask the Dungeon Master",
+            style = MaterialTheme.typography.titleMedium,
+        )
         OutlinedTextField(
             value = prompt,
             onValueChange = { prompt = it },
@@ -286,7 +310,17 @@ private fun NarrationPanel(narration: String?, busy: Boolean, onNarrate: (String
         Button(
             onClick = { if (prompt.isNotBlank()) onNarrate(prompt) },
             enabled = !busy && prompt.isNotBlank(),
-        ) { Text("Narrate") }
+        ) { Text(if (stompConnected) "Stream narrate" else "Narrate") }
+        if (streamBuffer.isNotBlank()) {
+            Card(Modifier.fillMaxWidth()) {
+                Text(
+                    streamBuffer,
+                    Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
+        }
         narration?.let {
             Card(Modifier.fillMaxWidth()) {
                 Text(it, Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
