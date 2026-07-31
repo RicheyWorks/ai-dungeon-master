@@ -11,7 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Per-session game isolation with idle eviction and a hard capacity cap.
+ * Per-session game isolation with idle eviction, capacity caps, and save
+ * auto-load on reconnect.
  *
  * Historically the process held a single {@link DungeonMasterEngine} bean, so
  * every client shared one party / quest / chronicle. This service keeps that
@@ -23,16 +24,23 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@code default.json} for the shared engine). Idle engines are reaped after
  * {@link Policy#idleTtlSeconds()} (auto-saved when {@link Policy#saveOnEvict()}
  * is true); when {@link Policy#maxSessions()} is reached the least-recently-used
- * instance is evicted first.
+ * instance is evicted first. On the next touch, {@link Policy#autoload()}
+ * restores that save so reconnect after eviction continues the same adventure.
  */
 public class GameInstanceService {
 
     public static final String DEFAULT_SAVE_NAME = "default.json";
 
-    /** Tunables for capacity and idle reaping. */
-    public record Policy(long idleTtlSeconds, int maxSessions, boolean saveOnEvict) {
+    /** Tunables for capacity, idle reaping, and reconnect restore. */
+    public record Policy(long idleTtlSeconds, int maxSessions, boolean saveOnEvict, boolean autoload) {
+        /** Defaults: 1h idle TTL, 100 cap, save+autoload on. */
         public static Policy defaults() {
-            return new Policy(3_600L, 100, true);
+            return new Policy(3_600L, 100, true, true);
+        }
+
+        /** Back-compat constructor (autoload defaults to true). */
+        public Policy(long idleTtlSeconds, int maxSessions, boolean saveOnEvict) {
+            this(idleTtlSeconds, maxSessions, saveOnEvict, true);
         }
 
         public Policy {
@@ -126,6 +134,9 @@ public class GameInstanceService {
         }
         enforceCapacity();
         Entry created = new Entry(factory.create(sessionId));
+        if (policy.autoload()) {
+            tryAutoload(sessionId, created.engine);
+        }
         Entry race = bySession.putIfAbsent(sessionId, created);
         if (race != null) {
             race.touch();
@@ -135,8 +146,10 @@ public class GameInstanceService {
     }
 
     /**
-     * Replace the session's engine with a fresh one (new party/quest). The
-     * default engine is rewound via {@link DungeonMasterEngine#startQuest()}.
+     * Replace the session's engine with a fresh one (new party/quest). Does
+     * <strong>not</strong> auto-load a save — use {@link #forSession} after
+     * destroy if you want reconnect restore. The default engine is rewound via
+     * {@link DungeonMasterEngine#startQuest()}.
      */
     public DungeonMasterEngine reset(String sessionId) {
         if (sessionId == null || sessionId.isBlank()) {
@@ -291,6 +304,28 @@ public class GameInstanceService {
         } catch (Exception e) {
             System.err.println("[game-instances] auto-save failed for " + sessionId
                     + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Load {@code sessionId}'s save into {@code engine} when the file exists.
+     * Returns true if a load was attempted (file present).
+     */
+    boolean tryAutoload(String sessionId, DungeonMasterEngine engine) {
+        if (engine == null || sessionId == null) return false;
+        Path path = savePath(sessionId);
+        if (!Files.isRegularFile(path)) {
+            return false;
+        }
+        try {
+            engine.loadGame(path.toString());
+            System.out.println("[game-instances] restored save for session " + sessionId
+                    + " from " + path);
+            return true;
+        } catch (Exception e) {
+            System.err.println("[game-instances] autoload failed for " + sessionId
+                    + ": " + e.getMessage());
+            return false;
         }
     }
 }

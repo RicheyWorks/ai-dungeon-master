@@ -80,6 +80,10 @@ public class GameConfig {
     @Value("${game.instances.save-on-evict:true}")
     private boolean instanceSaveOnEvict;
 
+    /** On mint, load an existing per-session save if present (reconnect restore). */
+    @Value("${game.instances.autoload:true}")
+    private boolean instanceAutoload;
+
     @Bean
     public GameEngineFactory gameEngineFactory(SimpMessagingTemplate messaging) {
         // 1. Content packs once per process.
@@ -114,10 +118,11 @@ public class GameConfig {
     public GameInstanceService gameInstanceService(GameEngineFactory factory,
                                                    DungeonMasterEngine defaultEngine) {
         GameInstanceService.Policy policy = new GameInstanceService.Policy(
-                instanceIdleTtlSeconds, instanceMaxSessions, instanceSaveOnEvict);
+                instanceIdleTtlSeconds, instanceMaxSessions, instanceSaveOnEvict, instanceAutoload);
         System.out.println("[game-instances] policy: idleTtl=" + policy.idleTtlSeconds()
                 + "s max=" + policy.maxSessions()
-                + " saveOnEvict=" + policy.saveOnEvict());
+                + " saveOnEvict=" + policy.saveOnEvict()
+                + " autoload=" + policy.autoload());
         return new GameInstanceService(factory, defaultEngine, Paths.get(savesDir), policy);
     }
 

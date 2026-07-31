@@ -254,7 +254,9 @@ content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hea
 | `game.instances.idle-ttl-seconds` | `3600` | Evict idle per-session engines after N seconds (0 = never) |
 | `game.instances.max` | `100` | Max concurrent per-session engines (LRU eviction) |
 | `game.instances.save-on-evict` | `true` | Auto-save when an engine is evicted |
+| `game.instances.autoload` | `true` | Restore session save when minting a new engine |
 | `game.plugins.signature.policy` | `LENIENT` | Plugin signature policy: LENIENT / REQUIRED / DISABLED |
+
 | `game.plugins.sandbox.enabled` | `true` | Sandbox-scan plugin bytecode before loading |
 
 
