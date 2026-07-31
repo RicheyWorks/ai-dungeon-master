@@ -4,15 +4,66 @@ All URIs are relative to *http://localhost:8080*
 
 | Method | HTTP request | Description |
 | ------------- | ------------- | ------------- |
+| [**createSessionV2**](V2Api.md#createSessionV2) | **POST** /v2/session | Mint a guest player session and JWT. |
 | [**disablePackV2**](V2Api.md#disablePackV2) | **POST** /v2/catalog/packs/{id}/disable | Disable a content pack; returns the updated catalog. |
 | [**enablePackV2**](V2Api.md#enablePackV2) | **POST** /v2/catalog/packs/{id}/enable | Enable a content pack; returns the updated catalog. |
 | [**getCatalogV2**](V2Api.md#getCatalogV2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser). |
+| [**getSessionMeV2**](V2Api.md#getSessionMeV2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected). |
 | [**getStatusV2**](V2Api.md#getStatusV2) | **GET** /v2/status | Current game status as a typed envelope. |
 | [**listEntitlementsV2**](V2Api.md#listEntitlementsV2) | **GET** /v2/entitlements | List the caller&#39;s owned products. |
 | [**narrateV2**](V2Api.md#narrateV2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider. |
 | [**submitActionV2**](V2Api.md#submitActionV2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope. |
+| [**uploadPackV2**](V2Api.md#uploadPackV2) | **POST** /v2/catalog/packs | Upload and install a content-pack zip at runtime; returns the updated catalog. |
 | [**verifyReceiptV2**](V2Api.md#verifyReceiptV2) | **POST** /v2/entitlements/verify | Validate a purchase receipt via its storefront and grant the entitlement. |
 
+
+<a id="createSessionV2"></a>
+# **createSessionV2**
+> SessionEnvelope createSessionV2(xRequestId, sessionRequest)
+
+Mint a guest player session and JWT.
+
+Public endpoint. Returns a session id plus a Bearer token used on all subsequent &#x60;/v2/_*&#x60; calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
+
+### Example
+```kotlin
+// Import classes:
+//import com.xai.dungeonmaster.client.infrastructure.*
+//import com.xai.dungeonmaster.client.models.*
+
+val apiInstance = V2Api()
+val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+val sessionRequest : SessionRequest =  // SessionRequest | 
+try {
+    val result : SessionEnvelope = apiInstance.createSessionV2(xRequestId, sessionRequest)
+    println(result)
+} catch (e: ClientException) {
+    println("4xx response calling V2Api#createSessionV2")
+    e.printStackTrace()
+} catch (e: ServerException) {
+    println("5xx response calling V2Api#createSessionV2")
+    e.printStackTrace()
+}
+```
+
+### Parameters
+| **xRequestId** | **kotlin.String**| Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] |
+| Name | Type | Description  | Notes |
+| ------------- | ------------- | ------------- | ------------- |
+| **sessionRequest** | [**SessionRequest**](SessionRequest.md)|  | [optional] |
+
+### Return type
+
+[**SessionEnvelope**](SessionEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
 
 <a id="disablePackV2"></a>
 # **disablePackV2**
@@ -140,6 +191,50 @@ try {
 ### Return type
 
 [**CatalogEnvelope**](CatalogEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+<a id="getSessionMeV2"></a>
+# **getSessionMeV2**
+> SessionEnvelope getSessionMeV2(xRequestId)
+
+Echo the authenticated session (no token reflected).
+
+### Example
+```kotlin
+// Import classes:
+//import com.xai.dungeonmaster.client.infrastructure.*
+//import com.xai.dungeonmaster.client.models.*
+
+val apiInstance = V2Api()
+val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+try {
+    val result : SessionEnvelope = apiInstance.getSessionMeV2(xRequestId)
+    println(result)
+} catch (e: ClientException) {
+    println("4xx response calling V2Api#getSessionMeV2")
+    e.printStackTrace()
+} catch (e: ServerException) {
+    println("5xx response calling V2Api#getSessionMeV2")
+    e.printStackTrace()
+}
+```
+
+### Parameters
+| Name | Type | Description  | Notes |
+| ------------- | ------------- | ------------- | ------------- |
+| **xRequestId** | **kotlin.String**| Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] |
+
+### Return type
+
+[**SessionEnvelope**](SessionEnvelope.md)
 
 ### Authorization
 
@@ -328,6 +423,54 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: application/json
+ - **Accept**: application/json
+
+<a id="uploadPackV2"></a>
+# **uploadPackV2**
+> CatalogEnvelope uploadPackV2(file, xRequestId, replace)
+
+Upload and install a content-pack zip at runtime; returns the updated catalog.
+
+### Example
+```kotlin
+// Import classes:
+//import com.xai.dungeonmaster.client.infrastructure.*
+//import com.xai.dungeonmaster.client.models.*
+
+val apiInstance = V2Api()
+val file : java.io.File = BINARY_DATA_HERE // java.io.File | Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
+val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+val replace : kotlin.Boolean = true // kotlin.Boolean | Overwrite an already-installed pack with the same id.
+try {
+    val result : CatalogEnvelope = apiInstance.uploadPackV2(file, xRequestId, replace)
+    println(result)
+} catch (e: ClientException) {
+    println("4xx response calling V2Api#uploadPackV2")
+    e.printStackTrace()
+} catch (e: ServerException) {
+    println("5xx response calling V2Api#uploadPackV2")
+    e.printStackTrace()
+}
+```
+
+### Parameters
+| **file** | **java.io.File**| Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead. | |
+| **xRequestId** | **kotlin.String**| Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] |
+| Name | Type | Description  | Notes |
+| ------------- | ------------- | ------------- | ------------- |
+| **replace** | **kotlin.Boolean**| Overwrite an already-installed pack with the same id. | [optional] [default to false] |
+
+### Return type
+
+[**CatalogEnvelope**](CatalogEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
  - **Accept**: application/json
 
 <a id="verifyReceiptV2"></a>

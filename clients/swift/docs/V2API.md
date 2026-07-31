@@ -4,15 +4,70 @@ All URIs are relative to *http://localhost:8080*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**createSessionV2**](V2API.md#createsessionv2) | **POST** /v2/session | Mint a guest player session and JWT.
 [**disablePackV2**](V2API.md#disablepackv2) | **POST** /v2/catalog/packs/{id}/disable | Disable a content pack; returns the updated catalog.
 [**enablePackV2**](V2API.md#enablepackv2) | **POST** /v2/catalog/packs/{id}/enable | Enable a content pack; returns the updated catalog.
 [**getCatalogV2**](V2API.md#getcatalogv2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser).
+[**getSessionMeV2**](V2API.md#getsessionmev2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected).
 [**getStatusV2**](V2API.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope.
 [**listEntitlementsV2**](V2API.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller&#39;s owned products.
 [**narrateV2**](V2API.md#narratev2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider.
 [**submitActionV2**](V2API.md#submitactionv2) | **POST** /v2/action | Apply a choice; returns the updated game status envelope.
+[**uploadPackV2**](V2API.md#uploadpackv2) | **POST** /v2/catalog/packs | Upload and install a content-pack zip at runtime; returns the updated catalog.
 [**verifyReceiptV2**](V2API.md#verifyreceiptv2) | **POST** /v2/entitlements/verify | Validate a purchase receipt via its storefront and grant the entitlement.
 
+
+# **createSessionV2**
+```swift
+    open class func createSessionV2(xRequestId: String? = nil, sessionRequest: SessionRequest? = nil, completion: @escaping (_ data: SessionEnvelope?, _ error: Error?) -> Void)
+```
+
+Mint a guest player session and JWT.
+
+Public endpoint. Returns a session id plus a Bearer token used on all subsequent `/v2/_*` calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+let sessionRequest = SessionRequest(displayName: "displayName_example") // SessionRequest |  (optional)
+
+// Mint a guest player session and JWT.
+V2API.createSessionV2(xRequestId: xRequestId, sessionRequest: sessionRequest) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+ **sessionRequest** | [**SessionRequest**](SessionRequest.md) |  | [optional] 
+
+### Return type
+
+[**SessionEnvelope**](SessionEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **disablePackV2**
 ```swift
@@ -150,6 +205,54 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**CatalogEnvelope**](CatalogEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getSessionMeV2**
+```swift
+    open class func getSessionMeV2(xRequestId: String? = nil, completion: @escaping (_ data: SessionEnvelope?, _ error: Error?) -> Void)
+```
+
+Echo the authenticated session (no token reflected).
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+
+// Echo the authenticated session (no token reflected).
+V2API.getSessionMeV2(xRequestId: xRequestId) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+
+### Return type
+
+[**SessionEnvelope**](SessionEnvelope.md)
 
 ### Authorization
 
@@ -354,6 +457,58 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **uploadPackV2**
+```swift
+    open class func uploadPackV2(file: URL, xRequestId: String? = nil, replace: Bool? = nil, completion: @escaping (_ data: CatalogEnvelope?, _ error: Error?) -> Void)
+```
+
+Upload and install a content-pack zip at runtime; returns the updated catalog.
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let file = URL(string: "https://example.com")! // URL | Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+let replace = true // Bool | Overwrite an already-installed pack with the same id. (optional) (default to false)
+
+// Upload and install a content-pack zip at runtime; returns the updated catalog.
+V2API.uploadPackV2(file: file, xRequestId: xRequestId, replace: replace) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **file** | **URL** | Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead. | 
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+ **replace** | **Bool** | Overwrite an already-installed pack with the same id. | [optional] [default to false]
+
+### Return type
+
+[**CatalogEnvelope**](CatalogEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

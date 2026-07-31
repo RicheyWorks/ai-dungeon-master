@@ -19,4 +19,7 @@ export * from './NarrativePayload';
 export * from './PackInfo';
 export * from './PluginSummary';
 export * from './QuestInfo';
+export * from './SessionEnvelope';
+export * from './SessionPayload';
+export * from './SessionRequest';
 export * from './VerifyReceiptRequest';

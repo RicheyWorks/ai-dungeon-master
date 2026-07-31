@@ -40,7 +40,7 @@ import com.xai.dungeonmaster.client.models.MemberState
 /**
  * v1 client shell (roadmap Phase 3): a Game tab (party, quest, chronicle,
  * choices, narration) and a Mods tab (catalog + pack toggles) — all over the
- * generated Kotlin SDK.
+ * generated Kotlin SDK, with guest session identity + Bearer auth.
  */
 @Composable
 fun GameApp(viewModel: GameViewModel = viewModel()) {
@@ -53,7 +53,33 @@ fun GameApp(viewModel: GameViewModel = viewModel()) {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ServerBar(ui.baseUrl, ui.busy, viewModel::setBaseUrl, viewModel::refresh)
+        ServerBar(
+            baseUrl = ui.baseUrl,
+            session = ui.session,
+            busy = ui.busy,
+            onBaseUrlChange = viewModel::setBaseUrl,
+            onRefresh = viewModel::refresh,
+            onNewSession = { viewModel.startSession() },
+        )
+
+        ui.session?.let { session ->
+            Text(
+                buildString {
+                    append("Playing as ${session.displayName} · ${session.shortId()}")
+                    if (ui.stompConnected) append(" · LIVE")
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = if (ui.stompConnected) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+            )
+        }
+
+        ui.info?.let { message ->
+            Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+        }
 
         ui.error?.let { message ->
             Text(
@@ -73,12 +99,32 @@ fun GameApp(viewModel: GameViewModel = viewModel()) {
                 },
                 text = { Text("Mods") },
             )
+            Tab(
+                selected = tab == 2,
+                onClick = {
+                    tab = 2
+                    if (ui.entitlements == null) viewModel.loadEntitlements()
+                },
+                text = { Text("Store") },
+            )
         }
 
-        if (tab == 0) {
-            GameScreen(ui, viewModel)
-        } else {
-            ModsScreen(ui.catalog, ui.busy, viewModel::loadCatalog, viewModel::togglePack)
+        when (tab) {
+            0 -> GameScreen(ui, viewModel)
+            1 -> ModsScreen(
+                catalog = ui.catalog,
+                busy = ui.busy,
+                onLoad = viewModel::loadCatalog,
+                onToggle = viewModel::togglePack,
+                onUpload = viewModel::uploadPack,
+            )
+            else -> EntitlementsScreen(
+                entitlements = ui.entitlements,
+                busy = ui.busy,
+                onRefresh = viewModel::loadEntitlements,
+                onVerify = viewModel::verifyReceipt,
+                onDevPurchase = viewModel::devPurchase,
+            )
         }
     }
 }
@@ -89,6 +135,8 @@ private fun GameScreen(ui: GameViewModel.UiState, viewModel: GameViewModel) {
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item { SessionActions(ui.busy, viewModel) }
+
         ui.status?.let { status ->
             item { QuestCard(status) }
             item { Text("Party", style = MaterialTheme.typography.titleMedium) }
@@ -111,30 +159,71 @@ private fun GameScreen(ui: GameViewModel.UiState, viewModel: GameViewModel) {
         }
 
         item { HorizontalDivider() }
-        item { NarrationPanel(ui.narration, ui.busy, viewModel::narrate) }
+        item {
+            NarrationPanel(
+                narration = ui.narration,
+                streamBuffer = ui.streamBuffer,
+                stompConnected = ui.stompConnected,
+                busy = ui.busy,
+                onNarrate = viewModel::narrate,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SessionActions(busy: Boolean, viewModel: GameViewModel) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedButton(
+            onClick = viewModel::saveGame,
+            enabled = !busy,
+            modifier = Modifier.weight(1f),
+        ) { Text("Save") }
+        OutlinedButton(
+            onClick = viewModel::loadGame,
+            enabled = !busy,
+            modifier = Modifier.weight(1f),
+        ) { Text("Load") }
+        OutlinedButton(
+            onClick = viewModel::resetGame,
+            enabled = !busy,
+            modifier = Modifier.weight(1f),
+        ) { Text("Reset") }
     }
 }
 
 @Composable
 private fun ServerBar(
     baseUrl: String,
+    session: SessionInfo?,
     busy: Boolean,
     onBaseUrlChange: (String) -> Unit,
     onRefresh: () -> Unit,
+    onNewSession: () -> Unit,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-            value = baseUrl,
-            onValueChange = onBaseUrlChange,
-            label = { Text("Server") },
-            singleLine = true,
-            modifier = Modifier.weight(1f),
-        )
-        Spacer(Modifier.width(8.dp))
-        if (busy) {
-            CircularProgressIndicator(Modifier.width(24.dp).height(24.dp))
-        } else {
-            OutlinedButton(onClick = onRefresh) { Text("Sync") }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = baseUrl,
+                onValueChange = onBaseUrlChange,
+                label = { Text("Server") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(8.dp))
+            if (busy) {
+                CircularProgressIndicator(Modifier.width(24.dp).height(24.dp))
+            } else {
+                OutlinedButton(onClick = onRefresh) { Text("Sync") }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onNewSession, enabled = !busy) {
+                Text(if (session == null) "Start session" else "New session")
+            }
         }
     }
 }
@@ -219,10 +308,19 @@ private fun ChoiceButtons(status: GameStatusV2, busy: Boolean, onAct: (String) -
 }
 
 @Composable
-private fun NarrationPanel(narration: String?, busy: Boolean, onNarrate: (String) -> Unit) {
+private fun NarrationPanel(
+    narration: String?,
+    streamBuffer: String,
+    stompConnected: Boolean,
+    busy: Boolean,
+    onNarrate: (String) -> Unit,
+) {
     var prompt by remember { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Ask the Dungeon Master", style = MaterialTheme.typography.titleMedium)
+        Text(
+            if (stompConnected) "Ask the Dungeon Master (live stream)" else "Ask the Dungeon Master",
+            style = MaterialTheme.typography.titleMedium,
+        )
         OutlinedTextField(
             value = prompt,
             onValueChange = { prompt = it },
@@ -232,7 +330,17 @@ private fun NarrationPanel(narration: String?, busy: Boolean, onNarrate: (String
         Button(
             onClick = { if (prompt.isNotBlank()) onNarrate(prompt) },
             enabled = !busy && prompt.isNotBlank(),
-        ) { Text("Narrate") }
+        ) { Text(if (stompConnected) "Stream narrate" else "Narrate") }
+        if (streamBuffer.isNotBlank()) {
+            Card(Modifier.fillMaxWidth()) {
+                Text(
+                    streamBuffer,
+                    Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
+        }
         narration?.let {
             Card(Modifier.fillMaxWidth()) {
                 Text(it, Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)

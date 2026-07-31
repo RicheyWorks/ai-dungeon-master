@@ -132,6 +132,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GameStatusEnvelope'
+
+  /v2/session:
+    post:
+      tags: [v2]
+      operationId: createSessionV2
+      summary: Mint a guest player session and JWT.
+      description: |
+        Public endpoint. Returns a session id plus a Bearer token used on all
+        subsequent `/v2/*` calls (and as a STOMP CONNECT header for WebSocket).
+        When multi-player isolation is enabled on the server, each session gets
+        its own game engine.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRequest'
+      responses:
+        '200':
+          description: Session envelope including a fresh JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionEnvelope'
+  /v2/session/me:
+    get:
+      tags: [v2]
+      operationId: getSessionMeV2
+      summary: Echo the authenticated session (no token reflected).
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Session envelope (token field null).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionEnvelope'
+        '401':
+          description: No authenticated session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /v2/catalog:
     get:
       tags: [v2]
@@ -445,6 +491,43 @@ components:
                 saved: { type: boolean }
                 path: { type: string }
                 sessionScoped: { type: boolean }
+
+    SessionEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: session
+            payload:
+              $ref: '#/components/schemas/SessionPayload'
+    SessionRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          description: Optional guest display name.
+          example: Kael
+    SessionPayload:
+      type: object
+      required: [sessionId, displayName]
+      properties:
+        sessionId:
+          type: string
+          description: Stable player session id (JWT subject).
+        token:
+          type: string
+          description: JWT (only set on create; null on /session/me).
+          nullable: true
+        displayName:
+          type: string
+        expiresAtEpochSeconds:
+          type: integer
+          format: int64
+        createdAtEpochSeconds:
+          type: integer
+          format: int64
     ErrorEnvelope:
       allOf:
         - $ref: '#/components/schemas/Envelope'

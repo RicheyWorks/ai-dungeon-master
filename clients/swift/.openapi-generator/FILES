@@ -30,6 +30,9 @@ AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrativePayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/PackInfo.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/PluginSummary.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/QuestInfo.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/SessionEnvelope.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/SessionPayload.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/SessionRequest.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/VerifyReceiptRequest.swift
 AIDungeonMasterClient/Classes/OpenAPIs/OpenISO8601DateFormatter.swift
 AIDungeonMasterClient/Classes/OpenAPIs/SynchronizedDictionary.swift
@@ -58,6 +61,9 @@ docs/NarrativePayload.md
 docs/PackInfo.md
 docs/PluginSummary.md
 docs/QuestInfo.md
+docs/SessionEnvelope.md
+docs/SessionPayload.md
+docs/SessionRequest.md
 docs/V2API.md
 docs/VerifyReceiptRequest.md
 git_push.sh

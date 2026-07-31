@@ -9,19 +9,19 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 /**
- * Configures STOMP-over-SockJS WebSocket support.
+ * Configures STOMP WebSocket support.
  *
  * Clients connect to:
- *   ws://localhost:8080/ws          (native WebSocket)
- *   http://localhost:8080/ws        (SockJS fallback)
+ *   ws://localhost:8080/ws-stomp     (native WebSocket — mobile / OkHttp)
+ *   http://localhost:8080/ws         (SockJS fallback for browsers)
  *
  * They then subscribe to:
- *   /topic/narrative                (default / unauthenticated)
- *   /topic/narrative/{sessionId}    (authenticated multi-player isolation)
+ *   /topic/narrative                 (default / unauthenticated stream)
+ *   /topic/narrative/{sessionId}     (authenticated multi-player isolation)
  *
  * And they can send actions to:
- *   /app/action                     (handled by GameWebSocketController)
- *   /app/narrate                    (streaming narration)
+ *   /app/action                      (handled by GameWebSocketController)
+ *   /app/narrate                     (streaming narration)
  *
  * Pass {@code Authorization: Bearer <jwt>} as a STOMP CONNECT header to bind
  * the connection to a player session (see {@link StompAuthChannelInterceptor}).
@@ -44,9 +44,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // SockJS for browsers that need the fallback transports.
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")   // tighten in production
                 .withSockJS();
+
+        // Native WebSocket for Android (OkHttp) and other non-SockJS clients.
+        registry.addEndpoint("/ws-stomp")
+                .setAllowedOriginPatterns("*");
     }
 
     @Override
