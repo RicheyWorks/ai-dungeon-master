@@ -16,5 +16,9 @@ public record GameStatusV2(
         List<String> availableChoices,
         List<String> recentHistory,
         QuestInfo quest,
-        List<String> recentEvents
+        List<String> recentEvents,
+        /** Current party location from the engine WorldMap. */
+        String location,
+        /** Rifts the party has discovered (includes starting + completed quests). */
+        List<String> discoveredRifts
 ) {}

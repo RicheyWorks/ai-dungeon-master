@@ -6,6 +6,7 @@
     "baseAc": 12,
     "attackBonus": 3,
     "levelRequirement": 1,
+    "factionId": "the-drowned",
     "lootTable": ["bh_tallow_candle"]
   },
   "bh_drowned_chorister": {
@@ -15,6 +16,7 @@
     "baseAc": 13,
     "attackBonus": 5,
     "levelRequirement": 3,
+    "factionId": "the-drowned",
     "lootTable": ["bh_grave_salt"]
   },
   "bh_gallows_revenant": {
@@ -23,7 +25,8 @@
     "baseHp": 68,
     "baseAc": 15,
     "attackBonus": 6,
-    "levelRequirement": 5
+    "levelRequirement": 5,
+    "factionId": "the-drowned"
   },
   "bh_bough_that_weeps": {
     "entityType": "enemy",
@@ -32,6 +35,7 @@
     "baseAc": 19,
     "attackBonus": 11,
     "levelRequirement": 12,
-    "isBoss": true
+    "isBoss": true,
+    "factionId": "the-drowned"
   }
 }

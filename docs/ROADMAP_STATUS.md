@@ -1,24 +1,16 @@
 # AI Dungeon Master — Roadmap Status
 
-_Last updated: 2026-07-16 · Baseline: `mvn test` green (130 tests) · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
+_Last updated: 2026-07-31 · Baseline: `mvn test` green (153 tests) · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
 
 Grounded in the current code, not the May plan. Phases 0–1 are complete, Phase 2
 is essentially complete, and Phase 5 (content packs & mods) now has substantial
-groundwork shipped. **New since 2026-07-16:** the story-depth architecture
-([ADR-001](adr/ADR-001-story-depth.md)) shipped in full — branching scene
-graphs with per-choice `nextSceneId` targets and load-time graph lint;
-data-driven `quests/*.json` via `DataQuestScript`; a persistent `WorldState`
-(flags + quest outcomes) with declarative `ChoiceEffect`/`ChoiceCondition`
-replacing the hardcoded actionKey switch and the non-serializable requirement
-Predicate; flag-gated `Campaign` chains (`game.campaign.id`, demo: the 3-quest
-Hollows Cycle); a bounded `Chronicle` of story events compacted into
-`NarrativePrompt.contextFacts` so both keyed providers and the offline stub
-narrate with continuity; and pack-shipped NPCs/factions with disposition and
-reputation riding the same flag machinery (Mother Brine in `black-hollows`).
-Saves are versioned (`saveVersion: 3`) and all schema changes are additive —
-pre-ADR saves load unchanged. `/v2/status` now exposes `quest` outcome and
-`recentEvents`. Remaining from ADR-001: faction-aware `EncounterTable`
-overload; client SDK regeneration for the new status fields.
+groundwork shipped. **Story-depth architecture
+([ADR-001](adr/ADR-001-story-depth.md)) is complete**, including the Phase 4
+follow-ups: production faction-aware encounters (default table weights monsters
+by reputation via optional `factionId` on pack data) and WorldMap wiring
+(location + discovered rifts persist at saveVersion 4 and surface on
+`/v2/status`). SDKs (TypeScript / Kotlin / Swift) expose `location` and
+`discoveredRifts` on `GameStatusV2`.
 
 ## Snapshot
 
@@ -27,7 +19,7 @@ overload; client SDK regeneration for the new status fields.
 | 0 — Hygiene | headless, packages, tests, listeners, sync | ✅ Done |
 | 1 — Headless core + plugin SPI | core module, SPIs, registries, loaders, signing, sandbox | ✅ Done |
 | 2 — API v2 + LLM provider | envelope, PartyState, LLM stack + keyed providers, streaming, specs, SDKs, auth, sessions, entitlements | ✅ Done |
-| 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ v1 app scaffolded under `android/` (status, quest+chronicle, choices, narration over the Kotlin SDK); WebSocket stream, sessions, and catalog screen remain |
+| 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ v1 app scaffolded under `android/` (status, quest+chronicle, choices, narration, Mods tab); WebSocket stream and sessions remain |
 | 4 — Steam + iOS | Tauri, SwiftUI on the generated Swift SDK, storefronts | ◐ Swift SDK generated; apps not started |
 | 5 — Content packs & mods | packs, mod browser, signing, sandboxing | ✅ 4 packs + signing + sandbox + catalog + web mod-browser w/ enable-disable + runtime pack upload (`POST /v2/catalog/packs`) |
 
@@ -71,11 +63,22 @@ overload; client SDK regeneration for the new status fields.
   the product to the session; `GET /v2/entitlements` lists owned products.
 - Validated OpenAPI 3.0.3 + AsyncAPI 2.6.0 specs, and **generated client SDKs for
   TypeScript, Kotlin, and Swift** (`clients/`, openapi-generator 7.7.0).
+- **World map on status.** `/v2/status` exposes `location` + `discoveredRifts`
+  from the engine WorldMap (saveVersion 4).
 
 **Remaining**
 
 - Keyed-provider live smoke tests (need real API keys) and a shared datastore for
   sessions/entitlements across nodes. Nothing else blocks Phase 2.
+
+## ADR-001 follow-ups ✅
+
+- Faction-aware encounter production path: optional `factionId` on monsters.json;
+  `DefaultEncounterTable` weights spawns by effective reputation
+  (pack base + WorldState delta). Black Hollows drowned mobs are tagged.
+- WorldMap wired into the engine (quest start → location, quest complete → discover
+  rift, save/load restore). No longer dead code.
+- Client SDKs updated for `location` / `discoveredRifts`.
 
 ## Phases 3–5
 
@@ -89,12 +92,12 @@ overload; client SDK regeneration for the new status fields.
   (`GET /v2/catalog` lists installed packs and every registered plugin) and a
   static web mod-browser page ships at `/mod-browser.html` that also enables and
   disables packs at runtime (`POST /v2/catalog/packs/{id}/enable|disable`, backed
-  by a provenance-aware ContentRegistry). A richer in-game UI and pack
-  upload/install remain.
+  by a provenance-aware ContentRegistry). Pack upload is live
+  (`POST /v2/catalog/packs`).
 
 ## Remaining backlog
 
-- Richer in-game mod-browser UI + pack upload/install (the `/mod-browser.html` page, `/v2/catalog`, and runtime enable/disable are done).
 - Keyed-provider live smoke tests (need real API keys); shared session/entitlement datastore for multi-node.
-- Native client apps (Android Compose, iOS SwiftUI, Steam/Tauri) on the generated SDKs.
+- Native client apps (Android Compose polish — WebSocket + sessions; iOS SwiftUI; Steam/Tauri) on the generated SDKs.
 - Deeper mod isolation (dedicated process / OS sandbox) beyond the static bytecode scan.
+- Richer in-game mod-browser UI (the `/mod-browser.html` page, `/v2/catalog`, enable/disable, and pack upload are done).

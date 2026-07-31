@@ -30,6 +30,13 @@ public class Enemy implements Entity {
     private boolean boss;
     private int phase = 1;
 
+    /**
+     * Optional content-pack faction this monster belongs to (ADR-001 Phase 4
+     * follow-up). When set, the default encounter table can weight spawns by
+     * the party's reputation with that faction.
+     */
+    private String factionId;
+
     private final List<StatusEffect> effects = Collections.synchronizedList(new ArrayList<>());
 
     @JsonCreator
@@ -60,6 +67,23 @@ public class Enemy implements Entity {
     @JsonProperty("isBoss")
     public void setBoss(boolean boss) {
         this.boss = boss;
+    }
+
+    /**
+     * Content packs may tag a monster with a faction id so world-aware
+     * encounter tables can favor hostile (or avoid friendly) factions.
+     */
+    @JsonProperty("factionId")
+    public void setFactionId(String factionId) {
+        if (factionId == null || factionId.isBlank()) {
+            this.factionId = null;
+        } else {
+            this.factionId = factionId.trim();
+        }
+    }
+
+    public String getFactionId() {
+        return factionId;
     }
 
     @Override
@@ -346,6 +370,7 @@ public class Enemy implements Entity {
                 ", damageDice='" + damageDice + '\'' +
                 ", boss=" + boss +
                 ", phase=" + phase +
+                ", factionId='" + factionId + '\'' +
                 '}';
     }
 }

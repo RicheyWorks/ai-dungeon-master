@@ -20,8 +20,12 @@ public struct GameStatusV2: Codable, JSONEncodable, Hashable {
     public var quest: QuestInfo?
     /** Compact story-memory facts from the engine's Chronicle (newest last), e.g. \"Quest completed: The Weeping Tree\". Bounded server-side. */
     public var recentEvents: [String]?
+    /** Current party location from the engine WorldMap. */
+    public var location: String?
+    /** Named rifts the party has discovered (starting set + completed quests). */
+    public var discoveredRifts: [String]?
 
-    public init(party: [MemberState]? = nil, chaosLevel: Int? = nil, combatActive: Bool? = nil, availableChoices: [String]? = nil, recentHistory: [String]? = nil, quest: QuestInfo? = nil, recentEvents: [String]? = nil) {
+    public init(party: [MemberState]? = nil, chaosLevel: Int? = nil, combatActive: Bool? = nil, availableChoices: [String]? = nil, recentHistory: [String]? = nil, quest: QuestInfo? = nil, recentEvents: [String]? = nil, location: String? = nil, discoveredRifts: [String]? = nil) {
         self.party = party
         self.chaosLevel = chaosLevel
         self.combatActive = combatActive
@@ -29,6 +33,8 @@ public struct GameStatusV2: Codable, JSONEncodable, Hashable {
         self.recentHistory = recentHistory
         self.quest = quest
         self.recentEvents = recentEvents
+        self.location = location
+        self.discoveredRifts = discoveredRifts
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -39,6 +45,8 @@ public struct GameStatusV2: Codable, JSONEncodable, Hashable {
         case recentHistory
         case quest
         case recentEvents
+        case location
+        case discoveredRifts
     }
 
     // Encodable protocol methods
@@ -52,6 +60,7 @@ public struct GameStatusV2: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(recentHistory, forKey: .recentHistory)
         try container.encodeIfPresent(quest, forKey: .quest)
         try container.encodeIfPresent(recentEvents, forKey: .recentEvents)
+        try container.encodeIfPresent(location, forKey: .location)
+        try container.encodeIfPresent(discoveredRifts, forKey: .discoveredRifts)
     }
 }
-

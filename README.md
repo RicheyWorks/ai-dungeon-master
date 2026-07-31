@@ -4,7 +4,8 @@ A single-player, AI-narrated dungeon crawler built as a portable game engine: a
 pure-Java core, a Spring Boot server, a versioned REST + WebSocket API, an
 offline-capable LLM narration layer, and a data-driven content-pack system.
 
-> Java 17 · Spring Boot 3.2.5 · Maven multi-module · 91 tests green
+> Java 17 · Spring Boot 3.2.5 · Maven multi-module · 153 tests green
+
 
 ## Highlights
 
@@ -87,7 +88,8 @@ stable, self-describing shape:
 
 | Method & path | Description |
 |---|---|
-| `GET /v2/status` | Full snapshot — structured party, chaos, choices, recent log |
+| `GET /v2/status` | Full snapshot — structured party, chaos, choices, recent log, location, discovered rifts |
+
 | `POST /v2/action` | Apply a choice (`{ "choiceLabel": "Attack" }`); returns updated status |
 | `POST /v2/narrate` | Generate DM narration via the active LLM provider |
 | `POST /v2/session` | Create a guest session; returns a JWT + session id |
@@ -112,7 +114,9 @@ Example `GET /v2/status` payload:
   "availableChoices": ["Scavenge for parts", "Push deeper into the rift"],
   "recentHistory": ["..."],
   "quest": { "title": "The Weeping Tree", "completed": false, "failed": false, "progress": 0.33 },
-  "recentEvents": ["Quest begun: The Weeping Tree", "Boss slain: Grave Warden (by Kael)"]
+  "recentEvents": ["Quest begun: The Weeping Tree", "Boss slain: Grave Warden (by Kael)"],
+  "location": "The Weeping Tree",
+  "discoveredRifts": ["The Whispering Void", "The Iron Singularity"]
 }
 ```
 
@@ -250,14 +254,12 @@ content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hea
 ## Roadmap
 
 See [`docs/ROADMAP_STATUS.md`](docs/ROADMAP_STATUS.md) for the detailed,
-code-grounded status. In brief: Phases 0–1 are complete (headless core, all eight
-plugin SPIs dispatchable, signed and sandboxed mods), and Phase 2 is essentially
-done — the typed envelope API, structured party state, the LLM provider stack with
-guardrails, streaming, and keyed OpenAI/Anthropic/xAI/llama backends, validated
-specs, generated TypeScript/Kotlin/Swift SDKs, JWT session identity with optional
-persistence, and storefront receipt validation with entitlements. Four themed
-content packs ship with a web mod browser. What's left is client-native: the
-Android/iOS/Steam apps on the generated SDKs, and a richer in-game mod-browser UI.
+code-grounded status. In brief: Phases 0–2 and 5 are complete (headless core,
+plugin SPIs, signed/sandboxed mods, typed v2 API, LLM stack, content packs,
+story depth, faction-aware encounters, WorldMap on status). What's left is
+primarily client-native: Android/iOS/Steam apps on the generated SDKs, plus
+live keyed-provider smoke tests and multi-node session storage.
+
 
 ## License
 

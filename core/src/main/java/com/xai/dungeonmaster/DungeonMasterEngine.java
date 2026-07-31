@@ -39,6 +39,9 @@ public class DungeonMasterEngine {
 
     private final CombatState combatState;
     private final DungeonGenerator dungeonGenerator;
+    /** Party location + discovered rifts (ADR-001 follow-up). */
+    private final WorldMap worldMap;
+
 
     /**
      * Volatile so reads in handleChoice / save / load see the latest write.
@@ -102,6 +105,8 @@ public class DungeonMasterEngine {
 
         this.combatState = new CombatState();
         this.dungeonGenerator = new DungeonGenerator(random, difficulty, chaos);
+        this.worldMap = new WorldMap(dungeonGenerator);
+
 
         // Build party
         for (int i = 0; i < names.length; i++) {
@@ -135,9 +140,11 @@ public class DungeonMasterEngine {
         this.currentQuest = (opening != null)
                 ? opening
                 : dungeonGenerator.generateCustomRift("Genesis Rift", 4, difficulty);
+        worldMap.setCurrentLocation(this.currentQuest.getTitle());
         chronicle.record("quest_started", this.currentQuest.getTitle(), "");
         log("Multiversal Engine Online. Chaos Level " + chaosLevel);
     }
+
 
     // ──────────────────────────────────────────────────────────────────────────
     // Action router
@@ -302,6 +309,11 @@ public class DungeonMasterEngine {
         chronicle.record(quest.isCompleted() ? "quest_completed" : "quest_failed",
                 quest.getTitle(), "");
 
+        // Completing a quest discovers its title as a named rift on the world map.
+        if (quest.isCompleted()) {
+            worldMap.discoverNewRift(quest.getTitle());
+        }
+
         Campaign arc = campaign;
         if (arc == null) return;
 
@@ -320,6 +332,7 @@ public class DungeonMasterEngine {
         }
     }
 
+
     /**
      * Replace the current quest with one built from the given script id (via
      * the QuestScript registry). No-op if the registry can't build it.
@@ -333,12 +346,14 @@ public class DungeonMasterEngine {
         if (next == null) return;
         currentQuest = next;
         currentQuestScriptId = scriptId;
+        worldMap.setCurrentLocation(next.getTitle());
         chronicle.record("quest_started", next.getTitle(), "");
         broadcast("NEW QUEST: " + next.getTitle() + " — " + next.getDescription());
         Scene opening = next.getCurrentScene();
         if (opening != null) opening.onEnter(this);
         noteNpcMeeting(next);
     }
+
 
     /**
      * Activate a story arc. Starts the campaign's first eligible quest
@@ -373,6 +388,12 @@ public class DungeonMasterEngine {
     public Chronicle getChronicle() {
         return chronicle;
     }
+
+    /** Party location and discovered rifts. Never null. */
+    public WorldMap getWorldMap() {
+        return worldMap;
+    }
+
 
     /**
      * First time the party reaches a scene with an NPC, mark the meeting in
@@ -485,9 +506,11 @@ public class DungeonMasterEngine {
 
     public synchronized void saveGame(String path) {
         try {
+            WorldMap.Snapshot mapSnap = worldMap.snapshot();
             GameStateData data = new GameStateData(party, currentQuest, chaosLevel, difficulty,
                     worldState, currentQuestScriptId,
-                    campaign != null ? campaign.getId() : null, chronicle);
+                    campaign != null ? campaign.getId() : null, chronicle,
+                    mapSnap.currentLocation, mapSnap.discoveredRifts);
             mapper.writeValue(new File(path), data);
             log("Timeline persisted.");
         } catch (IOException e) {
@@ -511,11 +534,18 @@ public class DungeonMasterEngine {
             campaign = CampaignRegistry.get(data.campaignId);
             campaignExhaustedAnnounced = false;
             chronicle = (data.chronicle != null) ? data.chronicle : new Chronicle();
+            // Phase-4 location fields are additive — missing → keep constructor defaults.
+            if (data.currentLocation != null || data.discoveredRifts != null) {
+                worldMap.restore(data.currentLocation, data.discoveredRifts);
+            } else if (currentQuest != null) {
+                worldMap.setCurrentLocation(currentQuest.getTitle());
+            }
             log("Timeline restored.");
         } catch (IOException e) {
             log("Load failure: " + e.getMessage());
         }
     }
+
 
     // ──────────────────────────────────────────────────────────────────────────
     // Turn management
@@ -714,7 +744,7 @@ public class DungeonMasterEngine {
 
 class GameStateData {
     /** Bumped when the save schema gains fields; readers treat missing as 1. */
-    public int saveVersion = 3;
+    public int saveVersion = 4;
 
     public List<Adventurer> party;
     public Quest currentQuest;
@@ -729,11 +759,16 @@ class GameStateData {
     // Phase-3 additive field — null in pre-chronicle saves.
     public Chronicle chronicle;
 
+    // Phase-4 location fields — null in pre-worldMap saves.
+    public String currentLocation;
+    public List<String> discoveredRifts;
+
     public GameStateData() {}
 
     GameStateData(List<Adventurer> p, Quest q, int c, int d,
                   WorldState world, String questScriptId, String campaignId,
-                  Chronicle chronicle) {
+                  Chronicle chronicle,
+                  String currentLocation, List<String> discoveredRifts) {
         this.party = p;
         this.currentQuest = q;
         this.chaosLevel = c;
@@ -742,5 +777,7 @@ class GameStateData {
         this.currentQuestScriptId = questScriptId;
         this.campaignId = campaignId;
         this.chronicle = chronicle;
+        this.currentLocation = currentLocation;
+        this.discoveredRifts = discoveredRifts;
     }
 }

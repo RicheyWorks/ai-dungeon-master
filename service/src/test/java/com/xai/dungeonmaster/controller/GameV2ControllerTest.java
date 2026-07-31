@@ -100,4 +100,13 @@ class GameV2ControllerTest {
                 .andExpect(jsonPath("$.payload.provider").isNotEmpty())
                 .andExpect(jsonPath("$.payload.tokensUsed").isNumber());
     }
+
+    @Test
+    void statusExposesLocationAndDiscoveredRifts() throws Exception {
+        mvc.perform(get("/v2/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.location").isNotEmpty())
+                .andExpect(jsonPath("$.payload.discoveredRifts").isArray())
+                .andExpect(jsonPath("$.payload.discoveredRifts[0]").isNotEmpty());
+    }
 }

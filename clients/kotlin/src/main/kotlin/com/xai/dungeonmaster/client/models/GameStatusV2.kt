@@ -31,6 +31,8 @@ import com.squareup.moshi.JsonClass
  * @param recentHistory 
  * @param quest 
  * @param recentEvents Compact story-memory facts from the engine's Chronicle (newest last), e.g. \"Quest completed: The Weeping Tree\". Bounded server-side.
+ * @param location Current party location from the engine WorldMap.
+ * @param discoveredRifts Named rifts the party has discovered (starting set + completed quests).
  */
 
 
@@ -56,7 +58,15 @@ data class GameStatusV2 (
 
     /* Compact story-memory facts from the engine's Chronicle (newest last), e.g. \"Quest completed: The Weeping Tree\". Bounded server-side. */
     @Json(name = "recentEvents")
-    val recentEvents: kotlin.collections.List<kotlin.String>? = null
+    val recentEvents: kotlin.collections.List<kotlin.String>? = null,
+
+    /* Current party location from the engine WorldMap. */
+    @Json(name = "location")
+    val location: kotlin.String? = null,
+
+    /* Named rifts the party has discovered (starting set + completed quests). */
+    @Json(name = "discoveredRifts")
+    val discoveredRifts: kotlin.collections.List<kotlin.String>? = null
 
 ) {
 
