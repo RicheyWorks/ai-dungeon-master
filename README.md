@@ -282,6 +282,16 @@ live keyed-provider smoke tests and multi-node session storage.
 
 
 
+
+### Desktop
+
+```bash
+./desktop/launch.sh          # start engine (if needed) + open /app/
+# Windows:  .\desktop\launch.ps1
+```
+
+Optional Tauri window scaffold: `desktop/tauri/`.
+
 ### Native / web clients
 
 | Path | Platform |
