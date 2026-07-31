@@ -2,10 +2,14 @@ package com.xai.dungeonmaster.config;
 
 import com.xai.dungeonmaster.auth.FileSessionStore;
 import com.xai.dungeonmaster.auth.InMemorySessionStore;
+import com.xai.dungeonmaster.auth.RedisSessionStore;
 import com.xai.dungeonmaster.auth.SessionStore;
 import com.xai.dungeonmaster.entitlement.EntitlementStore;
 import com.xai.dungeonmaster.entitlement.FileEntitlementStore;
 import com.xai.dungeonmaster.entitlement.InMemoryEntitlementStore;
+import com.xai.dungeonmaster.entitlement.RedisEntitlementStore;
+import com.xai.dungeonmaster.store.JedisRedisOps;
+import com.xai.dungeonmaster.store.RedisOps;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,22 +20,63 @@ import java.nio.file.Paths;
  * Auth-related beans. Selects the {@link SessionStore} and {@link EntitlementStore}
  * implementations from config:
  * <ul>
- *   <li>{@code game.auth.session.store = memory|file} (+ {@code game.auth.session.file})</li>
- *   <li>{@code game.auth.entitlement.store = memory|file} (+ {@code game.auth.entitlement.file})</li>
+ *   <li>{@code game.auth.session.store = memory|file|redis}</li>
+ *   <li>{@code game.auth.entitlement.store = memory|file|redis}</li>
+ *   <li>{@code game.auth.redis.url} / {@code game.auth.redis.key-prefix} when either is redis</li>
  * </ul>
- * File-backed stores use cross-process locks so multi-node deployments that share
- * a volume see each other's sessions and grants.
+ * File-backed stores use cross-process locks (shared volume). Redis stores share
+ * a Redis instance across nodes. Game engines remain process-local — use sticky
+ * sessions or accept autoload from a shared {@code game.saves.dir}.
  */
 @Configuration
 public class AuthConfig {
 
+    @Bean(destroyMethod = "close")
+    public RedisOps redisOps(
+            @Value("${game.auth.session.store:memory}") String sessionKind,
+            @Value("${game.auth.entitlement.store:memory}") String entitlementKind,
+            @Value("${game.auth.redis.url:redis://127.0.0.1:6379}") String redisUrl) {
+        if (needsRedis(sessionKind) || needsRedis(entitlementKind)) {
+            System.out.println("[auth] redis ops: " + redisUrl);
+            return new JedisRedisOps(redisUrl);
+        }
+        // Lazy no-op so beans that never touch Redis stay cheap.
+        return new RedisOps() {
+            @Override public void hset(String key, java.util.Map<String, String> fields) {
+                throw new IllegalStateException("Redis not configured");
+            }
+            @Override public java.util.Map<String, String> hgetAll(String key) {
+                throw new IllegalStateException("Redis not configured");
+            }
+            @Override public void sadd(String key, String... members) {
+                throw new IllegalStateException("Redis not configured");
+            }
+            @Override public void srem(String key, String... members) {
+                throw new IllegalStateException("Redis not configured");
+            }
+            @Override public java.util.Set<String> smembers(String key) {
+                throw new IllegalStateException("Redis not configured");
+            }
+            @Override public void del(String key) {
+                throw new IllegalStateException("Redis not configured");
+            }
+            @Override public void close() { /* no-op */ }
+        };
+    }
+
     @Bean
     public SessionStore sessionStore(
             @Value("${game.auth.session.store:memory}") String kind,
-            @Value("${game.auth.session.file:sessions.json}") String file) {
+            @Value("${game.auth.session.file:sessions.json}") String file,
+            @Value("${game.auth.redis.key-prefix:dm}") String redisPrefix,
+            RedisOps redisOps) {
         if ("file".equalsIgnoreCase(kind)) {
             System.out.println("[auth] session store: file (" + file + ")");
             return new FileSessionStore(Paths.get(file));
+        }
+        if ("redis".equalsIgnoreCase(kind)) {
+            System.out.println("[auth] session store: redis (prefix=" + redisPrefix + ")");
+            return new RedisSessionStore(redisOps, redisPrefix);
         }
         return new InMemorySessionStore();
     }
@@ -39,11 +84,21 @@ public class AuthConfig {
     @Bean
     public EntitlementStore entitlementStore(
             @Value("${game.auth.entitlement.store:memory}") String kind,
-            @Value("${game.auth.entitlement.file:entitlements.json}") String file) {
+            @Value("${game.auth.entitlement.file:entitlements.json}") String file,
+            @Value("${game.auth.redis.key-prefix:dm}") String redisPrefix,
+            RedisOps redisOps) {
         if ("file".equalsIgnoreCase(kind)) {
             System.out.println("[auth] entitlement store: file (" + file + ")");
             return new FileEntitlementStore(Paths.get(file));
         }
+        if ("redis".equalsIgnoreCase(kind)) {
+            System.out.println("[auth] entitlement store: redis (prefix=" + redisPrefix + ")");
+            return new RedisEntitlementStore(redisOps, redisPrefix);
+        }
         return new InMemoryEntitlementStore();
+    }
+
+    private static boolean needsRedis(String kind) {
+        return "redis".equalsIgnoreCase(kind);
     }
 }
