@@ -1,0 +1,135 @@
+import {
+  Configuration,
+  V2Api,
+  type ActionRequest,
+  type CatalogPayload,
+  type EntitlementPayload,
+  type GameStatusV2,
+  type NarrateRequest,
+  type SessionRequest,
+  type VerifyReceiptRequest,
+} from "@ai-dungeon-master/client";
+import type { SessionInfo } from "./sessionStore";
+
+export type { CatalogPayload, EntitlementPayload, GameStatusV2 };
+
+/** Create a configured V2 client. Empty basePath = same origin (Vite proxy). */
+export function createApi(baseUrl: string, token: string | null): V2Api {
+  const basePath = baseUrl.replace(/\/$/, "");
+  return new V2Api(
+    new Configuration({
+      basePath: basePath || undefined,
+      accessToken: token ? async () => token : undefined,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+  );
+}
+
+export async function mintSession(
+  baseUrl: string,
+  displayName?: string | null,
+): Promise<SessionInfo> {
+  // Unauthenticated mint — no Bearer
+  const api = createApi(baseUrl, null);
+  const req: SessionRequest | undefined = displayName?.trim()
+    ? { displayName: displayName.trim() }
+    : undefined;
+  const envelope = await api.createSessionV2({ sessionRequest: req });
+  const p = envelope.payload;
+  if (!p.token) throw new Error("Session token missing from createSessionV2");
+  return {
+    sessionId: p.sessionId,
+    token: p.token,
+    displayName: p.displayName,
+    expiresAtEpochSeconds: p.expiresAtEpochSeconds ?? 0,
+    createdAtEpochSeconds: p.createdAtEpochSeconds ?? 0,
+  };
+}
+
+export async function validateSession(baseUrl: string, token: string): Promise<boolean> {
+  try {
+    await createApi(baseUrl, token).getSessionMeV2();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getStatus(baseUrl: string, token: string): Promise<GameStatusV2> {
+  const env = await createApi(baseUrl, token).getStatusV2();
+  return env.payload;
+}
+
+export async function submitAction(
+  baseUrl: string,
+  token: string,
+  choiceLabel: string,
+): Promise<GameStatusV2> {
+  const body: ActionRequest = { choiceLabel };
+  const env = await createApi(baseUrl, token).submitActionV2({ actionRequest: body });
+  return env.payload;
+}
+
+export async function narrateRest(
+  baseUrl: string,
+  token: string,
+  prompt: string,
+): Promise<string | undefined> {
+  const body: NarrateRequest = { prompt };
+  const env = await createApi(baseUrl, token).narrateV2({ narrateRequest: body });
+  return env.payload.text ?? undefined;
+}
+
+export async function getCatalog(baseUrl: string, token: string): Promise<CatalogPayload> {
+  return (await createApi(baseUrl, token).getCatalogV2()).payload;
+}
+
+export async function togglePack(
+  baseUrl: string,
+  token: string,
+  id: string,
+  enable: boolean,
+): Promise<CatalogPayload> {
+  const api = createApi(baseUrl, token);
+  const env = enable
+    ? await api.enablePackV2({ id })
+    : await api.disablePackV2({ id });
+  return env.payload;
+}
+
+export async function uploadPack(
+  baseUrl: string,
+  token: string,
+  file: File,
+  replace: boolean,
+): Promise<CatalogPayload> {
+  const env = await createApi(baseUrl, token).uploadPackV2({ file, replace });
+  return env.payload;
+}
+
+export async function listEntitlements(
+  baseUrl: string,
+  token: string,
+): Promise<EntitlementPayload> {
+  return (await createApi(baseUrl, token).listEntitlementsV2()).payload;
+}
+
+export async function verifyReceipt(
+  baseUrl: string,
+  token: string,
+  body: VerifyReceiptRequest,
+): Promise<EntitlementPayload> {
+  return (await createApi(baseUrl, token).verifyReceiptV2({ verifyReceiptRequest: body })).payload;
+}
+
+export async function saveGame(baseUrl: string, token: string) {
+  return (await createApi(baseUrl, token).saveGameV2()).payload;
+}
+
+export async function loadGame(baseUrl: string, token: string): Promise<GameStatusV2> {
+  return (await createApi(baseUrl, token).loadGameV2()).payload;
+}
+
+export async function resetGame(baseUrl: string, token: string): Promise<GameStatusV2> {
+  return (await createApi(baseUrl, token).resetGameV2()).payload;
+}

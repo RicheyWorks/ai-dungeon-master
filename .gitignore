@@ -12,3 +12,7 @@ target/
 # OS
 .DS_Store
 Thumbs.db
+
+# web client
+web/node_modules/
+web/dist/

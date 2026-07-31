@@ -281,6 +281,15 @@ primarily client-native: Android/iOS/Steam apps on the generated SDKs, plus
 live keyed-provider smoke tests and multi-node session storage.
 
 
+
+### Native / web clients
+
+| Path | Platform |
+|---|---|
+| `android/` | Jetpack Compose on the Kotlin SDK |
+| `ios/` | SwiftUI on the Swift SDK |
+| `web/` | Vite + React SPA on the TypeScript SDK (Tauri-ready) |
+
 ## License
 
 Not yet specified.
