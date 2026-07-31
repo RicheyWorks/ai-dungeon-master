@@ -35,6 +35,13 @@ updates the app with no publishing step.
   (`GET /v2/catalog`, `POST /v2/catalog/packs/{id}/enable|disable`)
 - Active narration provider + health, registered plugins per SPI
 
+**Store tab**
+- List owned products (`GET /v2/entitlements`) for the current session
+- **Buy with dev receipt** — client-side HMAC receipt matching the server's
+  `DevStorefront`, then `POST /v2/entitlements/verify`
+- Paste arbitrary product / storefront / receipt for manual verify
+- Demo SKU quick-picks: `sku_gold`, `sku_season_pass`, `pack_the_hollows`
+
 Server URL is configurable (defaults to `http://10.0.2.2:8080`, the emulator's
 alias for the host machine).
 
@@ -69,6 +76,8 @@ app/src/main/java/com/xai/dungeonmaster/android/
   GameViewModel.kt    StateFlow bridge + session + STOMP stream
   GameApp.kt          tab shell + Game screen + session chrome
   ModsScreen.kt       catalog browser with pack enable/disable toggles
+  EntitlementsScreen.kt  owned SKUs + dev purchase + receipt verify
+  DevReceipts.kt      HMAC mint matching server DevStorefront
   SessionClient.kt    save/load/reset until those ops land in the SDK
   HttpClients.kt      OkHttp Bearer interceptor shared with generated V2Api
   StompClient.kt      Minimal STOMP 1.2 over native WebSocket (/ws-stomp)
@@ -85,7 +94,7 @@ Compose BOM 2024.06) — bump them freely, nothing here is version-sensitive.
 
 ## Not yet wired
 
-- Entitlement receipt verification UI
+- Real Play Billing (dev storefront covers the verify loop for now)
 - Pack upload from the device (`POST /v2/catalog/packs`) — use the web
   mod browser for now (`uploadPackV2` is in the regenerated SDK)
 - Save/load/reset in the generated SDK (hand-rolled in `SessionClient` until

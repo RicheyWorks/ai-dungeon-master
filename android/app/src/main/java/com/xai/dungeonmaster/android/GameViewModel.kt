@@ -7,9 +7,12 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import com.xai.dungeonmaster.client.apis.V2Api
 import com.xai.dungeonmaster.client.models.ActionRequest
 import com.xai.dungeonmaster.client.models.CatalogPayload
+import com.xai.dungeonmaster.client.models.EntitlementPayload
 import com.xai.dungeonmaster.client.models.GameStatusV2
 import com.xai.dungeonmaster.client.models.NarrateRequest
 import com.xai.dungeonmaster.client.models.SessionRequest
+import com.xai.dungeonmaster.client.models.VerifyReceiptRequest
+import com.xai.dungeonmaster.client.infrastructure.ClientException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,6 +45,7 @@ class GameViewModel : ViewModel() {
         val streamBuffer: String = "",
         val stompConnected: Boolean = false,
         val catalog: CatalogPayload? = null,
+        val entitlements: EntitlementPayload? = null,
         val lastSavePath: String? = null,
         val busy: Boolean = false,
         val error: String? = null,
@@ -145,6 +149,78 @@ class GameViewModel : ViewModel() {
         val withSession = ensureSession(current)
         val envelope = if (enable) api().enablePackV2(id) else api().disablePackV2(id)
         withSession.copy(catalog = envelope.payload, error = null, info = null)
+    }
+
+    fun loadEntitlements() = launchCall { current ->
+        val withSession = ensureSession(current)
+        val envelope = api().listEntitlementsV2()
+        withSession.copy(entitlements = envelope.payload, error = null, info = null)
+    }
+
+    /**
+     * Verify a store receipt for the current session. 402 (payment required /
+     * rejected receipt) is surfaced as an error with the server reason when
+     * available.
+     */
+    fun verifyReceipt(productId: String, receipt: String, storefront: String) = launchCall { current ->
+        val withSession = ensureSession(current)
+        try {
+            val envelope = api().verifyReceiptV2(
+                VerifyReceiptRequest(
+                    productId = productId,
+                    receipt = receipt,
+                    storefront = storefront.ifBlank { DevReceipts.STOREFRONT_ID },
+                ),
+            )
+            val p = envelope.payload
+            withSession.copy(
+                entitlements = p,
+                info = if (p.granted == true) "Granted ${p.productId}" else "Not granted: ${p.reason}",
+                error = null,
+            )
+        } catch (e: ClientException) {
+            // 402 from a rejected receipt — refresh list and show reason.
+            val listed = try {
+                api().listEntitlementsV2().payload
+            } catch (_: Exception) {
+                withSession.entitlements
+            }
+            withSession.copy(
+                entitlements = listed,
+                error = "Receipt rejected (${e.statusCode}): ${e.message}",
+                info = null,
+            )
+        }
+    }
+
+    /** Mint a DevStorefront-compatible receipt and verify it in one step. */
+    fun devPurchase(productId: String) = launchCall { current ->
+        val withSession = ensureSession(current)
+        val receipt = DevReceipts.sign(productId)
+        try {
+            val envelope = api().verifyReceiptV2(
+                VerifyReceiptRequest(
+                    productId = productId,
+                    receipt = receipt,
+                    storefront = DevReceipts.STOREFRONT_ID,
+                ),
+            )
+            val p = envelope.payload
+            withSession.copy(
+                entitlements = p,
+                info = if (p.granted == true) {
+                    "Dev purchase granted: ${p.productId}"
+                } else {
+                    "Dev purchase failed: ${p.reason}"
+                },
+                error = null,
+            )
+        } catch (e: ClientException) {
+            withSession.copy(
+                error = "Dev purchase failed (${e.statusCode}): ${e.message}",
+                info = null,
+            )
+        }
     }
 
     fun saveGame() = launchCall { current ->

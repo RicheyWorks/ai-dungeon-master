@@ -99,12 +99,26 @@ fun GameApp(viewModel: GameViewModel = viewModel()) {
                 },
                 text = { Text("Mods") },
             )
+            Tab(
+                selected = tab == 2,
+                onClick = {
+                    tab = 2
+                    if (ui.entitlements == null) viewModel.loadEntitlements()
+                },
+                text = { Text("Store") },
+            )
         }
 
-        if (tab == 0) {
-            GameScreen(ui, viewModel)
-        } else {
-            ModsScreen(ui.catalog, ui.busy, viewModel::loadCatalog, viewModel::togglePack)
+        when (tab) {
+            0 -> GameScreen(ui, viewModel)
+            1 -> ModsScreen(ui.catalog, ui.busy, viewModel::loadCatalog, viewModel::togglePack)
+            else -> EntitlementsScreen(
+                entitlements = ui.entitlements,
+                busy = ui.busy,
+                onRefresh = viewModel::loadEntitlements,
+                onVerify = viewModel::verifyReceipt,
+                onDevPurchase = viewModel::devPurchase,
+            )
         }
     }
 }
