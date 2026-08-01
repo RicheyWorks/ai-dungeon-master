@@ -15,6 +15,7 @@ public final class GameViewModel: ObservableObject {
     @Published public var catalog: CatalogPayload?
     @Published public var marketplace: MarketplacePayload?
     @Published public var marketQuery: String = ""
+    @Published public var installJob: MarketplaceInstallJob?
     @Published public var entitlements: EntitlementPayload?
     @Published public var readiness: ReadinessResponse?
     @Published public var health: HealthPayload?
@@ -219,23 +220,58 @@ public final class GameViewModel: ObservableObject {
     public func installMarketplacePack(id: String) {
         Task {
             do {
-                let msg = try await Self.postInstall(baseURL: baseURL, id: id, token: session?.token)
-                let payload = try await Self.fetchMarketplace(baseURL: baseURL, query: marketQuery, token: session?.token)
+                let started = try await Self.startInstallAsync(baseURL: baseURL, id: id, token: session?.token)
                 await MainActor.run {
-                    self.marketplace = payload
-                    self.info = msg
+                    self.installJob = started
+                    self.info = "Installing \(id)…"
                     self.error = nil
                 }
-                // refresh live catalog if we have a session path
-                run {
-                    try await self.ensureSession()
-                    let envelope = try await V2API.getCatalogV2()
-                    self.catalog = envelope.payload
+                let done = try await Self.pollInstall(
+                    baseURL: baseURL,
+                    jobId: started.jobId,
+                    token: session?.token
+                ) { job in
+                    Task { @MainActor in self.installJob = job }
+                }
+                await MainActor.run { self.installJob = done }
+                if done.phase == "DONE" {
+                    let payload = try await Self.fetchMarketplace(baseURL: baseURL, query: marketQuery, token: session?.token)
+                    await MainActor.run {
+                        self.marketplace = payload
+                        self.info = done.message ?? "Installed \(id)"
+                        self.error = nil
+                    }
+                    run {
+                        try await self.ensureSession()
+                        let envelope = try await V2API.getCatalogV2()
+                        self.catalog = envelope.payload
+                    }
+                } else if done.phase == "CANCELLED" {
+                    await MainActor.run { self.info = done.message ?? "Install cancelled" }
+                } else {
+                    await MainActor.run {
+                        self.error = done.error ?? done.message ?? "Install failed"
+                    }
                 }
             } catch {
                 await MainActor.run {
                     self.error = error.localizedDescription
                 }
+            }
+        }
+    }
+
+    public func cancelMarketplaceInstall() {
+        guard let jobId = installJob?.jobId else { return }
+        Task {
+            do {
+                let j = try await Self.cancelInstall(baseURL: baseURL, jobId: jobId, token: session?.token)
+                await MainActor.run {
+                    if let j { self.installJob = j }
+                    self.info = "Cancel requested"
+                }
+            } catch {
+                await MainActor.run { self.error = error.localizedDescription }
             }
         }
     }
@@ -260,10 +296,10 @@ public final class GameViewModel: ObservableObject {
         return env.payload ?? MarketplacePayload(root: nil, available: 0, installed: 0, packs: [])
     }
 
-    private static func postInstall(baseURL: String, id: String, token: String?) async throws -> String {
+    private static func startInstallAsync(baseURL: String, id: String, token: String?) async throws -> MarketplaceInstallJob {
         let encId = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
         let urlString = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            + "/v2/marketplace/\(encId)/install"
+            + "/v2/marketplace/\(encId)/install?async=true"
         guard let url = URL(string: urlString) else { throw URLError(.badURL) }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
@@ -273,17 +309,73 @@ public final class GameViewModel: ObservableObject {
         }
         let (data, resp) = try await URLSession.shared.data(for: req)
         let http = resp as? HTTPURLResponse
-        if let http, !(200..<300).contains(http.statusCode) {
+        guard let http, (200..<300).contains(http.statusCode) else {
             if let err = try? JSONDecoder().decode(ErrorPayloadEnvelope.self, from: data),
                let msg = err.payload?.message {
-                throw NSError(domain: "marketplace", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: msg])
+                throw NSError(domain: "marketplace", code: http?.statusCode ?? -1,
+                              userInfo: [NSLocalizedDescriptionKey: msg])
             }
             throw URLError(.badServerResponse)
         }
-        let env = try JSONDecoder().decode(MarketplaceInstallEnvelope.self, from: data)
-        if let message = env.payload?.message { return message }
-        if env.payload?.alreadyInstalled == true { return "Already installed" }
-        return "Installed \(id)"
+        let env = try JSONDecoder().decode(MarketplaceInstallJobEnvelope.self, from: data)
+        guard let job = env.payload else { throw URLError(.cannotParseResponse) }
+        return job
+    }
+
+    private static func getInstallJob(baseURL: String, jobId: String, token: String?) async throws -> MarketplaceInstallJob {
+        let enc = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let urlString = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            + "/v2/marketplace/jobs/\(enc)"
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
+        var req = URLRequest(url: url)
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token, !token.isEmpty {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        let env = try JSONDecoder().decode(MarketplaceInstallJobEnvelope.self, from: data)
+        guard let job = env.payload else { throw URLError(.cannotParseResponse) }
+        return job
+    }
+
+    private static func cancelInstall(baseURL: String, jobId: String, token: String?) async throws -> MarketplaceInstallJob? {
+        let enc = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let urlString = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            + "/v2/marketplace/jobs/\(enc)"
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token, !token.isEmpty {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try? JSONDecoder().decode(MarketplaceInstallJobEnvelope.self, from: data).payload
+    }
+
+    private static func pollInstall(
+        baseURL: String,
+        jobId: String,
+        token: String?,
+        onProgress: @escaping (MarketplaceInstallJob) -> Void
+    ) async throws -> MarketplaceInstallJob {
+        let deadline = Date().addingTimeInterval(120)
+        while Date() < deadline {
+            let job = try await getInstallJob(baseURL: baseURL, jobId: jobId, token: token)
+            onProgress(job)
+            if let phase = job.phase, ["DONE", "FAILED", "CANCELLED"].contains(phase) {
+                return job
+            }
+            try await Task.sleep(nanoseconds: 400_000_000)
+        }
+        throw NSError(domain: "marketplace", code: -1,
+                      userInfo: [NSLocalizedDescriptionKey: "install timed out"])
     }
 
     public func togglePack(id: String, enable: Bool) {

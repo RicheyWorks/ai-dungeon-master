@@ -24,6 +24,32 @@ struct ModsTab: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                if let job = model.installJob {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Install \(job.packId ?? "…") · \(job.phase ?? "…")")
+                                .font(.subheadline.bold())
+                            Spacer()
+                            if job.phase != "DONE" && job.phase != "FAILED" && job.phase != "CANCELLED" {
+                                Button("Cancel") { model.cancelMarketplaceInstall() }
+                            }
+                        }
+                        ProgressView(value: Double(job.percent ?? 0), total: 100)
+                        Text(
+                            "\(job.percent ?? 0)%"
+                            + ((job.bytesTotal ?? 0) > 0
+                               ? " · \(job.bytesRead ?? 0) / \(job.bytesTotal ?? 0) bytes"
+                               : "")
+                            + (job.message.map { " · \($0)" } ?? "")
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                }
+
                 HStack {
                     TextField("Search packs…", text: $model.marketQuery)
                         .textFieldStyle(.roundedBorder)

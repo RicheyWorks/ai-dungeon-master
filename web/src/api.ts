@@ -200,7 +200,7 @@ export async function getMarketplace(
   return env.payload ?? { packs: [] };
 }
 
-/** Install a marketplace pack into the live catalog. */
+/** Install a marketplace pack into the live catalog (sync). */
 export async function installMarketplacePack(
   baseUrl: string,
   token: string | null,
@@ -228,6 +228,109 @@ export async function installMarketplacePack(
     payload?: { packId?: string; alreadyInstalled?: boolean; message?: string };
   };
   return env.payload ?? {};
+}
+
+export type MarketplaceInstallJob = {
+  jobId: string;
+  packId?: string;
+  phase?: string;
+  bytesRead?: number;
+  bytesTotal?: number;
+  percent?: number;
+  message?: string;
+  cancelRequested?: boolean;
+  error?: string | null;
+};
+
+/** Start async install; returns job snapshot (HTTP 202). */
+export async function startMarketplaceInstall(
+  baseUrl: string,
+  token: string | null,
+  id: string,
+): Promise<MarketplaceInstallJob> {
+  const base = resolveBase(baseUrl);
+  const res = await fetch(
+    `${base}/v2/marketplace/${encodeURIComponent(id)}/install?async=true`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    },
+  );
+  if (!res.ok) {
+    let msg = `install async ${res.status}`;
+    try {
+      const env = (await res.json()) as { payload?: { message?: string } };
+      if (env.payload?.message) msg = env.payload.message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  const env = (await res.json()) as { payload?: MarketplaceInstallJob };
+  if (!env.payload?.jobId) throw new Error("install job missing jobId");
+  return env.payload;
+}
+
+export async function getMarketplaceInstallJob(
+  baseUrl: string,
+  token: string | null,
+  jobId: string,
+): Promise<MarketplaceInstallJob> {
+  const base = resolveBase(baseUrl);
+  const res = await fetch(`${base}/v2/marketplace/jobs/${encodeURIComponent(jobId)}`, {
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error(`install job ${res.status}`);
+  const env = (await res.json()) as { payload?: MarketplaceInstallJob };
+  if (!env.payload) throw new Error("empty job payload");
+  return env.payload;
+}
+
+export async function cancelMarketplaceInstall(
+  baseUrl: string,
+  token: string | null,
+  jobId: string,
+): Promise<MarketplaceInstallJob | null> {
+  const base = resolveBase(baseUrl);
+  const res = await fetch(`${base}/v2/marketplace/jobs/${encodeURIComponent(jobId)}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error(`cancel job ${res.status}`);
+  const env = (await res.json()) as { payload?: MarketplaceInstallJob };
+  return env.payload ?? null;
+}
+
+/** Poll async install until terminal phase. */
+export async function pollMarketplaceInstall(
+  baseUrl: string,
+  token: string | null,
+  jobId: string,
+  onProgress?: (job: MarketplaceInstallJob) => void,
+  intervalMs = 400,
+  timeoutMs = 120_000,
+): Promise<MarketplaceInstallJob> {
+  const deadline = Date.now() + timeoutMs;
+  let last: MarketplaceInstallJob | null = null;
+  while (Date.now() < deadline) {
+    last = await getMarketplaceInstallJob(baseUrl, token, jobId);
+    onProgress?.(last);
+    const phase = last.phase ?? "";
+    if (phase === "DONE" || phase === "FAILED" || phase === "CANCELLED") {
+      return last;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error(`install timed out${last ? ` (${last.phase})` : ""}`);
 }
 
 function createHealthApi(baseUrl: string): HealthApi {
