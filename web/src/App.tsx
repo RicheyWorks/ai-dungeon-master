@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CatalogPayload, EntitlementPayload, GameStatusV2 } from "./api";
 import * as api from "./api";
-import { DEV_STOREFRONT, signDevReceipt } from "./devReceipts";
+import {
+  DEV_STOREFRONT,
+  KNOWN_STOREFRONTS,
+  mintReceipt,
+} from "./devReceipts";
+
 import {
   isExpired,
   sessionStore,
@@ -351,17 +356,22 @@ export function App() {
               }
             })
           }
-          onDevBuy={(sku) =>
+          onSandboxBuy={(sku, sf) =>
             void run(async (s) => {
-              const signed = await signDevReceipt(sku);
+              const minted = await mintReceipt(sf || storefront, sku);
               const p = await api.verifyReceipt(baseUrl, s.token, {
-                productId: sku,
-                receipt: signed,
-                storefront: DEV_STOREFRONT,
+                productId: minted.productId,
+                receipt: minted.receipt,
+                storefront: minted.storefront,
               });
               setEntitlements(p);
               setProductId(sku);
-              setInfo(p.granted ? `Dev purchase granted: ${p.productId}` : `Failed: ${p.reason}`);
+              setStorefront(minted.storefront);
+              setInfo(
+                p.granted
+                  ? `Sandbox ${minted.storefront} granted: ${p.productId}`
+                  : `Failed: ${p.reason}`,
+              );
             })
           }
         />
@@ -592,7 +602,7 @@ function StoreTab(props: {
   setReceipt: (v: string) => void;
   onRefresh: () => void;
   onVerify: () => void;
-  onDevBuy: (sku: string) => void;
+  onSandboxBuy: (sku: string, storefront: string) => void;
 }) {
   const owned = props.entitlements?.owned ?? [];
   const demos = ["sku_gold", "sku_season_pass", "pack_the_hollows"];
@@ -609,7 +619,7 @@ function StoreTab(props: {
       <div className="card">
         <strong>Owned products</strong>
         {owned.length === 0 ? (
-          <p className="muted">None yet — buy a dev SKU or verify a receipt.</p>
+          <p className="muted">None yet — sandbox-buy a SKU or verify a receipt.</p>
         ) : (
           owned.map((sku) => <div key={sku}>• {sku}</div>)
         )}
@@ -619,19 +629,32 @@ function StoreTab(props: {
       </div>
 
       <div className="card stack">
-        <strong>Dev purchase</strong>
+        <strong>Sandbox purchase</strong>
         <p className="muted">
-          Mints a signed test receipt in-browser (storefront “dev”) and posts it to POST
-          /v2/entitlements/verify.
+          Mints a storefront-shaped receipt (HMAC sandbox; JSON envelopes for google_play /
+          app_store) and posts it to POST /v2/entitlements/verify.
         </p>
+        <div className="row">
+          {KNOWN_STOREFRONTS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={props.storefront === id ? "primary" : ""}
+              disabled={props.busy}
+              onClick={() => props.setStorefront(id)}
+            >
+              {id}
+            </button>
+          ))}
+        </div>
         <input value={props.productId} onChange={(e) => props.setProductId(e.target.value)} />
         <button
           type="button"
           className="primary"
           disabled={props.busy || !props.productId.trim()}
-          onClick={() => props.onDevBuy(props.productId.trim())}
+          onClick={() => props.onSandboxBuy(props.productId.trim(), props.storefront)}
         >
-          Buy with dev receipt
+          Buy with {props.storefront} sandbox receipt
         </button>
       </div>
 
@@ -671,9 +694,9 @@ function StoreTab(props: {
             type="button"
             className="sku-btn"
             disabled={props.busy}
-            onClick={() => props.onDevBuy(sku)}
+            onClick={() => props.onSandboxBuy(sku, props.storefront)}
           >
-            Buy {sku} (dev)
+            Buy {sku} ({props.storefront})
           </button>
         ))}
       </div>

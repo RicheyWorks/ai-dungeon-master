@@ -159,7 +159,7 @@ public final class GameViewModel: ObservableObject {
         run {
             try await self.ensureSession()
             let req = VerifyReceiptRequest(
-                storefront: storefront.isEmpty ? DevReceipts.storefrontId : storefront,
+                storefront: storefront.isEmpty ? DevReceipts.storefrontDev : storefront,
                 productId: productId,
                 receipt: receipt
             )
@@ -180,9 +180,13 @@ public final class GameViewModel: ObservableObject {
         }
     }
 
+    public func sandboxPurchase(productId: String, storefront: String = DevReceipts.storefrontDev) {
+        let minted = DevReceipts.mint(storefront: storefront, productId: productId)
+        verifyReceipt(productId: minted.productId, receipt: minted.receipt, storefront: minted.storefront)
+    }
+
     public func devPurchase(productId: String) {
-        let receipt = DevReceipts.sign(productId: productId)
-        verifyReceipt(productId: productId, receipt: receipt, storefront: DevReceipts.storefrontId)
+        sandboxPurchase(productId: productId, storefront: DevReceipts.storefrontDev)
     }
 
     public func saveGame() {

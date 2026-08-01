@@ -92,9 +92,12 @@ Receipt: raw base64 App Store receipt, or:
 
 | Client | How to buy |
 |---|---|
-| Web / Android Store tab | `storefront=dev` + local HMAC mint |
-| Android Play Billing | Obtain purchase token → `storefront=google_play` + JSON body |
-| iOS StoreKit | App receipt → `storefront=app_store` |
+| Web / Android / iOS Store tab | Sandbox purchase chips: `dev`, `google_play`, `app_store` (HMAC + JSON envelopes) |
+| Android Play Billing (live) | Real purchase token → `storefront=google_play` + JSON body |
+| iOS StoreKit (live) | App receipt → `storefront=app_store` |
+
+All three clients mint sandbox receipts via shared helpers (`DevReceipts` /
+`mintReceipt`) whose secrets match the server defaults.
 
 ## Security
 

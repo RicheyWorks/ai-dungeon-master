@@ -128,7 +128,8 @@ fun GameApp() {
                 busy = ui.busy,
                 onRefresh = viewModel::loadEntitlements,
                 onVerify = viewModel::verifyReceipt,
-                onDevPurchase = viewModel::devPurchase,
+                onSandboxPurchase = viewModel::sandboxPurchase,
+
             )
         }
     }
