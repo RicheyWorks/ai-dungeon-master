@@ -141,3 +141,10 @@ Covered paths: `POST /v2/session`, `GET /metrics`, `POST /v2/entitlements/verify
 
 Set `game.rate-limit.store=redis` (and a reachable `game.auth.redis.url`) so all
 engine nodes share the same per-IP buckets. Memory store is per-process only.
+
+## Remote marketplace index
+
+Set `game.marketplace.remote-url` to a JSON index (see `docs/marketplace/index.example.json`).
+Listings merge with the local `content-packs/` tree (local wins on id clash).
+Remote install downloads the pack zip and runs it through `PackUploadService`.
+Cache: `game.marketplace.remote-cache-seconds` (default 300).
