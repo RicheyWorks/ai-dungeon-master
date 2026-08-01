@@ -9,10 +9,16 @@ struct MarketplaceListing: Codable, Identifiable, Hashable {
     let installed: Bool?
     let enabled: Bool?
     let sourcePath: String?
+    /// `local` or `remote`
+    let source: String?
+    let downloadUrl: String?
 }
 
 struct MarketplacePayload: Codable {
     let root: String?
+    let remoteIndexUrl: String?
+    let remoteOk: Bool?
+    let remoteError: String?
     let available: Int?
     let installed: Int?
     let packs: [MarketplaceListing]?

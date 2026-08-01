@@ -95,6 +95,11 @@ fun ModsScreen(
                     marketplace?.let {
                         append(" · ${it.available ?: 0} available · ${it.installed ?: 0} installed")
                     }
+                    marketplace?.remoteIndexUrl?.let {
+                        append(" · remote ")
+                        append(if (marketplace.remoteOk == true) "OK" else "ERR")
+                        marketplace.remoteError?.let { err -> append(" ($err)") }
+                    }
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -134,7 +139,10 @@ fun ModsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text(pack.displayName ?: pack.id, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "${pack.displayName ?: pack.id}  [${(pack.source ?: "local").uppercase()}]",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
                             Text(
                                 buildString {
                                     append("v${pack.version ?: "?"} · min ${pack.minEngineVersion ?: "?"}")
@@ -144,6 +152,13 @@ fun ModsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            if (pack.source == "remote" && !pack.downloadUrl.isNullOrBlank()) {
+                                Text(
+                                    pack.downloadUrl,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                         if (pack.installed != true) {
                             Button(
