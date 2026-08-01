@@ -1,0 +1,27 @@
+# Prometheus scrape config for the multi-node engine stack.
+# Scrapes app nodes directly (not the sticky nginx front) so each engine
+# reports its own sessions/engines/deps.
+#
+# Used by: docker compose -f deploy/docker-compose.yml \
+#                        -f deploy/docker-compose.metrics.yml up -d
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    stack: ai-dungeon-master
+
+scrape_configs:
+  - job_name: dm-engines
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - app1:8080
+          - app2:8080
+        labels:
+          service: ai-dungeon-master
+
+  # Optional: scrape the sticky proxy host metrics if you add an exporter later
+  # - job_name: nginx
+  #   static_configs:
+  #     - targets: ["proxy:9113"]

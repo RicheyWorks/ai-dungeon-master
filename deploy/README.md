@@ -93,3 +93,15 @@ docker compose --env-file deploy/.env \
 
 Apps boot with `game.production=true` and refuse insecure defaults
 (`ProductionSecurityGuard`). Full checklist: [`docs/PRODUCTION.md`](../docs/PRODUCTION.md).
+
+## Metrics (Prometheus)
+
+```bash
+docker compose -f deploy/docker-compose.yml \
+               -f deploy/docker-compose.metrics.yml \
+               up --build -d
+# Prometheus UI → http://localhost:9090
+```
+
+Scrapes `app1` + `app2` at `/metrics` (not the sticky proxy). Details:
+[`prometheus/README.md`](prometheus/README.md).
