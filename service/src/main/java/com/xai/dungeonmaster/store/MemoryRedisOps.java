@@ -70,6 +70,16 @@ public final class MemoryRedisOps implements RedisOps {
     }
 
     @Override
+    public boolean ping() {
+        return true;
+    }
+
+    @Override
+    public boolean isNetworked() {
+        return false;
+    }
+
+    @Override
     public void close() {
         hashes.clear();
         sets.clear();
