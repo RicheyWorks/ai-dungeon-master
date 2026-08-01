@@ -122,3 +122,18 @@ ALERTMANAGER_CONFIG=alertmanager.active.yml \
 ```
 
 See `deploy/alertmanager/alertmanager.receivers.yml` and `templates/dm.tmpl`.
+
+## Rate limits
+
+`RateLimitFilter` applies fixed-window per-IP limits (override via env):
+
+| Property | Default (dev) | Prod profile |
+|---|---|---|
+| `game.rate-limit.enabled` | true | true |
+| `game.rate-limit.session-per-minute` | 30 | 20 |
+| `game.rate-limit.metrics-per-minute` | 120 | 60 |
+| `game.rate-limit.verify-per-minute` | 60 | 40 |
+
+Covered paths: `POST /v2/session`, `GET /metrics`, `POST /v2/entitlements/verify`.
+429 responses include `Retry-After` and `X-RateLimit-*` headers. Client IP prefers
+`X-Forwarded-For` (nginx sets this).
