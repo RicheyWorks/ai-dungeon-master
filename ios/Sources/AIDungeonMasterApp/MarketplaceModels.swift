@@ -12,6 +12,7 @@ struct MarketplaceListing: Codable, Identifiable, Hashable {
     /// `local` or `remote`
     let source: String?
     let downloadUrl: String?
+    let sha256: String?
 }
 
 struct MarketplacePayload: Codable {

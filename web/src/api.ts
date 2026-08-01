@@ -168,6 +168,7 @@ export type MarketplaceListing = {
   /** `local` or `remote` */
   source?: string;
   downloadUrl?: string;
+  sha256?: string;
 };
 
 export type MarketplacePayload = {

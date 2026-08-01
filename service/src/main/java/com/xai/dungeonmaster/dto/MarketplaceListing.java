@@ -6,6 +6,7 @@ package com.xai.dungeonmaster.dto;
  * @param source {@code local} (on-disk under content-packs) or {@code remote}
  *               (discovered via remote index JSON)
  * @param downloadUrl zip URL for remote packs; null for local directory packs
+ * @param sha256 optional hex digest of the remote zip (verified on install)
  */
 public record MarketplaceListing(
         String id,
@@ -17,7 +18,8 @@ public record MarketplaceListing(
         boolean enabled,
         String sourcePath,
         String source,
-        String downloadUrl
+        String downloadUrl,
+        String sha256
 ) {
     public static MarketplaceListing local(
             String id,
@@ -30,7 +32,7 @@ public record MarketplaceListing(
             String sourcePath) {
         return new MarketplaceListing(
                 id, displayName, version, minEngineVersion, description,
-                installed, enabled, sourcePath, "local", null);
+                installed, enabled, sourcePath, "local", null, null);
     }
 
     public static MarketplaceListing remote(
@@ -41,9 +43,10 @@ public record MarketplaceListing(
             String description,
             boolean installed,
             boolean enabled,
-            String downloadUrl) {
+            String downloadUrl,
+            String sha256) {
         return new MarketplaceListing(
                 id, displayName, version, minEngineVersion, description,
-                installed, enabled, downloadUrl, "remote", downloadUrl);
+                installed, enabled, downloadUrl, "remote", downloadUrl, sha256);
     }
 }
