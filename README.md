@@ -288,6 +288,10 @@ live keyed-provider smoke tests and multi-node session storage.
 
 
 
+### Storefronts
+
+Server plugins: `dev`, `google_play`, `app_store` — see [`docs/STOREFRONTS.md`](docs/STOREFRONTS.md).
+
 ### Multi-node Docker
 
 ```bash

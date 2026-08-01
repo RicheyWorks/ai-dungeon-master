@@ -2,11 +2,7 @@ package com.xai.dungeonmaster.plugin.builtin;
 
 import com.xai.dungeonmaster.plugin.StorefrontIntegration;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.Base64;
 
 /**
  * A bundled developer/testing storefront ({@code id = "dev"}). It has no vendor
@@ -24,9 +20,6 @@ public final class DevStorefront implements StorefrontIntegration {
     /** Stable id of the dev storefront. */
     public static final String ID = "dev";
 
-    private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
-    private static final Base64.Decoder B64D = Base64.getUrlDecoder();
-
     private final byte[] secret;
 
     public DevStorefront() {
@@ -39,32 +32,16 @@ public final class DevStorefront implements StorefrontIntegration {
 
     /** Mint a valid receipt for a product — the dev stand-in for a real purchase. */
     public String signReceipt(String productId) {
-        String p = (productId == null) ? "" : productId;
-        String body = B64.encodeToString(p.getBytes(StandardCharsets.UTF_8));
-        String sig = B64.encodeToString(hmac(p.getBytes(StandardCharsets.UTF_8)));
-        return body + "." + sig;
+        return HmacReceipts.sign(productId, secret);
     }
 
     @Override
     public boolean verifyReceipt(String receipt) {
-        if (receipt == null) return false;
-        String[] parts = receipt.split("\\.");
-        if (parts.length != 2) return false;
-        byte[] product;
-        byte[] presented;
-        try {
-            product = B64D.decode(parts[0]);
-            presented = B64D.decode(parts[1]);
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
-        byte[] expected = hmac(product);
-        return MessageDigest.isEqual(expected, presented);
+        return HmacReceipts.verify(receipt, secret);
     }
 
     @Override
     public PurchaseFlow startPurchase(String productId) {
-        // A dev purchase completes immediately with a valid, verifiable receipt.
         final String receipt = signReceipt(productId);
         return new PurchaseFlow() {
             @Override public boolean isComplete() { return true; }
@@ -88,16 +65,6 @@ public final class DevStorefront implements StorefrontIntegration {
             @Override public void write(byte[] data) { /* dev no-op */ }
             @Override public boolean isAvailable() { return false; }
         };
-    }
-
-    private byte[] hmac(byte[] data) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret, "HmacSHA256"));
-            return mac.doFinal(data);
-        } catch (Exception e) {
-            throw new IllegalStateException("HMAC-SHA256 failed", e);
-        }
     }
 
     private static String env(String name, String defaultValue) {
