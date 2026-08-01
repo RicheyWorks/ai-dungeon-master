@@ -27,6 +27,19 @@ public interface RedisOps extends AutoCloseable {
     /** Delete a key. */
     void del(String key);
 
+    /**
+     * Connectivity probe for readiness checks.
+     * Default: best-effort no-op success (in-memory / unused).
+     */
+    default boolean ping() {
+        return true;
+    }
+
+    /** True when this ops instance is backed by a real network Redis. */
+    default boolean isNetworked() {
+        return false;
+    }
+
     @Override
     void close();
 }

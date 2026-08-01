@@ -105,6 +105,21 @@ public final class JedisRedisOps implements RedisOps {
     }
 
     @Override
+    public boolean ping() {
+        try (Jedis j = pool.getResource()) {
+            String pong = j.ping();
+            return pong != null && pong.equalsIgnoreCase("PONG");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean isNetworked() {
+        return true;
+    }
+
+    @Override
     public void close() {
         pool.close();
     }

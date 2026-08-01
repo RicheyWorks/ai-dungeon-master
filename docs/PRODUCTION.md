@@ -75,10 +75,12 @@ GAME_PRODUCTION=true GAME_AUTH_ENABLED=true \
 
 ## Health probes
 
-| Path | Use |
-|---|---|
-| `GET /health` | Liveness (Docker / k8s) |
-| `GET /health/ready` | Readiness + session/engine counts |
-| `GET /v2/health` | Metrics envelope (uptime, memory) — public, no auth |
+| Path | Use | Status codes |
+|---|---|---|
+| `GET /health` | Liveness (process up) | always 200 when listening |
+| `GET /health/ready` | Readiness — probes JDBC/Redis/file when configured | 200 UP / **503** DOWN |
+| `GET /v2/health` | Metrics + dependency map (public) | 200 / 503 |
 
-Compose healthchecks already hit `/health`.
+`AuthDependencyProbe` only checks backends your store config actually uses
+(`memory` → `NOT_CONFIGURED`). Compose healthchecks hit `/health/ready` so a
+node is not marked healthy until Postgres/Redis answer.
