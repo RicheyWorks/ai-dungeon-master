@@ -78,6 +78,11 @@ export interface GetHealthV2Request {
     xRequestId?: string;
 }
 
+export interface GetMarketplacePackV2Request {
+    id: string;
+    xRequestId?: string;
+}
+
 export interface GetSessionMeV2Request {
     xRequestId?: string;
 }
@@ -86,8 +91,18 @@ export interface GetStatusV2Request {
     xRequestId?: string;
 }
 
+export interface InstallMarketplacePackV2Request {
+    id: string;
+    xRequestId?: string;
+}
+
 export interface ListEntitlementsV2Request {
     xRequestId?: string;
+}
+
+export interface ListMarketplaceV2Request {
+    xRequestId?: string;
+    q?: string;
 }
 
 export interface LoadGameV2Request {
@@ -300,6 +315,42 @@ export class V2Api extends runtime.BaseAPI {
     }
 
     /**
+     * Marketplace pack detail.
+     */
+    async getMarketplacePackV2Raw(requestParameters: GetMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling getMarketplacePackV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/marketplace/{id}`.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id']))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * Marketplace pack detail.
+     */
+    async getMarketplacePackV2(requestParameters: GetMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.getMarketplacePackV2Raw(requestParameters, initOverrides);
+    }
+
+    /**
      * Echo the authenticated session (no token reflected).
      */
     async getSessionMeV2Raw(requestParameters: GetSessionMeV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SessionEnvelope>> {
@@ -360,6 +411,42 @@ export class V2Api extends runtime.BaseAPI {
     }
 
     /**
+     * Install a marketplace pack into the live catalog.
+     */
+    async installMarketplacePackV2Raw(requestParameters: InstallMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling installMarketplacePackV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/marketplace/{id}/install`.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * Install a marketplace pack into the live catalog.
+     */
+    async installMarketplacePackV2(requestParameters: InstallMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.installMarketplacePackV2Raw(requestParameters, initOverrides);
+    }
+
+    /**
      * List the caller\'s owned products.
      */
     async listEntitlementsV2Raw(requestParameters: ListEntitlementsV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<EntitlementEnvelope>> {
@@ -387,6 +474,41 @@ export class V2Api extends runtime.BaseAPI {
     async listEntitlementsV2(requestParameters: ListEntitlementsV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EntitlementEnvelope> {
         const response = await this.listEntitlementsV2Raw(requestParameters, initOverrides);
         return await response.value();
+    }
+
+    /**
+     * Discovers packs under `game.content-packs.dir` (default `content-packs/`) with install/enabled status from the live catalog. 
+     * List local marketplace content packs.
+     */
+    async listMarketplaceV2Raw(requestParameters: ListMarketplaceV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        const queryParameters: any = {};
+
+        if (requestParameters['q'] != null) {
+            queryParameters['q'] = requestParameters['q'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/marketplace`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * Discovers packs under `game.content-packs.dir` (default `content-packs/`) with install/enabled status from the live catalog. 
+     * List local marketplace content packs.
+     */
+    async listMarketplaceV2(requestParameters: ListMarketplaceV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.listMarketplaceV2Raw(requestParameters, initOverrides);
     }
 
     /**
