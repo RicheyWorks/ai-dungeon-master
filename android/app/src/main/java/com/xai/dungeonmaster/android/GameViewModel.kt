@@ -55,6 +55,8 @@ class GameViewModel(
         val streamBuffer: String = "",
         val stompConnected: Boolean = false,
         val catalog: CatalogPayload? = null,
+        val marketplace: MarketplacePayload? = null,
+        val marketQuery: String = "",
         val entitlements: EntitlementPayload? = null,
         val readiness: ReadinessResponse? = null,
         val health: HealthPayload? = null,
@@ -262,6 +264,96 @@ class GameViewModel(
         val withSession = ensureSession(current)
         val envelope = api().getCatalogV2()
         withSession.copy(catalog = envelope.payload, error = null, info = null)
+    }
+
+    fun setMarketQuery(q: String) {
+        publish { it.copy(marketQuery = q) }
+    }
+
+    fun loadMarketplace(query: String? = null) {
+        viewModelScope.launch {
+            val q = query ?: _state.value.marketQuery
+            try {
+                val payload = withContext(Dispatchers.IO) { fetchMarketplace(base(), q) }
+                publish {
+                    it.copy(
+                        marketplace = payload,
+                        marketQuery = q,
+                        error = null,
+                        info = "Marketplace: ${payload.available ?: 0} available",
+                    )
+                }
+            } catch (e: Exception) {
+                publish { it.copy(error = e.message ?: e.javaClass.simpleName) }
+            }
+        }
+    }
+
+    fun installMarketplacePack(id: String) {
+        viewModelScope.launch {
+            try {
+                val msg = withContext(Dispatchers.IO) { postInstallMarketplace(base(), id) }
+                val payload = withContext(Dispatchers.IO) {
+                    fetchMarketplace(base(), _state.value.marketQuery)
+                }
+                // refresh catalog when session exists
+                val catalog = try {
+                    withContext(Dispatchers.IO) {
+                        ensureSession(_state.value)
+                        api().getCatalogV2().payload
+                    }
+                } catch (_: Exception) {
+                    _state.value.catalog
+                }
+                publish {
+                    it.copy(
+                        marketplace = payload,
+                        catalog = catalog,
+                        info = msg,
+                        error = null,
+                    )
+                }
+            } catch (e: Exception) {
+                publish { it.copy(error = e.message ?: e.javaClass.simpleName) }
+            }
+        }
+    }
+
+    private fun fetchMarketplace(baseUrl: String, query: String): MarketplacePayload {
+        val qs = if (query.isBlank()) "" else "?q=${java.net.URLEncoder.encode(query.trim(), "UTF-8")}"
+        val req = okhttp3.Request.Builder()
+            .url("$baseUrl/v2/marketplace$qs")
+            .header("Accept", "application/json")
+            .get()
+            .build()
+        HttpClients.client().newCall(req).execute().use { res ->
+            val body = res.body?.string().orEmpty()
+            if (!res.isSuccessful) throw IllegalStateException("marketplace HTTP ${res.code}")
+            val env = moshi.adapter(MarketplaceEnvelope::class.java).fromJson(body)
+            return env?.payload ?: MarketplacePayload(packs = emptyList())
+        }
+    }
+
+    private fun postInstallMarketplace(baseUrl: String, id: String): String {
+        val req = okhttp3.Request.Builder()
+            .url("$baseUrl/v2/marketplace/${java.net.URLEncoder.encode(id, "UTF-8")}/install")
+            .header("Accept", "application/json")
+            .post(okhttp3.RequestBody.create(ByteArray(0), null))
+            .build()
+        HttpClients.client().newCall(req).execute().use { res ->
+            val body = res.body?.string().orEmpty()
+            if (!res.isSuccessful) {
+                val err = try {
+                    moshi.adapter(ErrorEnvelope::class.java).fromJson(body)?.payload?.message
+                } catch (_: Exception) {
+                    null
+                }
+                throw IllegalStateException(err ?: "install HTTP ${res.code}")
+            }
+            val env = moshi.adapter(MarketplaceInstallEnvelope::class.java).fromJson(body)
+            return env?.payload?.message
+                ?: if (env?.payload?.alreadyInstalled == true) "Already installed" else "Installed $id"
+        }
     }
 
     fun togglePack(id: String, enable: Boolean) = launchCall { current ->

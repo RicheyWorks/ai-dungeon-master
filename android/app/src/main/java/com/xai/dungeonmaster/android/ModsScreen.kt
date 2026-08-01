@@ -14,9 +14,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,21 +32,26 @@ import com.xai.dungeonmaster.client.models.PackInfo
 import java.io.File
 
 /**
- * Mod browser (Android counterpart of /mod-browser.html): installed packs
- * with runtime enable/disable toggles, zip upload, plugin counts, and the
- * active narration provider.
+ * Marketplace browse/install + live catalog toggles / zip upload.
  */
 @Composable
 fun ModsScreen(
     catalog: CatalogPayload?,
+    marketplace: MarketplacePayload?,
+    marketQuery: String,
     busy: Boolean,
     onLoad: () -> Unit,
+    onMarketQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onInstall: (String) -> Unit,
     onToggle: (id: String, enable: Boolean) -> Unit,
     onUpload: (file: File, replace: Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     var replace by remember { mutableStateOf(false) }
     var lastPickedName by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) { onLoad() }
 
     val pickZip = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
@@ -59,10 +66,12 @@ fun ModsScreen(
             } ?: return@rememberLauncherForActivityResult
             onUpload(dest, replace)
         } catch (e: Exception) {
-            // ViewModel surfaces API errors; copy failures are rare — show via reload message path.
             lastPickedName = "Failed to read: ${e.message}"
         }
     }
+
+    val marketPacks = marketplace?.packs.orEmpty()
+    val livePacks = catalog?.contentPacks.orEmpty()
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -71,89 +80,142 @@ fun ModsScreen(
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Content packs",
+                    "Marketplace",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
                 OutlinedButton(onClick = onLoad, enabled = !busy) { Text("Reload") }
             }
         }
+        item {
+            Text(
+                buildString {
+                    append("GET /v2/marketplace")
+                    marketplace?.root?.let { append(" · $it") }
+                    marketplace?.let {
+                        append(" · ${it.available ?: 0} available · ${it.installed ?: 0} installed")
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = marketQuery,
+                    onValueChange = onMarketQueryChange,
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    label = { Text("Search packs") },
+                    enabled = !busy,
+                )
+                OutlinedButton(onClick = onSearch, enabled = !busy) { Text("Search") }
+            }
+        }
+        if (marketplace != null && marketPacks.isEmpty()) {
+            item {
+                Text(
+                    "No marketplace packs match.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        items(marketPacks, key = { it.id }) { pack ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(pack.displayName ?: pack.id, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                buildString {
+                                    append("v${pack.version ?: "?"} · min ${pack.minEngineVersion ?: "?"}")
+                                    if (pack.installed == true) append(" · installed")
+                                    if (pack.enabled == true) append(" · enabled")
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (pack.installed != true) {
+                            Button(
+                                onClick = { onInstall(pack.id) },
+                                enabled = !busy,
+                            ) { Text("Install") }
+                        } else {
+                            Text(
+                                "Installed",
+                                color = MaterialTheme.colorScheme.tertiary,
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    }
+                    pack.description?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
 
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Text("Live catalog", style = MaterialTheme.typography.titleMedium)
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
                     Text("Upload pack zip", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Select a content-pack zip (pack.yaml + data). Same endpoint as the web mod browser: POST /v2/catalog/packs.",
+                        "POST /v2/catalog/packs",
                         style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         Text("Replace if exists", modifier = Modifier.weight(1f))
-                        Switch(
-                            checked = replace,
-                            onCheckedChange = { replace = it },
-                            enabled = !busy,
-                        )
+                        Switch(checked = replace, onCheckedChange = { replace = it }, enabled = !busy)
                     }
                     Button(
-                        onClick = {
-                            pickZip.launch(
-                                arrayOf(
-                                    "application/zip",
-                                    "application/x-zip-compressed",
-                                    "application/octet-stream",
-                                    "*/*",
-                                ),
-                            )
-                        },
+                        onClick = { pickZip.launch(arrayOf("application/zip", "application/octet-stream")) },
                         enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
                     ) { Text("Choose zip…") }
                     lastPickedName?.let {
-                        Text("Last pick: $it", style = MaterialTheme.typography.bodySmall)
+                        Text(it, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
         }
-
-        if (catalog == null) {
-            item { Text("Tap Reload to fetch the catalog.", style = MaterialTheme.typography.bodyMedium) }
-            return@LazyColumn
-        }
-
-        items(catalog.contentPacks.orEmpty()) { pack ->
-            PackCard(pack, busy, onToggle)
-        }
-
-        catalog.narration?.let { narration ->
-            item { Text("Narration", style = MaterialTheme.typography.titleMedium) }
+        if (livePacks.isEmpty()) {
             item {
-                Card(Modifier.fillMaxWidth()) {
+                Text(
+                    "No live packs yet — install from marketplace or upload a zip.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        items(livePacks, key = { it.id ?: it.displayName ?: it.hashCode().toString() }) { pack ->
+            PackRow(pack = pack, busy = busy, onToggle = onToggle)
+        }
+        catalog?.narration?.let { narration ->
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), Arrangement.spacedBy(4.dp)) {
+                        Text("Narration", style = MaterialTheme.typography.titleSmall)
+                        Text("${narration.active ?: "?"} (${narration.health ?: "UNKNOWN"})")
                         Text(
-                            "${narration.active ?: "?"} (${narration.health ?: "UNKNOWN"})",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Text(
-                            "Available: ${narration.available.orEmpty().joinToString()}",
+                            "Available: ${(narration.available ?: emptyList()).joinToString()}",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    }
-                }
-            }
-        }
-
-        catalog.plugins?.let { plugins ->
-            item { Text("Plugins", style = MaterialTheme.typography.titleMedium) }
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), Arrangement.spacedBy(4.dp)) {
-                        PluginLine("Quest scripts", plugins.questScripts)
-                        PluginLine("Spell effects", plugins.spellEffects)
-                        PluginLine("Item effects", plugins.itemEffects)
-                        PluginLine("Encounter biomes", plugins.encounterBiomes)
-                        PluginLine("Loot biomes", plugins.lootBiomes)
-                        PluginLine("Storefronts", plugins.storefronts)
                     }
                 }
             }
@@ -162,36 +224,33 @@ fun ModsScreen(
 }
 
 @Composable
-private fun PackCard(pack: PackInfo, busy: Boolean, onToggle: (String, Boolean) -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
+private fun PackRow(
+    pack: PackInfo,
+    busy: Boolean,
+    onToggle: (String, Boolean) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f), Arrangement.spacedBy(2.dp)) {
-                Text(
-                    pack.displayName ?: pack.id ?: "?",
-                    style = MaterialTheme.typography.titleSmall,
-                )
+            Column(Modifier.weight(1f)) {
+                Text(pack.displayName ?: pack.id ?: "?", style = MaterialTheme.typography.titleSmall)
                 Text(
                     "v${pack.version ?: "?"} · ${pack.monsters ?: 0} monsters · ${pack.items ?: 0} items",
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            val id = pack.id
             Switch(
                 checked = pack.enabled == true,
-                enabled = !busy && id != null,
-                onCheckedChange = { wantEnabled -> id?.let { onToggle(it, wantEnabled) } },
+                onCheckedChange = { enable ->
+                    pack.id?.let { onToggle(it, enable) }
+                },
+                enabled = !busy && pack.id != null,
             )
         }
     }
-}
-
-@Composable
-private fun PluginLine(label: String, ids: List<String>?) {
-    Text(
-        "$label: ${ids.orEmpty().joinToString().ifEmpty { "—" }}",
-        style = MaterialTheme.typography.bodySmall,
-    )
 }

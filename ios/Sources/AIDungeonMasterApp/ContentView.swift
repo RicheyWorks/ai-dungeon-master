@@ -19,6 +19,7 @@ public struct ContentView: View {
                     .tabItem { Label("Mods", systemImage: "shippingbox") }
                     .tag(1)
                     .onAppear {
+                        model.loadMarketplace()
                         if model.catalog == nil { model.loadCatalog() }
                     }
                 StoreTab(model: model)
