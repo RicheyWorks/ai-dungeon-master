@@ -168,3 +168,12 @@ DELETE /v2/marketplace/jobs/{jobId}            → cancel
 ```
 
 Phases: `QUEUED` → `DOWNLOADING` → `VERIFYING` → `INSTALLING` → `DONE` | `FAILED` | `CANCELLED`.
+
+### Marketplace install job store
+
+| Property | Meaning |
+|---|---|
+| `game.marketplace.jobs.store` | `memory` (default) or `redis` (prod) |
+| `game.marketplace.jobs.ttl-seconds` | Redis key TTL (default 3600) |
+
+Job snapshots (`phase`, bytes, cancel) are written to Redis so other nodes can poll progress. Download workers remain process-local; orphaned non-terminal jobs report `FAILED` after restart.

@@ -86,6 +86,7 @@ public class MarketplaceService {
     private final String hmacSecret;
     private final PackUploadService uploads;
     private final HttpClient http;
+    private final MarketplaceJobStore jobStore;
 
     private final AtomicReference<CachedRemote> remoteCache = new AtomicReference<>();
     private final ConcurrentHashMap<String, JobState> jobs = new ConcurrentHashMap<>();
@@ -101,8 +102,10 @@ public class MarketplaceService {
             @Value("${game.marketplace.remote-cache-seconds:300}") long cacheSeconds,
             @Value("${game.marketplace.require-checksums:false}") boolean requireChecksums,
             @Value("${game.marketplace.remote-hmac-secret:}") String hmacSecret,
-            PackUploadService uploads) {
+            PackUploadService uploads,
+            MarketplaceJobStore jobStore) {
         this(Paths.get(contentPacksDir), remoteUrl, cacheSeconds, requireChecksums, hmacSecret, uploads,
+                jobStore,
                 HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(5))
                         .followRedirects(HttpClient.Redirect.NORMAL)
@@ -115,7 +118,7 @@ public class MarketplaceService {
             String remoteUrl,
             long cacheSeconds,
             PackUploadService uploads) {
-        this(root, remoteUrl, cacheSeconds, false, "", uploads,
+        this(root, remoteUrl, cacheSeconds, false, "", uploads, new MemoryMarketplaceJobStore(),
                 HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(5))
                         .followRedirects(HttpClient.Redirect.NORMAL)
@@ -131,6 +134,23 @@ public class MarketplaceService {
             String hmacSecret,
             PackUploadService uploads) {
         this(root, remoteUrl, cacheSeconds, requireChecksums, hmacSecret, uploads,
+                new MemoryMarketplaceJobStore(),
+                HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(5))
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .build());
+    }
+
+    /** Visible for tests with custom job store. */
+    public MarketplaceService(
+            Path root,
+            String remoteUrl,
+            long cacheSeconds,
+            boolean requireChecksums,
+            String hmacSecret,
+            PackUploadService uploads,
+            MarketplaceJobStore jobStore) {
+        this(root, remoteUrl, cacheSeconds, requireChecksums, hmacSecret, uploads, jobStore,
                 HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(5))
                         .followRedirects(HttpClient.Redirect.NORMAL)
@@ -144,6 +164,7 @@ public class MarketplaceService {
             boolean requireChecksums,
             String hmacSecret,
             PackUploadService uploads,
+            MarketplaceJobStore jobStore,
             HttpClient http) {
         this.root = root.toAbsolutePath().normalize();
         this.remoteUrl = remoteUrl == null ? "" : remoteUrl.trim();
@@ -151,6 +172,7 @@ public class MarketplaceService {
         this.requireChecksums = requireChecksums;
         this.hmacSecret = hmacSecret == null ? "" : hmacSecret.trim();
         this.uploads = uploads;
+        this.jobStore = jobStore == null ? new MemoryMarketplaceJobStore() : jobStore;
         this.http = http;
     }
 
@@ -223,6 +245,7 @@ public class MarketplaceService {
         String jobId = UUID.randomUUID().toString();
         JobState state = new JobState(jobId, listing.id());
         jobs.put(jobId, state);
+        state.persist(jobStore);
         Future<?> future = installPool.submit(() -> runJob(state, listing));
         state.future = future;
         pruneJobs();
@@ -231,35 +254,96 @@ public class MarketplaceService {
 
     public Optional<MarketplaceInstallJob> job(String jobId) {
         if (jobId == null || jobId.isBlank()) return Optional.empty();
-        JobState s = jobs.get(jobId);
-        return s == null ? Optional.empty() : Optional.of(s.snapshot());
+        JobState local = jobs.get(jobId);
+        if (local != null) {
+            // merge cancel flag from durable store (other node / restart cancel)
+            jobStore.load(jobId).ifPresent(rec -> {
+                if (rec.cancelRequested()) {
+                    local.cancelRequested.set(true);
+                }
+            });
+            return Optional.of(local.snapshot());
+        }
+        Optional<MarketplaceJobStore.JobRecord> stored = jobStore.load(jobId);
+        if (stored.isEmpty()) return Optional.empty();
+        MarketplaceJobStore.JobRecord rec = stored.get();
+        // No local worker: return durable progress (other node may still be downloading).
+        // Only fail if the snapshot is stale (no updates for a long time).
+        if (!rec.terminal() && isStale(rec)) {
+            MarketplaceJobStore.JobRecord failed = new MarketplaceJobStore.JobRecord(
+                    rec.jobId(),
+                    rec.packId(),
+                    "FAILED",
+                    rec.bytesRead(),
+                    rec.bytesTotal(),
+                    "Stale install job (no progress)",
+                    rec.cancelRequested(),
+                    "Stale install job (no progress)",
+                    System.currentTimeMillis());
+            jobStore.save(failed);
+            return Optional.of(failed.toDto());
+        }
+        return Optional.of(rec.toDto());
+    }
+
+    private static boolean isStale(MarketplaceJobStore.JobRecord rec) {
+        long age = System.currentTimeMillis() - rec.updatedAtMs();
+        return age > 120_000L; // 2 minutes without progress
     }
 
     /** Request cancel; returns false if unknown job. Terminal jobs are no-ops that return true. */
     public boolean cancelJob(String jobId) {
         JobState s = jobs.get(jobId);
-        if (s == null) return false;
-        s.cancelRequested.set(true);
-        Future<?> f = s.future;
-        if (f != null) f.cancel(true);
-        if (!s.terminal()) {
-            s.phase.set("CANCELLED");
-            s.message.set("Cancel requested");
+        if (s != null) {
+            s.cancelRequested.set(true);
+            Future<?> f = s.future;
+            if (f != null) f.cancel(true);
+            if (!s.terminal()) {
+                s.phase.set("CANCELLED");
+                s.message.set("Cancel requested");
+                s.persist(jobStore);
+            } else {
+                s.persist(jobStore);
+            }
+            return true;
         }
+        Optional<MarketplaceJobStore.JobRecord> stored = jobStore.load(jobId);
+        if (stored.isEmpty()) return false;
+        MarketplaceJobStore.JobRecord rec = stored.get();
+        if (rec.terminal()) {
+            // sticky cancel bit still useful for clients
+            jobStore.save(new MarketplaceJobStore.JobRecord(
+                    rec.jobId(), rec.packId(), rec.phase(), rec.bytesRead(), rec.bytesTotal(),
+                    rec.message(), true, rec.error(), System.currentTimeMillis()));
+            return true;
+        }
+        jobStore.save(new MarketplaceJobStore.JobRecord(
+                rec.jobId(),
+                rec.packId(),
+                "CANCELLED",
+                rec.bytesRead(),
+                rec.bytesTotal(),
+                "Cancel requested",
+                true,
+                rec.error(),
+                System.currentTimeMillis()));
         return true;
     }
 
     private void runJob(JobState state, MarketplaceListing listing) {
         try {
-            if (state.cancelRequested.get()) {
+            state.persist(jobStore);
+            if (state.cancelRequested.get() || cancelFromStore(state.jobId)) {
                 state.phase.set("CANCELLED");
                 state.message.set("Cancelled");
+                state.persist(jobStore);
                 return;
             }
             if (ContentRegistry.isKnown(listing.id())) {
                 state.phase.set("DONE");
                 state.message.set("Already installed: " + listing.id());
                 state.bytesRead.set(0);
+                state.persist(jobStore);
                 return;
             }
             if ("remote".equalsIgnoreCase(listing.source())) {
@@ -268,10 +352,12 @@ public class MarketplaceService {
             } else {
                 state.phase.set("INSTALLING");
                 state.message.set("Registering local pack");
+                state.persist(jobStore);
                 Path dir = Paths.get(listing.sourcePath());
-                if (state.cancelRequested.get()) {
+                if (state.cancelRequested.get() || cancelFromStore(state.jobId)) {
                     state.phase.set("CANCELLED");
                     state.message.set("Cancelled");
+                    state.persist(jobStore);
                     return;
                 }
                 ContentPack pack = ResourceLoader.loadAndRegisterPack(dir);
@@ -279,6 +365,7 @@ public class MarketplaceService {
                     state.phase.set("FAILED");
                     state.error.set("Failed to load pack at " + dir);
                     state.message.set(state.error.get());
+                    state.persist(jobStore);
                     return;
                 }
                 ContentRegistry.setEnabled(pack.id(), true);
@@ -286,6 +373,7 @@ public class MarketplaceService {
                 state.message.set("Installed " + pack.id());
                 state.bytesTotal.set(Math.max(1, state.bytesTotal.get()));
                 state.bytesRead.set(state.bytesTotal.get());
+                state.persist(jobStore);
             }
         } catch (Exception e) {
             if (state.cancelRequested.get() || Thread.currentThread().isInterrupted()) {
@@ -296,13 +384,20 @@ public class MarketplaceService {
                 state.error.set(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
                 state.message.set(state.error.get());
             }
+            state.persist(jobStore);
         }
     }
 
-    private static void applyResult(JobState state, InstallResult r) {
-        if (state.cancelRequested.get() && !"DONE".equals(state.phase.get())) {
+    private boolean cancelFromStore(String jobId) {
+        return jobStore.load(jobId).map(MarketplaceJobStore.JobRecord::cancelRequested).orElse(false);
+    }
+
+    private void applyResult(JobState state, InstallResult r) {
+        if ((state.cancelRequested.get() || cancelFromStore(state.jobId))
+                && !"DONE".equals(state.phase.get())) {
             state.phase.set("CANCELLED");
             state.message.set("Cancelled");
+            state.persist(jobStore);
             return;
         }
         if (r.ok()) {
@@ -310,11 +405,15 @@ public class MarketplaceService {
             state.message.set(r.message());
             if (state.bytesTotal.get() <= 0) state.bytesTotal.set(1);
             state.bytesRead.set(state.bytesTotal.get());
+        } else if ("Cancelled".equals(r.message())) {
+            state.phase.set("CANCELLED");
+            state.message.set("Cancelled");
         } else {
             state.phase.set("FAILED");
             state.error.set(r.message());
             state.message.set(r.message());
         }
+        state.persist(jobStore);
     }
 
     private InstallResult installRemote(MarketplaceListing listing, JobState job) {
@@ -329,15 +428,17 @@ public class MarketplaceService {
             if (job != null) {
                 job.phase.set("DOWNLOADING");
                 job.message.set("Downloading " + listing.downloadUrl());
+                job.persist(jobStore);
             }
             byte[] zip = downloadBytes(listing.downloadUrl(), job);
-            if (job != null && job.cancelRequested.get()) {
+            if (job != null && (job.cancelRequested.get() || cancelFromStore(job.jobId))) {
                 return InstallResult.fail("Cancelled");
             }
             if (expected != null) {
                 if (job != null) {
                     job.phase.set("VERIFYING");
                     job.message.set("Verifying SHA-256");
+                    job.persist(jobStore);
                 }
                 if (!MarketplaceIntegrity.sha256Matches(zip, expected)) {
                     return InstallResult.fail(
@@ -349,6 +450,7 @@ public class MarketplaceService {
             if (job != null) {
                 job.phase.set("INSTALLING");
                 job.message.set("Extracting pack");
+                job.persist(jobStore);
             }
             PackUploadService.InstalledPack installed = uploads.install(zip, false);
             ContentRegistry.setEnabled(installed.pack().id(), true);
@@ -370,6 +472,13 @@ public class MarketplaceService {
         if (jobs.size() < 200) return;
         long cutoff = System.currentTimeMillis() - 3_600_000L;
         jobs.entrySet().removeIf(e -> e.getValue().terminal() && e.getValue().updatedAtMs < cutoff);
+        for (String id : jobStore.ids()) {
+            jobStore.load(id).ifPresent(rec -> {
+                if (rec.terminal() && rec.updatedAtMs() < cutoff) {
+                    jobStore.delete(id);
+                }
+            });
+        }
     }
 
     private List<MarketplaceListing> mergedListings() {
@@ -569,6 +678,10 @@ public class MarketplaceService {
                 if (job != null) {
                     job.bytesRead.set(read);
                     job.updatedAtMs = System.currentTimeMillis();
+                    // throttle durable writes: every 256 KiB or first chunk
+                    if (read == n || (read % (256 * 1024)) < n) {
+                        job.persist(jobStore);
+                    }
                 }
             }
             if (job != null && job.bytesTotal.get() <= 0) {
@@ -648,6 +761,20 @@ public class MarketplaceService {
                     message.get(),
                     cancelRequested.get(),
                     error.get());
+        }
+
+        void persist(MarketplaceJobStore store) {
+            updatedAtMs = System.currentTimeMillis();
+            store.save(new MarketplaceJobStore.JobRecord(
+                    jobId,
+                    packId,
+                    phase.get(),
+                    bytesRead.get(),
+                    bytesTotal.get(),
+                    message.get(),
+                    cancelRequested.get(),
+                    error.get(),
+                    updatedAtMs));
         }
     }
 
