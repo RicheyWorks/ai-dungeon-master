@@ -14,6 +14,11 @@ public final class GameViewModel: ObservableObject {
     @Published public var stompConnected: Bool = false
     @Published public var catalog: CatalogPayload?
     @Published public var entitlements: EntitlementPayload?
+    @Published public var readiness: ReadinessResponse?
+    @Published public var health: HealthPayload?
+    @Published public var healthOk: Bool?
+    @Published public var healthError: String?
+    @Published public var healthAt: Date?
     @Published public var lastSavePath: String?
     @Published public var busy: Bool = false
     @Published public var error: String?
@@ -21,6 +26,7 @@ public final class GameViewModel: ObservableObject {
 
     private let store: SessionStore
     private var stomp: StompClient?
+    private var healthTimer: Timer?
 
     public init(store: SessionStore = SessionStore()) {
         self.store = store
@@ -36,6 +42,71 @@ public final class GameViewModel: ObservableObject {
                 store.clearSession()
             }
             self.session = nil
+        }
+        startHealthPolling()
+    }
+
+    deinit {
+        healthTimer?.invalidate()
+    }
+
+    public func startHealthPolling() {
+        healthTimer?.invalidate()
+        pollHealth()
+        healthTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.pollHealth()
+            }
+        }
+    }
+
+    /// Public probes — no session. Soft-handles 503 readiness/health bodies.
+    public func pollHealth() {
+        let base = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard let readyURL = URL(string: base + "/health/ready"),
+              let healthURL = URL(string: base + "/v2/health") else {
+            healthError = "Invalid base URL"
+            healthOk = false
+            return
+        }
+        Task {
+            var readyBody: ReadinessResponse?
+            var healthBody: HealthPayload?
+            var readyOk = false
+            var healthHttpOk = false
+            var err: String?
+
+            do {
+                let (data, resp) = try await URLSession.shared.data(from: readyURL)
+                readyOk = (resp as? HTTPURLResponse).map { (200..<300).contains($0.statusCode) } ?? false
+                readyBody = try? JSONDecoder().decode(ReadinessResponse.self, from: data)
+                if !readyOk && readyBody == nil {
+                    err = "readiness HTTP \((resp as? HTTPURLResponse)?.statusCode ?? -1)"
+                }
+            } catch {
+                err = error.localizedDescription
+            }
+
+            do {
+                let (data, resp) = try await URLSession.shared.data(from: healthURL)
+                healthHttpOk = (resp as? HTTPURLResponse).map { (200..<300).contains($0.statusCode) } ?? false
+                if let env = try? JSONDecoder().decode(HealthEnvelope.self, from: data) {
+                    healthBody = env.payload
+                }
+                if !healthHttpOk && healthBody == nil && err == nil {
+                    err = "health HTTP \((resp as? HTTPURLResponse)?.statusCode ?? -1)"
+                }
+            } catch {
+                if err == nil { err = error.localizedDescription }
+            }
+
+            await MainActor.run {
+                self.readiness = readyBody
+                self.health = healthBody
+                self.healthOk = readyOk && healthHttpOk
+                self.healthError = err
+                self.healthAt = Date()
+            }
         }
     }
 
@@ -54,6 +125,7 @@ public final class GameViewModel: ObservableObject {
         status = nil
         stompConnected = false
         info = "Server changed — new session on next sync"
+        pollHealth()
     }
 
     public func refresh() {
