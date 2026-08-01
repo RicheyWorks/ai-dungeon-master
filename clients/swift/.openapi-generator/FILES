@@ -3,6 +3,7 @@
 AIDungeonMasterClient.podspec
 AIDungeonMasterClient/Classes/OpenAPIs/APIHelper.swift
 AIDungeonMasterClient/Classes/OpenAPIs/APIs.swift
+AIDungeonMasterClient/Classes/OpenAPIs/APIs/HealthAPI.swift
 AIDungeonMasterClient/Classes/OpenAPIs/APIs/LegacyAPI.swift
 AIDungeonMasterClient/Classes/OpenAPIs/APIs/V2API.swift
 AIDungeonMasterClient/Classes/OpenAPIs/CodableHelper.swift
@@ -14,6 +15,7 @@ AIDungeonMasterClient/Classes/OpenAPIs/Models.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/ActionRequest.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/CatalogEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/CatalogPayload.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/DependencyCheck.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/EntitlementEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/EntitlementPayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/Envelope.swift
@@ -24,6 +26,10 @@ AIDungeonMasterClient/Classes/OpenAPIs/Models/GameSaveEnvelopeAllOfPayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/GameStatusEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/GameStatusResponse.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/GameStatusV2.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/HealthEnvelope.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/HealthPayload.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/HealthPayloadMemory.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/LivenessResponse.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/MemberState.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrateRequest.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrationInfo.swift
@@ -32,6 +38,7 @@ AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrativePayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/PackInfo.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/PluginSummary.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/QuestInfo.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/ReadinessResponse.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/SessionEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/SessionPayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/SessionRequest.swift
@@ -46,6 +53,7 @@ README.md
 docs/ActionRequest.md
 docs/CatalogEnvelope.md
 docs/CatalogPayload.md
+docs/DependencyCheck.md
 docs/EntitlementEnvelope.md
 docs/EntitlementPayload.md
 docs/Envelope.md
@@ -56,7 +64,12 @@ docs/GameSaveEnvelopeAllOfPayload.md
 docs/GameStatusEnvelope.md
 docs/GameStatusResponse.md
 docs/GameStatusV2.md
+docs/HealthAPI.md
+docs/HealthEnvelope.md
+docs/HealthPayload.md
+docs/HealthPayloadMemory.md
 docs/LegacyAPI.md
+docs/LivenessResponse.md
 docs/MemberState.md
 docs/NarrateRequest.md
 docs/NarrationInfo.md
@@ -65,6 +78,7 @@ docs/NarrativePayload.md
 docs/PackInfo.md
 docs/PluginSummary.md
 docs/QuestInfo.md
+docs/ReadinessResponse.md
 docs/SessionEnvelope.md
 docs/SessionPayload.md
 docs/SessionRequest.md

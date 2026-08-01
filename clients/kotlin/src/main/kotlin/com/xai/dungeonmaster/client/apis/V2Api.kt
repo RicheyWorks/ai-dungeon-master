@@ -25,6 +25,7 @@ import com.xai.dungeonmaster.client.models.EntitlementEnvelope
 import com.xai.dungeonmaster.client.models.ErrorEnvelope
 import com.xai.dungeonmaster.client.models.GameSaveEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
+import com.xai.dungeonmaster.client.models.HealthEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
 import com.xai.dungeonmaster.client.models.NarrativeEnvelope
 import com.xai.dungeonmaster.client.models.SessionEnvelope
@@ -346,6 +347,78 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         return RequestConfig(
             method = RequestMethod.GET,
             path = "/v2/catalog",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Health metrics envelope (public, no auth).
+     * Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as &#x60;/health/ready&#x60;. Excluded from JWT enforcement. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return HealthEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun getHealthV2(xRequestId: kotlin.String? = null) : HealthEnvelope {
+        val localVarResponse = getHealthV2WithHttpInfo(xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as HealthEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Health metrics envelope (public, no auth).
+     * Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as &#x60;/health/ready&#x60;. Excluded from JWT enforcement. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<HealthEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun getHealthV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<HealthEnvelope?> {
+        val localVariableConfig = getHealthV2RequestConfig(xRequestId = xRequestId)
+
+        return request<Unit, HealthEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation getHealthV2
+     *
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun getHealthV2RequestConfig(xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/health",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,

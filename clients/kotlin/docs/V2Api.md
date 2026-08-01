@@ -8,6 +8,7 @@ All URIs are relative to *http://localhost:8080*
 | [**disablePackV2**](V2Api.md#disablePackV2) | **POST** /v2/catalog/packs/{id}/disable | Disable a content pack; returns the updated catalog. |
 | [**enablePackV2**](V2Api.md#enablePackV2) | **POST** /v2/catalog/packs/{id}/enable | Enable a content pack; returns the updated catalog. |
 | [**getCatalogV2**](V2Api.md#getCatalogV2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser). |
+| [**getHealthV2**](V2Api.md#getHealthV2) | **GET** /v2/health | Health metrics envelope (public, no auth). |
 | [**getSessionMeV2**](V2Api.md#getSessionMeV2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected). |
 | [**getStatusV2**](V2Api.md#getStatusV2) | **GET** /v2/status | Current game status as a typed envelope. |
 | [**listEntitlementsV2**](V2Api.md#listEntitlementsV2) | **GET** /v2/entitlements | List the caller&#39;s owned products. |
@@ -194,6 +195,52 @@ try {
 ### Return type
 
 [**CatalogEnvelope**](CatalogEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+<a id="getHealthV2"></a>
+# **getHealthV2**
+> HealthEnvelope getHealthV2(xRequestId)
+
+Health metrics envelope (public, no auth).
+
+Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as &#x60;/health/ready&#x60;. Excluded from JWT enforcement. 
+
+### Example
+```kotlin
+// Import classes:
+//import com.xai.dungeonmaster.client.infrastructure.*
+//import com.xai.dungeonmaster.client.models.*
+
+val apiInstance = V2Api()
+val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+try {
+    val result : HealthEnvelope = apiInstance.getHealthV2(xRequestId)
+    println(result)
+} catch (e: ClientException) {
+    println("4xx response calling V2Api#getHealthV2")
+    e.printStackTrace()
+} catch (e: ServerException) {
+    println("5xx response calling V2Api#getHealthV2")
+    e.printStackTrace()
+}
+```
+
+### Parameters
+| Name | Type | Description  | Notes |
+| ------------- | ------------- | ------------- | ------------- |
+| **xRequestId** | **kotlin.String**| Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] |
+
+### Return type
+
+[**HealthEnvelope**](HealthEnvelope.md)
 
 ### Authorization
 

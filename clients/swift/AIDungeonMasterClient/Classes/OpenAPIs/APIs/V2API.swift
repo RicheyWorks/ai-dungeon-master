@@ -167,6 +167,42 @@ open class V2API {
     }
 
     /**
+     Health metrics envelope (public, no auth).
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: HealthEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func getHealthV2(xRequestId: String? = nil) async throws -> HealthEnvelope {
+        return try await getHealthV2WithRequestBuilder(xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Health metrics envelope (public, no auth).
+     - GET /v2/health
+     - Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as `/health/ready`. Excluded from JWT enforcement. 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<HealthEnvelope> 
+     */
+    open class func getHealthV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<HealthEnvelope> {
+        let localVariablePath = "/v2/health"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<HealthEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Echo the authenticated session (no token reflected).
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)

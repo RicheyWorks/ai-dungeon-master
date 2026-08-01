@@ -8,6 +8,7 @@ Method | HTTP request | Description
 [**disablePackV2**](V2API.md#disablepackv2) | **POST** /v2/catalog/packs/{id}/disable | Disable a content pack; returns the updated catalog.
 [**enablePackV2**](V2API.md#enablepackv2) | **POST** /v2/catalog/packs/{id}/enable | Enable a content pack; returns the updated catalog.
 [**getCatalogV2**](V2API.md#getcatalogv2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser).
+[**getHealthV2**](V2API.md#gethealthv2) | **GET** /v2/health | Health metrics envelope (public, no auth).
 [**getSessionMeV2**](V2API.md#getsessionmev2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected).
 [**getStatusV2**](V2API.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope.
 [**listEntitlementsV2**](V2API.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller&#39;s owned products.
@@ -208,6 +209,56 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**CatalogEnvelope**](CatalogEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getHealthV2**
+```swift
+    open class func getHealthV2(xRequestId: String? = nil, completion: @escaping (_ data: HealthEnvelope?, _ error: Error?) -> Void)
+```
+
+Health metrics envelope (public, no auth).
+
+Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as `/health/ready`. Excluded from JWT enforcement. 
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+
+// Health metrics envelope (public, no auth).
+V2API.getHealthV2(xRequestId: xRequestId) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+
+### Return type
+
+[**HealthEnvelope**](HealthEnvelope.md)
 
 ### Authorization
 
