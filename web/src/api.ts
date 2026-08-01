@@ -155,6 +155,74 @@ export async function resetGame(baseUrl: string, token: string): Promise<GameSta
   return (await createApi(baseUrl, token).resetGameV2()).payload;
 }
 
+/** Marketplace listing row from GET /v2/marketplace. */
+export type MarketplaceListing = {
+  id: string;
+  displayName?: string;
+  version?: string;
+  minEngineVersion?: string;
+  description?: string;
+  installed?: boolean;
+  enabled?: boolean;
+  sourcePath?: string;
+};
+
+export type MarketplacePayload = {
+  root?: string;
+  available?: number;
+  installed?: number;
+  packs?: MarketplaceListing[];
+};
+
+/** List local marketplace packs (uses session token when auth is on). */
+export async function getMarketplace(
+  baseUrl: string,
+  token: string | null,
+  query?: string,
+): Promise<MarketplacePayload> {
+  const base = resolveBase(baseUrl);
+  const qs = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
+  const res = await fetch(`${base}/v2/marketplace${qs}`, {
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error(`marketplace ${res.status}`);
+  const env = (await res.json()) as { payload?: MarketplacePayload };
+  return env.payload ?? { packs: [] };
+}
+
+/** Install a marketplace pack into the live catalog. */
+export async function installMarketplacePack(
+  baseUrl: string,
+  token: string | null,
+  id: string,
+): Promise<{ packId?: string; alreadyInstalled?: boolean; message?: string }> {
+  const base = resolveBase(baseUrl);
+  const res = await fetch(`${base}/v2/marketplace/${encodeURIComponent(id)}/install`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    let msg = `install ${res.status}`;
+    try {
+      const env = (await res.json()) as { payload?: { message?: string } };
+      if (env.payload?.message) msg = env.payload.message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  const env = (await res.json()) as {
+    payload?: { packId?: string; alreadyInstalled?: boolean; message?: string };
+  };
+  return env.payload ?? {};
+}
+
 function createHealthApi(baseUrl: string): HealthApi {
   return new HealthApi(new Configuration({ basePath: resolveBase(baseUrl) }));
 }

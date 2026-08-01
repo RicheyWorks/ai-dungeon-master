@@ -4,6 +4,7 @@ import type {
   EntitlementPayload,
   GameStatusV2,
   HealthPayload,
+  MarketplacePayload,
   ReadinessResponse,
 } from "./api";
 import * as api from "./api";
@@ -37,6 +38,8 @@ export function App() {
   });
   const [status, setStatus] = useState<GameStatusV2 | null>(null);
   const [catalog, setCatalog] = useState<CatalogPayload | null>(null);
+  const [marketplace, setMarketplace] = useState<MarketplacePayload | null>(null);
+  const [marketQuery, setMarketQuery] = useState("");
   const [entitlements, setEntitlements] = useState<EntitlementPayload | null>(null);
   const [narration, setNarration] = useState<string | null>(null);
   const [streamBuffer, setStreamBuffer] = useState("");
@@ -274,9 +277,16 @@ export function App() {
           className={tab === "mods" ? "active" : ""}
           onClick={() => {
             setTab("mods");
-            if (!catalog) {
-              void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)));
-            }
+            void (async () => {
+              try {
+                setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+              if (token) {
+                void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)));
+              }
+            })();
           }}
         >
           Mods
@@ -364,11 +374,47 @@ export function App() {
       {tab === "mods" && (
         <ModsTab
           catalog={catalog}
+          marketplace={marketplace}
+          marketQuery={marketQuery}
+          setMarketQuery={setMarketQuery}
           busy={busy}
           replace={replace}
           setReplace={setReplace}
           onReload={() =>
-            void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)))
+            void (async () => {
+              try {
+                setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
+                setInfo("Marketplace refreshed");
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+              if (token) {
+                void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)));
+              }
+            })()
+          }
+          onSearch={() =>
+            void (async () => {
+              try {
+                setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onInstall={(id) =>
+            void (async () => {
+              try {
+                const r = await api.installMarketplacePack(baseUrl, token, id);
+                setInfo(r.message ?? (r.alreadyInstalled ? "Already installed" : "Installed"));
+                setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
+                if (token) {
+                  void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)));
+                }
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
           }
           onToggle={(id, enable) =>
             void run(async (s) => setCatalog(await api.togglePack(baseUrl, s.token, id, enable)))
@@ -376,6 +422,7 @@ export function App() {
           onUpload={(file) =>
             void run(async (s) => {
               setCatalog(await api.uploadPack(baseUrl, s.token, file, replace));
+              setMarketplace(await api.getMarketplace(baseUrl, s.token, marketQuery));
               setInfo(replace ? "Pack replaced" : "Pack uploaded");
             })
           }
@@ -584,25 +631,90 @@ function GameTab(props: {
 
 function ModsTab(props: {
   catalog: CatalogPayload | null;
+  marketplace: MarketplacePayload | null;
+  marketQuery: string;
+  setMarketQuery: (v: string) => void;
   busy: boolean;
   replace: boolean;
   setReplace: (v: boolean) => void;
   onReload: () => void;
+  onSearch: () => void;
+  onInstall: (id: string) => void;
   onToggle: (id: string, enable: boolean) => void;
   onUpload: (file: File) => void;
 }) {
+  const marketPacks = props.marketplace?.packs ?? [];
+  const livePacks = props.catalog?.contentPacks ?? [];
+
   return (
     <div className="stack">
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <h3 style={{ margin: 0 }}>Content packs</h3>
+        <h3 style={{ margin: 0 }}>Marketplace</h3>
         <button type="button" onClick={props.onReload} disabled={props.busy}>
           Reload
         </button>
       </div>
+      <p className="muted">
+        Local discovery from <code>/v2/marketplace</code>
+        {props.marketplace?.root ? ` · ${props.marketplace.root}` : ""}.{" "}
+        {props.marketplace
+          ? `${props.marketplace.available ?? 0} available · ${props.marketplace.installed ?? 0} installed`
+          : "Open this tab to load packs."}
+      </p>
+
+      <div className="card row">
+        <input
+          value={props.marketQuery}
+          onChange={(e) => props.setMarketQuery(e.target.value)}
+          placeholder="Search packs…"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") props.onSearch();
+          }}
+        />
+        <button type="button" onClick={props.onSearch} disabled={props.busy}>
+          Search
+        </button>
+      </div>
+
+      {marketPacks.length === 0 && props.marketplace && (
+        <div className="muted">No marketplace packs match.</div>
+      )}
+
+      {marketPacks.map((pack) => (
+        <div className="card stack" key={pack.id}>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <div>
+              <div className="pack-title">{pack.displayName ?? pack.id}</div>
+              <div className="muted">
+                v{pack.version ?? "?"} · min engine {pack.minEngineVersion ?? "?"}
+                {pack.installed ? " · installed" : " · not installed"}
+                {pack.enabled ? " · enabled" : ""}
+              </div>
+            </div>
+            {!pack.installed ? (
+              <button
+                type="button"
+                className="primary"
+                disabled={props.busy}
+                onClick={() => props.onInstall(pack.id)}
+              >
+                Install
+              </button>
+            ) : (
+              <span className="pill up">Installed</span>
+            )}
+          </div>
+          {pack.description && <p className="muted" style={{ margin: 0 }}>{pack.description}</p>}
+        </div>
+      ))}
+
+      <div className="row" style={{ justifyContent: "space-between", marginTop: "0.5rem" }}>
+        <h3 style={{ margin: 0 }}>Live catalog</h3>
+      </div>
 
       <div className="card">
         <strong>Upload pack zip</strong>
-        <p className="muted">POST /v2/catalog/packs — same endpoint as the web mod browser.</p>
+        <p className="muted">POST /v2/catalog/packs</p>
         <label className="switch">
           <span>Replace if exists</span>
           <input
@@ -624,9 +736,11 @@ function ModsTab(props: {
         />
       </div>
 
-      {!props.catalog && <div className="muted">Tap Reload to fetch the catalog.</div>}
+      {livePacks.length === 0 && (
+        <div className="muted">No live packs yet — install from the marketplace or upload a zip.</div>
+      )}
 
-      {(props.catalog?.contentPacks ?? []).map((pack) => (
+      {livePacks.map((pack) => (
         <div className="card switch" key={pack.id ?? pack.displayName}>
           <div>
             <div className="pack-title">{pack.displayName ?? pack.id ?? "?"}</div>
