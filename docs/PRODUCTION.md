@@ -216,3 +216,13 @@ With `game.content.entitlement-gates=true` (default):
 - Catalog `PackInfo.locked` / `requiredProductIds` surface the gate to clients
 
 Note: `ContentRegistry` is process-wide; gating protects the **enable** action for the calling session (typical single-player / host console).
+
+## Receipt replay protection
+
+| Property | Default | Meaning |
+|---|---|---|
+| `game.auth.receipt-ledger.enabled` | `true` | Reject already-redeemed receipts |
+| `game.auth.receipt-ledger.store` | `memory` / prod `redis` | Ledger backend |
+| `game.auth.receipt-ledger.ttl-seconds` | `7776000` (90d) | Redis key TTL |
+
+Fingerprint = SHA-256(`storefront + productId + receipt`). Same session re-submitting the same receipt is **idempotent**; other sessions get `receipt already redeemed`.
