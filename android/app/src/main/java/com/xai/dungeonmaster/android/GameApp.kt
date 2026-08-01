@@ -127,6 +127,7 @@ fun GameApp() {
                 selected = tab == 1,
                 onClick = {
                     tab = 1
+                    viewModel.loadMarketplace()
                     if (ui.catalog == null) viewModel.loadCatalog()
                 },
                 text = { Text("Mods") },
@@ -153,8 +154,16 @@ fun GameApp() {
             0 -> GameScreen(ui, viewModel)
             1 -> ModsScreen(
                 catalog = ui.catalog,
+                marketplace = ui.marketplace,
+                marketQuery = ui.marketQuery,
                 busy = ui.busy,
-                onLoad = viewModel::loadCatalog,
+                onLoad = {
+                    viewModel.loadMarketplace()
+                    viewModel.loadCatalog()
+                },
+                onMarketQueryChange = viewModel::setMarketQuery,
+                onSearch = { viewModel.loadMarketplace() },
+                onInstall = viewModel::installMarketplacePack,
                 onToggle = viewModel::togglePack,
                 onUpload = viewModel::uploadPack,
             )

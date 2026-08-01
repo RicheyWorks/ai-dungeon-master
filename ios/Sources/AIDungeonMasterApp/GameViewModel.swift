@@ -13,6 +13,8 @@ public final class GameViewModel: ObservableObject {
     @Published public var streamBuffer: String = ""
     @Published public var stompConnected: Bool = false
     @Published public var catalog: CatalogPayload?
+    @Published public var marketplace: MarketplacePayload?
+    @Published public var marketQuery: String = ""
     @Published public var entitlements: EntitlementPayload?
     @Published public var readiness: ReadinessResponse?
     @Published public var health: HealthPayload?
@@ -193,6 +195,95 @@ public final class GameViewModel: ObservableObject {
             let envelope = try await V2API.getCatalogV2()
             self.catalog = envelope.payload
         }
+    }
+
+    public func loadMarketplace(query: String? = nil) {
+        let q = query ?? marketQuery
+        Task {
+            do {
+                let payload = try await Self.fetchMarketplace(baseURL: baseURL, query: q, token: session?.token)
+                await MainActor.run {
+                    self.marketQuery = q
+                    self.marketplace = payload
+                    self.info = "Marketplace: \(payload.available ?? 0) available"
+                    self.error = nil
+                }
+            } catch {
+                await MainActor.run {
+                    self.error = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    public func installMarketplacePack(id: String) {
+        Task {
+            do {
+                let msg = try await Self.postInstall(baseURL: baseURL, id: id, token: session?.token)
+                let payload = try await Self.fetchMarketplace(baseURL: baseURL, query: marketQuery, token: session?.token)
+                await MainActor.run {
+                    self.marketplace = payload
+                    self.info = msg
+                    self.error = nil
+                }
+                // refresh live catalog if we have a session path
+                run {
+                    try await self.ensureSession()
+                    let envelope = try await V2API.getCatalogV2()
+                    self.catalog = envelope.payload
+                }
+            } catch {
+                await MainActor.run {
+                    self.error = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private static func fetchMarketplace(baseURL: String, query: String, token: String?) async throws -> MarketplacePayload {
+        var urlString = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/v2/marketplace"
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let enc = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+            urlString += "?q=\(enc)"
+        }
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
+        var req = URLRequest(url: url)
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token, !token.isEmpty {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        let env = try JSONDecoder().decode(MarketplaceEnvelope.self, from: data)
+        return env.payload ?? MarketplacePayload(root: nil, available: 0, installed: 0, packs: [])
+    }
+
+    private static func postInstall(baseURL: String, id: String, token: String?) async throws -> String {
+        let encId = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+        let urlString = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            + "/v2/marketplace/\(encId)/install"
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token, !token.isEmpty {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        let http = resp as? HTTPURLResponse
+        if let http, !(200..<300).contains(http.statusCode) {
+            if let err = try? JSONDecoder().decode(ErrorPayloadEnvelope.self, from: data),
+               let msg = err.payload?.message {
+                throw NSError(domain: "marketplace", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: msg])
+            }
+            throw URLError(.badServerResponse)
+        }
+        let env = try JSONDecoder().decode(MarketplaceInstallEnvelope.self, from: data)
+        if let message = env.payload?.message { return message }
+        if env.payload?.alreadyInstalled == true { return "Already installed" }
+        return "Installed \(id)"
     }
 
     public func togglePack(id: String, enable: Bool) {

@@ -1,0 +1,40 @@
+import Foundation
+
+struct MarketplaceListing: Codable, Identifiable, Hashable {
+    let id: String
+    let displayName: String?
+    let version: String?
+    let minEngineVersion: String?
+    let description: String?
+    let installed: Bool?
+    let enabled: Bool?
+    let sourcePath: String?
+}
+
+struct MarketplacePayload: Codable {
+    let root: String?
+    let available: Int?
+    let installed: Int?
+    let packs: [MarketplaceListing]?
+}
+
+struct MarketplaceEnvelope: Codable {
+    let type: String?
+    let payload: MarketplacePayload?
+}
+
+struct MarketplaceInstallPayload: Codable {
+    let packId: String?
+    let alreadyInstalled: Bool?
+    let message: String?
+}
+
+struct MarketplaceInstallEnvelope: Codable {
+    let type: String?
+    let payload: MarketplaceInstallPayload?
+}
+
+struct ErrorPayloadEnvelope: Codable {
+    struct Payload: Codable { let message: String? }
+    let payload: Payload?
+}
