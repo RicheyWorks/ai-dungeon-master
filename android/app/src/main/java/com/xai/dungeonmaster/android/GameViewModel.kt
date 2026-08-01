@@ -243,35 +243,38 @@ class GameViewModel(
         }
     }
 
-    /** Mint a DevStorefront-compatible receipt and verify it in one step. */
-    fun devPurchase(productId: String) = launchCall { current ->
+    /** Mint a sandbox receipt for [storefront] and verify it (dev / google_play / app_store). */
+    fun sandboxPurchase(productId: String, storefront: String = DevReceipts.STOREFRONT_DEV) = launchCall { current ->
         val withSession = ensureSession(current)
-        val receipt = DevReceipts.sign(productId)
+        val minted = DevReceipts.mint(storefront, productId)
         try {
             val envelope = api().verifyReceiptV2(
                 VerifyReceiptRequest(
-                    productId = productId,
-                    receipt = receipt,
-                    storefront = DevReceipts.STOREFRONT_ID,
+                    productId = minted.productId,
+                    receipt = minted.receipt,
+                    storefront = minted.storefront,
                 ),
             )
             val p = envelope.payload
             withSession.copy(
                 entitlements = p,
                 info = if (p.granted == true) {
-                    "Dev purchase granted: ${p.productId}"
+                    "Sandbox ${minted.storefront} granted: ${p.productId}"
                 } else {
-                    "Dev purchase failed: ${p.reason}"
+                    "Sandbox purchase failed: ${p.reason}"
                 },
                 error = null,
             )
         } catch (e: ClientException) {
             withSession.copy(
-                error = "Dev purchase failed (${e.statusCode}): ${e.message}",
+                error = "Sandbox purchase failed (${e.statusCode}): ${e.message}",
                 info = null,
             )
         }
     }
+
+    /** @deprecated prefer [sandboxPurchase] */
+    fun devPurchase(productId: String) = sandboxPurchase(productId, DevReceipts.STOREFRONT_DEV)
 
     fun saveGame() = launchCall { current ->
         val withSession = ensureSession(current)

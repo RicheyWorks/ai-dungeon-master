@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -24,9 +25,9 @@ import androidx.compose.ui.unit.dp
 import com.xai.dungeonmaster.client.models.EntitlementPayload
 
 /**
- * Store / entitlements tab: list owned products, paste a receipt to verify,
- * or mint a local **dev** receipt (same HMAC scheme as the server's DevStorefront)
- * for an end-to-end purchase loop without Play Billing.
+ * Store / entitlements tab: list owned products, paste a receipt, or mint a
+ * sandbox receipt for `dev` / `google_play` / `app_store` (HMAC matching the
+ * server plugins — see docs/STOREFRONTS.md).
  */
 @Composable
 fun EntitlementsScreen(
@@ -34,10 +35,10 @@ fun EntitlementsScreen(
     busy: Boolean,
     onRefresh: () -> Unit,
     onVerify: (productId: String, receipt: String, storefront: String) -> Unit,
-    onDevPurchase: (productId: String) -> Unit,
+    onSandboxPurchase: (productId: String, storefront: String) -> Unit,
 ) {
     var productId by remember { mutableStateOf("sku_gold") }
-    var storefront by remember { mutableStateOf(DevReceipts.STOREFRONT_ID) }
+    var storefront by remember { mutableStateOf(DevReceipts.STOREFRONT_DEV) }
     var receipt by remember { mutableStateOf("") }
 
     LazyColumn(
@@ -62,7 +63,7 @@ fun EntitlementsScreen(
                     val owned = entitlements?.owned.orEmpty()
                     if (owned.isEmpty()) {
                         Text(
-                            "None yet — buy a dev SKU or verify a receipt.",
+                            "None yet — sandbox-buy a SKU or verify a receipt.",
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     } else {
@@ -78,16 +79,27 @@ fun EntitlementsScreen(
         }
 
         item {
-            Text("Dev purchase", style = MaterialTheme.typography.titleMedium)
+            Text("Sandbox purchase", style = MaterialTheme.typography.titleMedium)
         }
         item {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Mints a signed test receipt locally (storefront “dev”) and posts it to " +
-                            "POST /v2/entitlements/verify — same loop as a real store, without billing.",
+                        "Mints a signed sandbox receipt for the selected storefront and posts it to " +
+                            "POST /v2/entitlements/verify. google_play / app_store use JSON envelopes " +
+                            "matching live Play Billing / StoreKit payloads.",
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DevReceipts.knownStorefronts.forEach { id ->
+                            FilterChip(
+                                selected = storefront == id,
+                                onClick = { storefront = id },
+                                label = { Text(id) },
+                                enabled = !busy,
+                            )
+                        }
+                    }
                     OutlinedTextField(
                         value = productId,
                         onValueChange = { productId = it },
@@ -96,10 +108,14 @@ fun EntitlementsScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Button(
-                        onClick = { if (productId.isNotBlank()) onDevPurchase(productId.trim()) },
+                        onClick = {
+                            if (productId.isNotBlank()) {
+                                onSandboxPurchase(productId.trim(), storefront)
+                            }
+                        },
                         enabled = !busy && productId.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Buy with dev receipt") }
+                    ) { Text("Buy with $storefront sandbox receipt") }
                 }
             }
         }
@@ -134,7 +150,11 @@ fun EntitlementsScreen(
                     Button(
                         onClick = {
                             if (productId.isNotBlank() && receipt.isNotBlank()) {
-                                onVerify(productId.trim(), receipt.trim(), storefront.trim().ifBlank { "dev" })
+                                onVerify(
+                                    productId.trim(),
+                                    receipt.trim(),
+                                    storefront.trim().ifBlank { DevReceipts.STOREFRONT_DEV },
+                                )
                             }
                         },
                         enabled = !busy && productId.isNotBlank() && receipt.isNotBlank(),
@@ -144,17 +164,16 @@ fun EntitlementsScreen(
             }
         }
 
-        // Quick-pick SKUs for demos
         item { Text("Demo SKUs", style = MaterialTheme.typography.titleSmall) }
         items(listOf("sku_gold", "sku_season_pass", "pack_the_hollows")) { sku ->
             OutlinedButton(
                 onClick = {
                     productId = sku
-                    onDevPurchase(sku)
+                    onSandboxPurchase(sku, storefront)
                 },
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Buy $sku (dev)") }
+            ) { Text("Buy $sku ($storefront)") }
         }
     }
 }
