@@ -100,8 +100,9 @@ Apps boot with `game.production=true` and refuse insecure defaults
 docker compose -f deploy/docker-compose.yml \
                -f deploy/docker-compose.metrics.yml \
                up --build -d
-# Prometheus → http://localhost:9090
-# Grafana    → http://localhost:3000  (admin/admin)
+# Prometheus   → http://localhost:9090
+# Alertmanager → http://localhost:9093
+# Grafana      → http://localhost:3000  (admin/admin)
 ```
 
 Scrapes `app1` + `app2` at `/metrics`. Dashboard auto-loads under

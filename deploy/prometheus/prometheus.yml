@@ -1,4 +1,4 @@
-# Prometheus scrape config for the multi-node engine stack.
+# Prometheus scrape + alert config for the multi-node engine stack.
 # Scrapes app nodes directly (not the sticky nginx front) so each engine
 # reports its own sessions/engines/deps.
 #
@@ -10,6 +10,15 @@ global:
   evaluation_interval: 15s
   external_labels:
     stack: ai-dungeon-master
+
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
 
 scrape_configs:
   - job_name: dm-engines

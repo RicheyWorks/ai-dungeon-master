@@ -109,5 +109,6 @@ docker compose -f deploy/docker-compose.yml \
                -f deploy/docker-compose.metrics.yml \
                up -d
 # Prometheus: http://localhost:9090
-# Grafana:    http://localhost:3000  (admin/admin; see deploy/prometheus/README.md)
+# Grafana:      http://localhost:3000  (admin/admin)
+# Alertmanager: http://localhost:9093  (see deploy/prometheus/README.md)
 ```
