@@ -87,3 +87,27 @@ docker compose --env-file deploy/.env \
 Do **not** expose ports `9090` / `9093` / `3000` publicly without auth.
 
 See also: [`docs/PRODUCTION.md`](../../docs/PRODUCTION.md).
+
+## Slack + PagerDuty receivers
+
+1. Create a Slack incoming webhook and a PagerDuty Events API v2 integration.
+2. Render the config (never commit the result):
+
+```bash
+export SLACK_WEBHOOK_URL='https://hooks.slack.com/services/…'
+export SLACK_CHANNEL='#dm-alerts'
+export PAGERDUTY_ROUTING_KEY='…'
+./scripts/render-alertmanager.sh
+```
+
+3. Point Alertmanager at the rendered file:
+
+```bash
+ALERTMANAGER_CONFIG=alertmanager.active.yml \
+  docker compose -f deploy/docker-compose.yml \
+                 -f deploy/docker-compose.metrics.yml \
+                 up -d alertmanager
+```
+
+Templates live in `deploy/alertmanager/templates/dm.tmpl`.
+Critical alerts go to Slack **and** PagerDuty; warnings to Slack only.

@@ -112,3 +112,13 @@ docker compose -f deploy/docker-compose.yml \
 # Grafana:      http://localhost:3000  (admin/admin)
 # Alertmanager: http://localhost:9093  (see deploy/prometheus/README.md)
 ```
+
+### Slack / PagerDuty
+
+```bash
+./scripts/render-alertmanager.sh   # needs SLACK_* + PAGERDUTY_ROUTING_KEY
+ALERTMANAGER_CONFIG=alertmanager.active.yml \
+  docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.metrics.yml up -d alertmanager
+```
+
+See `deploy/alertmanager/alertmanager.receivers.yml` and `templates/dm.tmpl`.

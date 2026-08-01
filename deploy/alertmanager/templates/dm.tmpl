@@ -1,0 +1,27 @@
+{{/* Slack title: STATUS AlertName (n) */}}
+{{ define "slack.title" -}}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}
+{{- end }}
+
+{{/* Slack body */}}
+{{ define "slack.text" -}}
+*Service:* {{ .CommonLabels.service | default "ai-dungeon-master" }}
+*Severity:* {{ .CommonLabels.severity | default "unknown" }}
+{{ range .Alerts -}}
+• *{{ .Labels.instance | default "cluster" }}* — {{ .Annotations.summary }}
+  {{ .Annotations.description }}
+{{ end -}}
+{{- end }}
+
+{{/* PagerDuty short description (title line) */}}
+{{ define "pagerduty.description" -}}
+{{ .CommonLabels.alertname }}: {{ with index .Alerts 0 }}{{ .Annotations.summary }}{{ end }}
+{{- end }}
+
+{{/* PagerDuty details blob */}}
+{{ define "pagerduty.summary" -}}
+{{ range .Alerts -}}
+[{{ .Status }}] {{ .Labels.instance }} — {{ .Annotations.summary }}
+{{ .Annotations.description }}
+{{ end -}}
+{{- end }}
