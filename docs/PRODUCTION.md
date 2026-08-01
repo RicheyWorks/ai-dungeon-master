@@ -101,3 +101,12 @@ OpenAPI: [`docs/api/openapi.yaml`](api/openapi.yaml) (`HealthApi` + `getHealthV2
 
 Point Prometheus at each engine node; keep scrape on a private network or
 gateway ACL (no JWT).
+
+Sample stack overlay:
+
+```bash
+docker compose -f deploy/docker-compose.yml \
+               -f deploy/docker-compose.metrics.yml \
+               up -d
+# UI: http://localhost:9090  (see deploy/prometheus/README.md)
+```
