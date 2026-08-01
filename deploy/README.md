@@ -23,6 +23,8 @@ Open:
 |---|---|
 | http://localhost:8080/app/ | Full web client |
 | http://localhost:8080/mod-browser.html | Pack admin |
+| http://localhost:8080/health | Liveness |
+| http://localhost:8080/v2/health | Metrics envelope |
 | http://localhost:8080/v2/catalog | API |
 
 Stop with `Ctrl+C` or `docker compose -f deploy/docker-compose.yml down`.
