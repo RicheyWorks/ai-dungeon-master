@@ -51,3 +51,20 @@ data class ErrorEnvelopePayload(
 data class ErrorEnvelope(
     val payload: ErrorEnvelopePayload? = null,
 )
+
+data class MarketplaceInstallJob(
+    val jobId: String,
+    val packId: String? = null,
+    val phase: String? = null,
+    val bytesRead: Long? = null,
+    val bytesTotal: Long? = null,
+    val percent: Int? = null,
+    val message: String? = null,
+    val cancelRequested: Boolean? = null,
+    val error: String? = null,
+)
+
+data class MarketplaceInstallJobEnvelope(
+    val type: String? = null,
+    val payload: MarketplaceInstallJob? = null,
+)

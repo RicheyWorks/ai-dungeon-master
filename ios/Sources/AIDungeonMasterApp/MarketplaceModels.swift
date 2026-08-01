@@ -45,3 +45,20 @@ struct ErrorPayloadEnvelope: Codable {
     struct Payload: Codable { let message: String? }
     let payload: Payload?
 }
+
+struct MarketplaceInstallJob: Codable, Hashable {
+    let jobId: String
+    let packId: String?
+    let phase: String?
+    let bytesRead: Int64?
+    let bytesTotal: Int64?
+    let percent: Int?
+    let message: String?
+    let cancelRequested: Bool?
+    let error: String?
+}
+
+struct MarketplaceInstallJobEnvelope: Codable {
+    let type: String?
+    let payload: MarketplaceInstallJob?
+}

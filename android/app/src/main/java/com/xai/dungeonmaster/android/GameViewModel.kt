@@ -57,6 +57,7 @@ class GameViewModel(
         val catalog: CatalogPayload? = null,
         val marketplace: MarketplacePayload? = null,
         val marketQuery: String = "",
+        val installJob: MarketplaceInstallJob? = null,
         val entitlements: EntitlementPayload? = null,
         val readiness: ReadinessResponse? = null,
         val health: HealthPayload? = null,
@@ -292,27 +293,53 @@ class GameViewModel(
     fun installMarketplacePack(id: String) {
         viewModelScope.launch {
             try {
-                val msg = withContext(Dispatchers.IO) { postInstallMarketplace(base(), id) }
-                val payload = withContext(Dispatchers.IO) {
-                    fetchMarketplace(base(), _state.value.marketQuery)
-                }
-                // refresh catalog when session exists
-                val catalog = try {
-                    withContext(Dispatchers.IO) {
-                        ensureSession(_state.value)
-                        api().getCatalogV2().payload
+                val started = withContext(Dispatchers.IO) { postInstallAsync(base(), id) }
+                publish { it.copy(installJob = started, info = "Installing $id…", error = null) }
+                val done = withContext(Dispatchers.IO) {
+                    pollInstallJob(base(), started.jobId) { job ->
+                        publish { it.copy(installJob = job) }
                     }
-                } catch (_: Exception) {
-                    _state.value.catalog
                 }
-                publish {
-                    it.copy(
-                        marketplace = payload,
-                        catalog = catalog,
-                        info = msg,
-                        error = null,
-                    )
+                publish { it.copy(installJob = done) }
+                when (done.phase) {
+                    "DONE" -> {
+                        val payload = withContext(Dispatchers.IO) {
+                            fetchMarketplace(base(), _state.value.marketQuery)
+                        }
+                        val catalog = try {
+                            withContext(Dispatchers.IO) {
+                                ensureSession(_state.value)
+                                api().getCatalogV2().payload
+                            }
+                        } catch (_: Exception) {
+                            _state.value.catalog
+                        }
+                        publish {
+                            it.copy(
+                                marketplace = payload,
+                                catalog = catalog,
+                                info = done.message ?: "Installed $id",
+                                error = null,
+                            )
+                        }
+                    }
+                    "CANCELLED" -> publish { it.copy(info = done.message ?: "Install cancelled") }
+                    else -> publish {
+                        it.copy(error = done.error ?: done.message ?: "Install failed")
+                    }
                 }
+            } catch (e: Exception) {
+                publish { it.copy(error = e.message ?: e.javaClass.simpleName) }
+            }
+        }
+    }
+
+    fun cancelMarketplaceInstall() {
+        val jobId = _state.value.installJob?.jobId ?: return
+        viewModelScope.launch {
+            try {
+                val j = withContext(Dispatchers.IO) { deleteInstallJob(base(), jobId) }
+                publish { it.copy(installJob = j, info = "Cancel requested") }
             } catch (e: Exception) {
                 publish { it.copy(error = e.message ?: e.javaClass.simpleName) }
             }
@@ -334,9 +361,9 @@ class GameViewModel(
         }
     }
 
-    private fun postInstallMarketplace(baseUrl: String, id: String): String {
+    private fun postInstallAsync(baseUrl: String, id: String): MarketplaceInstallJob {
         val req = okhttp3.Request.Builder()
-            .url("$baseUrl/v2/marketplace/${java.net.URLEncoder.encode(id, "UTF-8")}/install")
+            .url("$baseUrl/v2/marketplace/${java.net.URLEncoder.encode(id, "UTF-8")}/install?async=true")
             .header("Accept", "application/json")
             .post(okhttp3.RequestBody.create(ByteArray(0), null))
             .build()
@@ -348,12 +375,56 @@ class GameViewModel(
                 } catch (_: Exception) {
                     null
                 }
-                throw IllegalStateException(err ?: "install HTTP ${res.code}")
+                throw IllegalStateException(err ?: "install async HTTP ${res.code}")
             }
-            val env = moshi.adapter(MarketplaceInstallEnvelope::class.java).fromJson(body)
-            return env?.payload?.message
-                ?: if (env?.payload?.alreadyInstalled == true) "Already installed" else "Installed $id"
+            val env = moshi.adapter(MarketplaceInstallJobEnvelope::class.java).fromJson(body)
+            return env?.payload ?: throw IllegalStateException("missing job payload")
         }
+    }
+
+    private fun getInstallJob(baseUrl: String, jobId: String): MarketplaceInstallJob {
+        val req = okhttp3.Request.Builder()
+            .url("$baseUrl/v2/marketplace/jobs/${java.net.URLEncoder.encode(jobId, "UTF-8")}")
+            .header("Accept", "application/json")
+            .get()
+            .build()
+        HttpClients.client().newCall(req).execute().use { res ->
+            val body = res.body?.string().orEmpty()
+            if (!res.isSuccessful) throw IllegalStateException("job HTTP ${res.code}")
+            val env = moshi.adapter(MarketplaceInstallJobEnvelope::class.java).fromJson(body)
+            return env?.payload ?: throw IllegalStateException("empty job")
+        }
+    }
+
+    private fun deleteInstallJob(baseUrl: String, jobId: String): MarketplaceInstallJob? {
+        val req = okhttp3.Request.Builder()
+            .url("$baseUrl/v2/marketplace/jobs/${java.net.URLEncoder.encode(jobId, "UTF-8")}")
+            .header("Accept", "application/json")
+            .delete()
+            .build()
+        HttpClients.client().newCall(req).execute().use { res ->
+            val body = res.body?.string().orEmpty()
+            if (!res.isSuccessful) throw IllegalStateException("cancel HTTP ${res.code}")
+            return moshi.adapter(MarketplaceInstallJobEnvelope::class.java).fromJson(body)?.payload
+        }
+    }
+
+    private suspend fun pollInstallJob(
+        baseUrl: String,
+        jobId: String,
+        onProgress: (MarketplaceInstallJob) -> Unit,
+    ): MarketplaceInstallJob {
+        val deadline = System.currentTimeMillis() + 120_000
+        var last: MarketplaceInstallJob? = null
+        while (System.currentTimeMillis() < deadline) {
+            last = withContext(Dispatchers.IO) { getInstallJob(baseUrl, jobId) }
+            withContext(Dispatchers.Main) { onProgress(last!!) }
+            when (last.phase) {
+                "DONE", "FAILED", "CANCELLED" -> return last
+            }
+            kotlinx.coroutines.delay(400)
+        }
+        throw IllegalStateException("install timed out")
     }
 
     fun togglePack(id: String, enable: Boolean) = launchCall { current ->

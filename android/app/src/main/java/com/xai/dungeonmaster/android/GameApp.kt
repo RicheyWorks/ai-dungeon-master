@@ -156,6 +156,7 @@ fun GameApp() {
                 catalog = ui.catalog,
                 marketplace = ui.marketplace,
                 marketQuery = ui.marketQuery,
+                installJob = ui.installJob,
                 busy = ui.busy,
                 onLoad = {
                     viewModel.loadMarketplace()
@@ -164,6 +165,7 @@ fun GameApp() {
                 onMarketQueryChange = viewModel::setMarketQuery,
                 onSearch = { viewModel.loadMarketplace() },
                 onInstall = viewModel::installMarketplacePack,
+                onCancelInstall = viewModel::cancelMarketplaceInstall,
                 onToggle = viewModel::togglePack,
                 onUpload = viewModel::uploadPack,
             )

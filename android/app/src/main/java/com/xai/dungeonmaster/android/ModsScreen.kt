@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -39,11 +40,13 @@ fun ModsScreen(
     catalog: CatalogPayload?,
     marketplace: MarketplacePayload?,
     marketQuery: String,
+    installJob: MarketplaceInstallJob?,
     busy: Boolean,
     onLoad: () -> Unit,
     onMarketQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onInstall: (String) -> Unit,
+    onCancelInstall: () -> Unit,
     onToggle: (id: String, enable: Boolean) -> Unit,
     onUpload: (file: File, replace: Boolean) -> Unit,
 ) {
@@ -104,6 +107,42 @@ fun ModsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        installJob?.let { job ->
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "Install ${job.packId ?: "…"} · ${job.phase ?: "…"}",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            val active = job.phase != "DONE" && job.phase != "FAILED" && job.phase != "CANCELLED"
+                            if (active) {
+                                OutlinedButton(onClick = onCancelInstall) { Text("Cancel") }
+                            }
+                        }
+                        LinearProgressIndicator(
+                            progress = ((job.percent ?: 0).coerceIn(0, 100)) / 100f,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            buildString {
+                                append("${job.percent ?: 0}%")
+                                val total = job.bytesTotal ?: 0L
+                                if (total > 0) append(" · ${job.bytesRead ?: 0} / $total bytes")
+                                job.message?.let { append(" · $it") }
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
         item {
             Row(

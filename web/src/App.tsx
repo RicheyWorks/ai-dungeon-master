@@ -4,6 +4,7 @@ import type {
   EntitlementPayload,
   GameStatusV2,
   HealthPayload,
+  MarketplaceInstallJob,
   MarketplacePayload,
   ReadinessResponse,
 } from "./api";
@@ -40,6 +41,7 @@ export function App() {
   const [catalog, setCatalog] = useState<CatalogPayload | null>(null);
   const [marketplace, setMarketplace] = useState<MarketplacePayload | null>(null);
   const [marketQuery, setMarketQuery] = useState("");
+  const [installJob, setInstallJob] = useState<MarketplaceInstallJob | null>(null);
   const [entitlements, setEntitlements] = useState<EntitlementPayload | null>(null);
   const [narration, setNarration] = useState<string | null>(null);
   const [streamBuffer, setStreamBuffer] = useState("");
@@ -402,15 +404,44 @@ export function App() {
               }
             })()
           }
+          installJob={installJob}
           onInstall={(id) =>
             void (async () => {
               try {
-                const r = await api.installMarketplacePack(baseUrl, token, id);
-                setInfo(r.message ?? (r.alreadyInstalled ? "Already installed" : "Installed"));
-                setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
-                if (token) {
-                  void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)));
+                setError(null);
+                const started = await api.startMarketplaceInstall(baseUrl, token, id);
+                setInstallJob(started);
+                setInfo(`Installing ${id}…`);
+                const done = await api.pollMarketplaceInstall(
+                  baseUrl,
+                  token,
+                  started.jobId,
+                  (j) => setInstallJob(j),
+                );
+                setInstallJob(done);
+                if (done.phase === "DONE") {
+                  setInfo(done.message ?? `Installed ${id}`);
+                  setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
+                  if (token) {
+                    void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)));
+                  }
+                } else if (done.phase === "CANCELLED") {
+                  setInfo(done.message ?? "Install cancelled");
+                } else {
+                  setError(done.error ?? done.message ?? "Install failed");
                 }
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onCancelInstall={() =>
+            void (async () => {
+              if (!installJob?.jobId) return;
+              try {
+                const j = await api.cancelMarketplaceInstall(baseUrl, token, installJob.jobId);
+                if (j) setInstallJob(j);
+                setInfo("Cancel requested");
               } catch (e) {
                 setError(e instanceof Error ? e.message : String(e));
               }
@@ -637,23 +668,69 @@ function ModsTab(props: {
   busy: boolean;
   replace: boolean;
   setReplace: (v: boolean) => void;
+  installJob: MarketplaceInstallJob | null;
   onReload: () => void;
   onSearch: () => void;
   onInstall: (id: string) => void;
+  onCancelInstall: () => void;
   onToggle: (id: string, enable: boolean) => void;
   onUpload: (file: File) => void;
 }) {
   const marketPacks = props.marketplace?.packs ?? [];
   const livePacks = props.catalog?.contentPacks ?? [];
+  const job = props.installJob;
+  const jobActive =
+    !!job &&
+    job.phase !== "DONE" &&
+    job.phase !== "FAILED" &&
+    job.phase !== "CANCELLED";
 
   return (
     <div className="stack">
       <div className="row" style={{ justifyContent: "space-between" }}>
         <h3 style={{ margin: 0 }}>Marketplace</h3>
-        <button type="button" onClick={props.onReload} disabled={props.busy}>
+        <button type="button" onClick={props.onReload} disabled={props.busy || jobActive}>
           Reload
         </button>
       </div>
+      {job && (
+        <div className="card stack">
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <strong>
+              Install {job.packId ?? "…"} · {job.phase ?? "…"}
+            </strong>
+            {jobActive && (
+              <button type="button" onClick={props.onCancelInstall}>
+                Cancel
+              </button>
+            )}
+          </div>
+          <div
+            style={{
+              height: 10,
+              borderRadius: 6,
+              background: "rgba(255,255,255,0.08)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${Math.min(100, Math.max(0, job.percent ?? 0))}%`,
+                background: "linear-gradient(90deg, #6ee7b7, #34d399)",
+                transition: "width 0.2s ease",
+              }}
+            />
+          </div>
+          <div className="muted">
+            {job.percent ?? 0}%
+            {job.bytesTotal && job.bytesTotal > 0
+              ? ` · ${job.bytesRead ?? 0} / ${job.bytesTotal} bytes`
+              : ""}
+            {job.message ? ` · ${job.message}` : ""}
+          </div>
+        </div>
+      )}
       <p className="muted">
         Local discovery from <code>/v2/marketplace</code>
         {props.marketplace?.root ? ` · ${props.marketplace.root}` : ""}.{" "}
@@ -725,10 +802,10 @@ function ModsTab(props: {
               <button
                 type="button"
                 className="primary"
-                disabled={props.busy}
+                disabled={props.busy || jobActive}
                 onClick={() => props.onInstall(pack.id)}
               >
-                Install
+                {jobActive && job?.packId === pack.id ? "Installing…" : "Install"}
               </button>
             ) : (
               <span className="pill up">Installed</span>
