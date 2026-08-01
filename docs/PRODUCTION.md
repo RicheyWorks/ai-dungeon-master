@@ -86,3 +86,18 @@ GAME_PRODUCTION=true GAME_AUTH_ENABLED=true \
 node is not marked healthy until Postgres/Redis answer.
 
 OpenAPI: [`docs/api/openapi.yaml`](api/openapi.yaml) (`HealthApi` + `getHealthV2`).
+
+## Prometheus metrics
+
+`GET /metrics` — Prometheus text exposition (public). Useful scrapes:
+
+| Metric | Meaning |
+|---|---|
+| `dm_up` | Process answering scrapes |
+| `dm_ready` | Auth backends healthy (same as readiness) |
+| `dm_sessions_active` / `dm_engines_active` | Live load |
+| `dm_dependency_up{name=…}` | Per-backend UP/DOWN (omitted if not configured) |
+| `jvm_memory_bytes{area,id}` | Heap / non-heap |
+
+Point Prometheus at each engine node; keep scrape on a private network or
+gateway ACL (no JWT).

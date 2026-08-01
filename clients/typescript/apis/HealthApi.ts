@@ -59,6 +59,38 @@ export class HealthApi extends runtime.BaseAPI {
     }
 
     /**
+     * Public plaintext metrics (`text/plain`). Prefer private network scrape. 
+     * Prometheus text exposition for scrapers.
+     */
+    async getPrometheusMetricsRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<string>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/metrics`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        if (this.isJsonMime(response.headers.get('content-type'))) {
+            return new runtime.JSONApiResponse<string>(response);
+        } else {
+            return new runtime.TextApiResponse(response) as any;
+        }
+    }
+
+    /**
+     * Public plaintext metrics (`text/plain`). Prefer private network scrape. 
+     * Prometheus text exposition for scrapers.
+     */
+    async getPrometheusMetrics(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<string> {
+        const response = await this.getPrometheusMetricsRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Probes JDBC, Redis, and/or file stores only when selected via `game.auth.*.store`. Returns **503** when a required dependency is DOWN. 
      * Readiness probe — configured auth backends reachable.
      */

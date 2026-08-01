@@ -349,6 +349,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+
+  /metrics:
+    get:
+      tags: [health]
+      operationId: getPrometheusMetrics
+      summary: Prometheus text exposition for scrapers.
+      description: |
+        Public plaintext metrics (`text/plain`). Prefer private network scrape.
+      security: []
+      responses:
+        '200':
+          description: Prometheus exposition format.
+          content:
+            text/plain:
+              schema:
+                type: string
   /health:
     get:
       tags: [health]
