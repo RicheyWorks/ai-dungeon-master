@@ -52,6 +52,8 @@ services:
       # Optional Redis (unused when store=jdbc; ready if you flip stores)
       GAME_AUTH_REDIS_URL: redis://redis:6379
       GAME_AUTH_REDIS_KEY_PREFIX: dm
+      GAME_RATE_LIMIT_ENABLED: "true"
+      GAME_RATE_LIMIT_STORE: redis
       GAME_INSTANCES_AUTOLOAD: "true"
       GAME_INSTANCES_SAVE_ON_EVICT: "true"
     volumes:

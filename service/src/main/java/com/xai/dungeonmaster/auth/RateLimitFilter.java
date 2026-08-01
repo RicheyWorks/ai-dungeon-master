@@ -12,8 +12,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Locale;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Fixed-window per-IP rate limits for public / abuse-prone endpoints.
@@ -24,6 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   <li>{@code POST /v2/entitlements/verify} — receipt verification</li>
  * </ul>
  *
+ * Counters come from {@link RateLimitStore} — process-local memory or shared
+ * Redis ({@code game.rate-limit.store=redis}) for multi-node clusters.
  * Disabled when {@code game.rate-limit.enabled=false}. Returns 429 +
  * {@code Retry-After} when a bucket is exhausted.
  */
@@ -35,22 +35,28 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final int sessionPerMinute;
     private final int metricsPerMinute;
     private final int verifyPerMinute;
-    private final int defaultPerMinute;
-
-    /** key → window */
-    private final ConcurrentHashMap<String, Window> windows = new ConcurrentHashMap<>();
+    private final RateLimitStore store;
 
     public RateLimitFilter(
+            RateLimitStore store,
             @Value("${game.rate-limit.enabled:true}") boolean enabled,
             @Value("${game.rate-limit.session-per-minute:30}") int sessionPerMinute,
             @Value("${game.rate-limit.metrics-per-minute:120}") int metricsPerMinute,
             @Value("${game.rate-limit.verify-per-minute:60}") int verifyPerMinute,
             @Value("${game.rate-limit.default-per-minute:120}") int defaultPerMinute) {
+        this.store = store;
         this.enabled = enabled;
         this.sessionPerMinute = Math.max(1, sessionPerMinute);
         this.metricsPerMinute = Math.max(1, metricsPerMinute);
         this.verifyPerMinute = Math.max(1, verifyPerMinute);
-        this.defaultPerMinute = Math.max(1, defaultPerMinute);
+        // defaultPerMinute reserved for future catch-all paths
+    }
+
+    /** Test helper: memory store + limits. */
+    public RateLimitFilter(boolean enabled, int sessionPerMinute, int metricsPerMinute,
+                           int verifyPerMinute, int defaultPerMinute) {
+        this(new MemoryRateLimitStore(), enabled, sessionPerMinute, metricsPerMinute,
+                verifyPerMinute, defaultPerMinute);
     }
 
     @Override
@@ -69,16 +75,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         String ip = clientIp(req);
         String key = limit.bucket + "|" + ip;
-        long now = System.currentTimeMillis();
-        Window w = windows.compute(key, (k, existing) -> {
-            if (existing == null || now - existing.windowStartMs >= 60_000L) {
-                return new Window(now, new AtomicInteger(0));
-            }
-            return existing;
-        });
-        int n = w.count.incrementAndGet();
+        RateLimitStore.Result hit = store.hit(key);
+        long n = hit.count();
         if (n > limit.maxPerMinute) {
-            long retryAfterSec = Math.max(1L, (60_000L - (now - w.windowStartMs) + 999) / 1000L);
+            long retryAfterSec = hit.retryAfterSeconds();
             res.setStatus(429);
             res.setHeader("Retry-After", Long.toString(retryAfterSec));
             res.setHeader("X-RateLimit-Limit", Integer.toString(limit.maxPerMinute));
@@ -91,13 +91,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
         res.setHeader("X-RateLimit-Limit", Integer.toString(limit.maxPerMinute));
-        res.setHeader("X-RateLimit-Remaining", Integer.toString(Math.max(0, limit.maxPerMinute - n)));
+        res.setHeader("X-RateLimit-Remaining",
+                Long.toString(Math.max(0, limit.maxPerMinute - n)));
         chain.doFilter(req, res);
-
-        // opportunistic prune of stale windows
-        if (windows.size() > 10_000) {
-            prune(now);
-        }
     }
 
     private Limit limitFor(HttpServletRequest req) {
@@ -113,7 +109,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && path.equals("/v2/entitlements/verify")) {
             return new Limit("verify", verifyPerMinute);
         }
-        // optional catch-all for /v2 when needed — leave off for game traffic
         return null;
     }
 
@@ -130,10 +125,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return remote == null ? "unknown" : remote;
     }
 
-    private void prune(long now) {
-        windows.entrySet().removeIf(e -> now - e.getValue().windowStartMs > 120_000L);
-    }
-
     private static String safeRequestId(HttpServletRequest req) {
         String id = req.getHeader("X-Request-Id");
         if (id == null || id.isBlank()) return "";
@@ -141,14 +132,4 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private record Limit(String bucket, int maxPerMinute) {}
-
-    private static final class Window {
-        final long windowStartMs;
-        final AtomicInteger count;
-
-        Window(long windowStartMs, AtomicInteger count) {
-            this.windowStartMs = windowStartMs;
-            this.count = count;
-        }
-    }
 }

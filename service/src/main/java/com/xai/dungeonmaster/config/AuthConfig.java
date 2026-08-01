@@ -39,9 +39,11 @@ public class AuthConfig {
     public RedisOps redisOps(
             @Value("${game.auth.session.store:memory}") String sessionKind,
             @Value("${game.auth.entitlement.store:memory}") String entitlementKind,
+            @Value("${game.rate-limit.store:memory}") String rateLimitStore,
             @Value("${game.auth.redis.url:redis://127.0.0.1:6379}") String redisUrl) {
-        if (needsRedis(sessionKind) || needsRedis(entitlementKind)) {
-            System.out.println("[auth] redis ops: " + redisUrl);
+        if (needsRedis(sessionKind) || needsRedis(entitlementKind) || needsRedis(rateLimitStore)) {
+            System.out.println("[auth] redis ops: " + redisUrl
+                    + (needsRedis(rateLimitStore) ? " (rate-limit)" : ""));
             return new JedisRedisOps(redisUrl);
         }
         return noopRedis();
@@ -148,6 +150,12 @@ public class AuthConfig {
                 throw new IllegalStateException("Redis not configured");
             }
             @Override public void del(String key) {
+                throw new IllegalStateException("Redis not configured");
+            }
+            @Override public long incr(String key) {
+                throw new IllegalStateException("Redis not configured");
+            }
+            @Override public void expire(String key, int seconds) {
                 throw new IllegalStateException("Redis not configured");
             }
             @Override public void close() { /* no-op */ }

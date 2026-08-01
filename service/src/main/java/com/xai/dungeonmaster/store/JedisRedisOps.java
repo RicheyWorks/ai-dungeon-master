@@ -105,6 +105,22 @@ public final class JedisRedisOps implements RedisOps {
     }
 
     @Override
+    public long incr(String key) {
+        if (key == null) return 0L;
+        try (Jedis j = pool.getResource()) {
+            return j.incr(key);
+        }
+    }
+
+    @Override
+    public void expire(String key, int seconds) {
+        if (key == null || seconds <= 0) return;
+        try (Jedis j = pool.getResource()) {
+            j.expire(key, seconds);
+        }
+    }
+
+    @Override
     public boolean ping() {
         try (Jedis j = pool.getResource()) {
             String pong = j.ping();

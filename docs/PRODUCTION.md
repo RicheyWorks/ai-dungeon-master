@@ -133,7 +133,11 @@ See `deploy/alertmanager/alertmanager.receivers.yml` and `templates/dm.tmpl`.
 | `game.rate-limit.session-per-minute` | 30 | 20 |
 | `game.rate-limit.metrics-per-minute` | 120 | 60 |
 | `game.rate-limit.verify-per-minute` | 60 | 40 |
+| `game.rate-limit.store` | `memory` | `redis` (shared across nodes) |
 
 Covered paths: `POST /v2/session`, `GET /metrics`, `POST /v2/entitlements/verify`.
 429 responses include `Retry-After` and `X-RateLimit-*` headers. Client IP prefers
 `X-Forwarded-For` (nginx sets this).
+
+Set `game.rate-limit.store=redis` (and a reachable `game.auth.redis.url`) so all
+engine nodes share the same per-IP buckets. Memory store is per-process only.

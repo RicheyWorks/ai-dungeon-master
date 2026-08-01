@@ -4,8 +4,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Minimal Redis surface used by multi-node auth stores. Production wires
- * {@link JedisRedisOps}; tests use {@link MemoryRedisOps}.
+ * Minimal Redis surface used by multi-node auth stores and shared rate limits.
+ * Production wires {@link JedisRedisOps}; tests use {@link MemoryRedisOps}.
  */
 public interface RedisOps extends AutoCloseable {
 
@@ -26,6 +26,19 @@ public interface RedisOps extends AutoCloseable {
 
     /** Delete a key. */
     void del(String key);
+
+    /**
+     * Atomically increment {@code key} by 1 and return the new value.
+     * Creates the key at 0 if missing.
+     */
+    default long incr(String key) {
+        throw new UnsupportedOperationException("incr not supported");
+    }
+
+    /** Set TTL in seconds (no-op if key missing on some backends). */
+    default void expire(String key, int seconds) {
+        throw new UnsupportedOperationException("expire not supported");
+    }
 
     /**
      * Connectivity probe for readiness checks.
