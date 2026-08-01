@@ -660,6 +660,15 @@ function ModsTab(props: {
         {props.marketplace
           ? `${props.marketplace.available ?? 0} available · ${props.marketplace.installed ?? 0} installed`
           : "Open this tab to load packs."}
+        {props.marketplace?.remoteIndexUrl ? (
+          <>
+            {" · remote "}
+            <span className={props.marketplace.remoteOk ? "pill up" : "pill down"}>
+              {props.marketplace.remoteOk ? "OK" : "ERR"}
+            </span>
+            {props.marketplace.remoteError ? ` · ${props.marketplace.remoteError}` : ""}
+          </>
+        ) : null}
       </p>
 
       <div className="card row">
@@ -684,12 +693,27 @@ function ModsTab(props: {
         <div className="card stack" key={pack.id}>
           <div className="row" style={{ justifyContent: "space-between" }}>
             <div>
-              <div className="pack-title">{pack.displayName ?? pack.id}</div>
+              <div className="pack-title">
+                {pack.displayName ?? pack.id}{" "}
+                <span
+                  className={
+                    pack.source === "remote" ? "pill muted-pill" : "pill up"
+                  }
+                  title={pack.downloadUrl ?? pack.sourcePath ?? pack.source}
+                >
+                  {(pack.source ?? "local").toUpperCase()}
+                </span>
+              </div>
               <div className="muted">
                 v{pack.version ?? "?"} · min engine {pack.minEngineVersion ?? "?"}
                 {pack.installed ? " · installed" : " · not installed"}
                 {pack.enabled ? " · enabled" : ""}
               </div>
+              {pack.source === "remote" && pack.downloadUrl && (
+                <div className="muted" style={{ wordBreak: "break-all" }}>
+                  {pack.downloadUrl}
+                </div>
+              )}
             </div>
             {!pack.installed ? (
               <button

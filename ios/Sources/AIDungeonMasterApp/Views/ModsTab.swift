@@ -96,6 +96,10 @@ struct ModsTab: View {
         if let root = model.marketplace?.root { s += " · \(root)" }
         if let m = model.marketplace {
             s += " · \(m.available ?? 0) available · \(m.installed ?? 0) installed"
+            if let remote = m.remoteIndexUrl, !remote.isEmpty {
+                s += " · remote \(m.remoteOk == true ? "OK" : "ERR")"
+                if let err = m.remoteError, !err.isEmpty { s += " (\(err))" }
+            }
         }
         return s
     }
@@ -104,7 +108,17 @@ struct ModsTab: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(pack.displayName ?? pack.id).font(.subheadline.bold())
+                    HStack(spacing: 6) {
+                        Text(pack.displayName ?? pack.id).font(.subheadline.bold())
+                        Text((pack.source ?? "local").uppercased())
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                (pack.source == "remote" ? Color.orange.opacity(0.25) : Color.mint.opacity(0.25)),
+                                in: Capsule()
+                            )
+                    }
                     Text(
                         "v\(pack.version ?? "?") · min \(pack.minEngineVersion ?? "?")"
                             + (pack.installed == true ? " · installed" : "")
@@ -112,6 +126,12 @@ struct ModsTab: View {
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    if pack.source == "remote", let url = pack.downloadUrl, !url.isEmpty {
+                        Text(url)
+                            .font(.caption2)
+                            .foregroundStyle(.tint)
+                            .lineLimit(2)
+                    }
                 }
                 Spacer()
                 if pack.installed == true {

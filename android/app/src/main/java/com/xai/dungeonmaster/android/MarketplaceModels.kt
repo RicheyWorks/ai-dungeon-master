@@ -10,10 +10,16 @@ data class MarketplaceListing(
     val installed: Boolean? = null,
     val enabled: Boolean? = null,
     val sourcePath: String? = null,
+    /** `local` or `remote` */
+    val source: String? = null,
+    val downloadUrl: String? = null,
 )
 
 data class MarketplacePayload(
     val root: String? = null,
+    val remoteIndexUrl: String? = null,
+    val remoteOk: Boolean? = null,
+    val remoteError: String? = null,
     val available: Int? = null,
     val installed: Int? = null,
     val packs: List<MarketplaceListing>? = null,

@@ -165,10 +165,16 @@ export type MarketplaceListing = {
   installed?: boolean;
   enabled?: boolean;
   sourcePath?: string;
+  /** `local` or `remote` */
+  source?: string;
+  downloadUrl?: string;
 };
 
 export type MarketplacePayload = {
   root?: string;
+  remoteIndexUrl?: string | null;
+  remoteOk?: boolean;
+  remoteError?: string | null;
   available?: number;
   installed?: number;
   packs?: MarketplaceListing[];
