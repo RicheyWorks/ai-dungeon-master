@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -85,7 +84,7 @@ class MarketplaceServiceTest {
     }
 
     @Test
-    void mergesRemoteIndexAndInstallsZip() throws Exception {
+    void mergesRemoteIndexAndInstallsZipWithChecksum() throws Exception {
         Path local = tmp.resolve("local");
         Files.createDirectories(local);
         Path installDir = tmp.resolve("installed");
@@ -93,6 +92,8 @@ class MarketplaceServiceTest {
 
         Path zip = tmp.resolve("remote-pack.zip");
         writePackZip(zip, "remote-pack", "Remote Pack", "from index");
+        byte[] zipBytes = Files.readAllBytes(zip);
+        String sha = MarketplaceIntegrity.sha256Hex(zipBytes);
 
         Path index = tmp.resolve("index.json");
         Files.writeString(index, """
@@ -105,24 +106,109 @@ class MarketplaceServiceTest {
                       "version": "2.0.0",
                       "minEngineVersion": "1.0.0",
                       "description": "from index",
-                      "downloadUrl": "%s"
+                      "downloadUrl": "%s",
+                      "sha256": "%s"
                     }
                   ]
                 }
-                """.formatted(zip.toAbsolutePath().toString().replace("\\", "\\\\")));
+                """.formatted(zip.toAbsolutePath().toString().replace("\\", "\\\\"), sha));
 
         PackUploadService uploads = new PackUploadService(installDir.toString());
-        MarketplaceService svc = new MarketplaceService(local, index.toString(), 0, uploads);
+        MarketplaceService svc = new MarketplaceService(local, index.toString(), 0, true, "", uploads);
 
         MarketplacePayload payload = svc.list(null);
         assertEquals(1, payload.available());
         assertTrue(payload.remoteOk());
         assertEquals("remote", payload.packs().get(0).source());
-        assertEquals("remote-pack", payload.packs().get(0).id());
+        assertEquals(sha, payload.packs().get(0).sha256());
 
         MarketplaceService.InstallResult r = svc.install("remote-pack");
         assertTrue(r.ok(), r.message());
         assertTrue(ContentRegistry.isKnown("remote-pack"));
+    }
+
+    @Test
+    void rejectsChecksumMismatch() throws Exception {
+        Path local = tmp.resolve("local");
+        Files.createDirectories(local);
+        Path installDir = tmp.resolve("installed");
+        Files.createDirectories(installDir);
+
+        Path zip = tmp.resolve("bad-pack.zip");
+        writePackZip(zip, "bad-pack", "Bad Pack", "tampered");
+        Path index = tmp.resolve("index-bad.json");
+        Files.writeString(index, """
+                {
+                  "version": 1,
+                  "packs": [
+                    {
+                      "id": "bad-pack",
+                      "displayName": "Bad Pack",
+                      "version": "1.0.0",
+                      "downloadUrl": "%s",
+                      "sha256": "%s"
+                    }
+                  ]
+                }
+                """.formatted(
+                zip.toAbsolutePath().toString().replace("\\", "\\\\"),
+                "0".repeat(64)));
+
+        PackUploadService uploads = new PackUploadService(installDir.toString());
+        MarketplaceService svc = new MarketplaceService(local, index.toString(), 0, false, "", uploads);
+
+        MarketplaceService.InstallResult r = svc.install("bad-pack");
+        assertFalse(r.ok());
+        assertTrue(r.message().contains("SHA-256 mismatch"), r.message());
+        assertFalse(ContentRegistry.isKnown("bad-pack"));
+    }
+
+    @Test
+    void verifiesIndexHmac() throws Exception {
+        Path local = tmp.resolve("local");
+        Files.createDirectories(local);
+        Path installDir = tmp.resolve("installed");
+        Files.createDirectories(installDir);
+
+        Path zip = tmp.resolve("signed-pack.zip");
+        writePackZip(zip, "signed-pack", "Signed", "ok");
+        String sha = MarketplaceIntegrity.sha256Hex(Files.readAllBytes(zip));
+
+        String unsigned = """
+                {
+                  "version": 1,
+                  "packs": [
+                    {
+                      "id": "signed-pack",
+                      "displayName": "Signed",
+                      "version": "1.0.0",
+                      "downloadUrl": "%s",
+                      "sha256": "%s"
+                    }
+                  ]
+                }
+                """.formatted(zip.toAbsolutePath().toString().replace("\\", "\\\\"), sha);
+
+        // Signature over Jackson-stripped form: parse and re-serialize without signature
+        byte[] canonical = MarketplaceService.stripJsonSignatureField(
+                unsigned.getBytes(StandardCharsets.UTF_8));
+        String secret = "index-secret";
+        String sig = MarketplaceIntegrity.hmacSha256Hex(canonical, secret);
+
+        // Embed signature field (verification strips it and re-serializes via Jackson)
+        var node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(unsigned);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) node).put("signature", sig);
+        Path index = tmp.resolve("signed-index.json");
+        Files.write(index, new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(node));
+
+        PackUploadService uploads = new PackUploadService(installDir.toString());
+        MarketplaceService ok = new MarketplaceService(local, index.toString(), 0, false, secret, uploads);
+        assertTrue(ok.list(null).remoteOk());
+        assertEquals(1, ok.list(null).available());
+
+        MarketplaceService bad = new MarketplaceService(local, index.toString(), 0, false, "wrong", uploads);
+        assertFalse(bad.list(null).remoteOk());
+        assertTrue(bad.list(null).remoteError().contains("HMAC"), bad.list(null).remoteError());
     }
 
     private static void writePack(Path dir, String id, String name, String description) throws Exception {

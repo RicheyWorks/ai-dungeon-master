@@ -13,6 +13,7 @@ data class MarketplaceListing(
     /** `local` or `remote` */
     val source: String? = null,
     val downloadUrl: String? = null,
+    val sha256: String? = null,
 )
 
 data class MarketplacePayload(

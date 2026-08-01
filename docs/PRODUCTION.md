@@ -148,3 +148,13 @@ Set `game.marketplace.remote-url` to a JSON index (see `docs/marketplace/index.e
 Listings merge with the local `content-packs/` tree (local wins on id clash).
 Remote install downloads the pack zip and runs it through `PackUploadService`.
 Cache: `game.marketplace.remote-cache-seconds` (default 300).
+
+### Marketplace integrity
+
+| Property | Meaning |
+|---|---|
+| `game.marketplace.require-checksums` | Hide/reject remote packs without `sha256` (prod: true) |
+| `game.marketplace.remote-hmac-secret` | HMAC-SHA256 of index body (`X-Marketplace-Signature` or JSON `signature`) |
+
+Each remote pack may include `sha256` (hex). Downloads are verified before install.
+Sign index files with `scripts/sign-marketplace-index.sh` (header form preferred).

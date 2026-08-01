@@ -6,8 +6,9 @@
       "displayName": "Example Remote Pack",
       "version": "1.0.0",
       "minEngineVersion": "1.0.0",
-      "description": "Sample entry for game.marketplace.remote-url. Point downloadUrl at a zip containing pack.yaml.",
-      "downloadUrl": "https://example.com/content-packs/example-remote-pack.zip"
+      "description": "Sample entry. Include sha256 of the zip bytes.",
+      "downloadUrl": "https://example.com/content-packs/example-remote-pack.zip",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     }
   ]
 }

@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * <pre>
  * {
  *   "version": 1,
+ *   "signature": "<hmac-sha256 hex of body with signature field removed / or header>",
  *   "packs": [
  *     {
  *       "id": "extra-pack",
@@ -45,23 +46,35 @@ import java.util.concurrent.atomic.AtomicReference;
  *       "version": "1.0.0",
  *       "minEngineVersion": "1.0.0",
  *       "description": "…",
- *       "downloadUrl": "https://example.com/packs/extra-pack.zip"
+ *       "downloadUrl": "https://example.com/packs/extra-pack.zip",
+ *       "sha256": "…hex…"
  *     }
  *   ]
  * }
  * </pre>
  *
- * Install: local packs register from disk; remote packs download the zip and
- * go through {@link PackUploadService}.
+ * Integrity:
+ * <ul>
+ *   <li>Per-pack {@code sha256} verified after download (required when
+ *       {@code game.marketplace.require-checksums=true})</li>
+ *   <li>Optional HMAC-SHA256 of the raw index bytes via
+ *       {@code game.marketplace.remote-hmac-secret} against header
+ *       {@code X-Marketplace-Signature} or JSON field {@code signature}
+ *       (when verifying JSON field, the field is stripped before HMAC)</li>
+ * </ul>
  */
 @Service
 public class MarketplaceService {
+
+    public static final String SIGNATURE_HEADER = "X-Marketplace-Signature";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final Path root;
     private final String remoteUrl;
     private final long cacheTtlMs;
+    private final boolean requireChecksums;
+    private final String hmacSecret;
     private final PackUploadService uploads;
     private final HttpClient http;
 
@@ -71,34 +84,57 @@ public class MarketplaceService {
             @Value("${game.content.packs.dir:content-packs}") String contentPacksDir,
             @Value("${game.marketplace.remote-url:}") String remoteUrl,
             @Value("${game.marketplace.remote-cache-seconds:300}") long cacheSeconds,
+            @Value("${game.marketplace.require-checksums:false}") boolean requireChecksums,
+            @Value("${game.marketplace.remote-hmac-secret:}") String hmacSecret,
             PackUploadService uploads) {
-        this.root = Paths.get(contentPacksDir).toAbsolutePath().normalize();
-        this.remoteUrl = remoteUrl == null ? "" : remoteUrl.trim();
-        this.cacheTtlMs = Math.max(0L, cacheSeconds) * 1000L;
-        this.uploads = uploads;
-        this.http = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+        this(Paths.get(contentPacksDir), remoteUrl, cacheSeconds, requireChecksums, hmacSecret, uploads,
+                HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(5))
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .build());
     }
 
     /** Visible for tests. */
-    public MarketplaceService(Path root, String remoteUrl, long cacheSeconds, PackUploadService uploads) {
-        this.root = root.toAbsolutePath().normalize();
-        this.remoteUrl = remoteUrl == null ? "" : remoteUrl.trim();
-        this.cacheTtlMs = Math.max(0L, cacheSeconds) * 1000L;
-        this.uploads = uploads;
-        this.http = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+    public MarketplaceService(
+            Path root,
+            String remoteUrl,
+            long cacheSeconds,
+            PackUploadService uploads) {
+        this(root, remoteUrl, cacheSeconds, false, "", uploads,
+                HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(5))
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .build());
     }
 
-    /** Visible for tests with custom HTTP client. */
-    MarketplaceService(Path root, String remoteUrl, long cacheSeconds, PackUploadService uploads, HttpClient http) {
+    /** Visible for tests. */
+    public MarketplaceService(
+            Path root,
+            String remoteUrl,
+            long cacheSeconds,
+            boolean requireChecksums,
+            String hmacSecret,
+            PackUploadService uploads) {
+        this(root, remoteUrl, cacheSeconds, requireChecksums, hmacSecret, uploads,
+                HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(5))
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .build());
+    }
+
+    MarketplaceService(
+            Path root,
+            String remoteUrl,
+            long cacheSeconds,
+            boolean requireChecksums,
+            String hmacSecret,
+            PackUploadService uploads,
+            HttpClient http) {
         this.root = root.toAbsolutePath().normalize();
         this.remoteUrl = remoteUrl == null ? "" : remoteUrl.trim();
         this.cacheTtlMs = Math.max(0L, cacheSeconds) * 1000L;
+        this.requireChecksums = requireChecksums;
+        this.hmacSecret = hmacSecret == null ? "" : hmacSecret.trim();
         this.uploads = uploads;
         this.http = http;
     }
@@ -134,10 +170,6 @@ public class MarketplaceService {
         return mergedListings().stream().filter(p -> p.id().equalsIgnoreCase(id.trim())).findFirst();
     }
 
-    /**
-     * Install a marketplace pack into the live {@link ContentRegistry}.
-     * Local: register from directory. Remote: download zip + {@link PackUploadService}.
-     */
     public InstallResult install(String id) {
         if (id == null || id.isBlank()) {
             return InstallResult.fail("Missing pack id");
@@ -165,8 +197,20 @@ public class MarketplaceService {
         if (listing.downloadUrl() == null || listing.downloadUrl().isBlank()) {
             return InstallResult.fail("Remote pack missing downloadUrl: " + listing.id());
         }
+        String expected = MarketplaceIntegrity.normalizeSha256(listing.sha256());
+        if (requireChecksums && expected == null) {
+            return InstallResult.fail("Checksum required for remote pack: " + listing.id());
+        }
         try {
             byte[] zip = downloadBytes(listing.downloadUrl());
+            if (expected != null) {
+                if (!MarketplaceIntegrity.sha256Matches(zip, expected)) {
+                    return InstallResult.fail(
+                            "SHA-256 mismatch for " + listing.id()
+                                    + " (expected " + expected
+                                    + ", got " + MarketplaceIntegrity.sha256Hex(zip) + ")");
+                }
+            }
             PackUploadService.InstalledPack installed = uploads.install(zip, false);
             ContentRegistry.setEnabled(installed.pack().id(), true);
             return InstallResult.installed(installed.pack().id());
@@ -187,7 +231,6 @@ public class MarketplaceService {
         }
         for (MarketplaceListing remote : remoteSnapshot().packs()) {
             String key = remote.id().toLowerCase(Locale.ROOT);
-            // Local disk wins when both present (already extracted)
             byId.putIfAbsent(key, remote);
         }
         List<MarketplaceListing> out = new ArrayList<>(byId.values());
@@ -239,22 +282,29 @@ public class MarketplaceService {
             return snap;
         } catch (Exception e) {
             RemoteSnapshot snap = new RemoteSnapshot(false, e.getMessage(), List.of());
-            // short negative cache (30s) unless ttl is 0
             remoteCache.set(new CachedRemote(now - Math.max(0, cacheTtlMs - 30_000L), snap));
             return snap;
         }
     }
 
     private List<MarketplaceListing> fetchRemoteIndex(String url) throws Exception {
-        byte[] body;
-        if (url.startsWith("file:")) {
-            body = Files.readAllBytes(Path.of(URI.create(url)));
-        } else if (url.startsWith("/") || url.startsWith("./") || (!url.contains("://") && Files.exists(Paths.get(url)))) {
-            body = Files.readAllBytes(Paths.get(url).toAbsolutePath().normalize());
-        } else {
-            body = downloadBytes(url);
+        DownloadedIndex downloaded = downloadIndex(url);
+        byte[] raw = downloaded.body();
+
+        if (!hmacSecret.isBlank()) {
+            String provided = downloaded.signatureHeader();
+            byte[] signedPayload = raw;
+            if (provided == null || provided.isBlank()) {
+                JsonNode probe = MAPPER.readTree(raw);
+                provided = text(probe, "signature");
+                signedPayload = stripJsonSignatureField(raw);
+            }
+            if (!MarketplaceIntegrity.hmacMatches(signedPayload, hmacSecret, provided)) {
+                throw new IllegalStateException("Remote index HMAC verification failed");
+            }
         }
-        JsonNode root = MAPPER.readTree(body);
+
+        JsonNode root = MAPPER.readTree(raw);
         JsonNode packsNode = root.path("packs");
         if (!packsNode.isArray()) {
             throw new IllegalStateException("remote index missing packs[]");
@@ -265,6 +315,11 @@ public class MarketplaceService {
             if (id == null || id.isBlank()) continue;
             String downloadUrl = text(n, "downloadUrl");
             if (downloadUrl == null || downloadUrl.isBlank()) continue;
+            String sha = MarketplaceIntegrity.normalizeSha256(text(n, "sha256"));
+            if (requireChecksums && sha == null) {
+                System.err.println("[marketplace] skip remote pack without sha256: " + id);
+                continue;
+            }
             boolean installed = ContentRegistry.isKnown(id);
             boolean enabled = installed && ContentRegistry.isEnabled(id);
             out.add(MarketplaceListing.remote(
@@ -275,9 +330,37 @@ public class MarketplaceService {
                     textOr(n, "description", ""),
                     installed,
                     enabled,
-                    downloadUrl));
+                    downloadUrl,
+                    sha));
         }
         return out;
+    }
+
+    private DownloadedIndex downloadIndex(String url) throws Exception {
+        if (url.startsWith("file:")) {
+            return new DownloadedIndex(Files.readAllBytes(Path.of(URI.create(url))), null);
+        }
+        if (url.startsWith("/") || url.startsWith("./") || (!url.contains("://") && Files.exists(Paths.get(url)))) {
+            return new DownloadedIndex(Files.readAllBytes(Paths.get(url).toAbsolutePath().normalize()), null);
+        }
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            Path p = Paths.get(url);
+            if (Files.isRegularFile(p)) {
+                return new DownloadedIndex(Files.readAllBytes(p), null);
+            }
+            throw new IllegalArgumentException("Unsupported index URL: " + url);
+        }
+        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(30))
+                .GET()
+                .header("Accept", "application/json, */*")
+                .build();
+        HttpResponse<byte[]> res = http.send(req, HttpResponse.BodyHandlers.ofByteArray());
+        if (res.statusCode() < 200 || res.statusCode() >= 300) {
+            throw new IOException("HTTP " + res.statusCode() + " for " + url);
+        }
+        String sig = res.headers().firstValue(SIGNATURE_HEADER).orElse(null);
+        return new DownloadedIndex(res.body(), sig);
     }
 
     private byte[] downloadBytes(String url) throws Exception {
@@ -285,7 +368,6 @@ public class MarketplaceService {
             return Files.readAllBytes(Path.of(URI.create(url)));
         }
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            // treat as local path (tests / offline fixtures)
             Path p = Paths.get(url);
             if (Files.isRegularFile(p)) return Files.readAllBytes(p);
             throw new IllegalArgumentException("Unsupported download URL: " + url);
@@ -304,6 +386,20 @@ public class MarketplaceService {
         }
     }
 
+    /**
+     * Remove top-level {@code signature} field for HMAC verification of embedded signatures.
+     * Uses Jackson tree rewrite so key order of remaining fields is preserved as Map order
+     * from the parser (good enough for our signing script which signs the stripped form).
+     */
+    static byte[] stripJsonSignatureField(byte[] body) throws IOException {
+        JsonNode root = MAPPER.readTree(body);
+        if (!(root instanceof com.fasterxml.jackson.databind.node.ObjectNode obj)) {
+            return body;
+        }
+        obj.remove("signature");
+        return MAPPER.writeValueAsBytes(obj);
+    }
+
     private static String text(JsonNode n, String field) {
         JsonNode v = n.get(field);
         return v == null || v.isNull() ? null : v.asText();
@@ -317,6 +413,8 @@ public class MarketplaceService {
     private static boolean contains(String s, String q) {
         return s != null && s.toLowerCase(Locale.ROOT).contains(q);
     }
+
+    private record DownloadedIndex(byte[] body, String signatureHeader) {}
 
     private record CachedRemote(long fetchedAtMs, RemoteSnapshot snapshot) {}
 
