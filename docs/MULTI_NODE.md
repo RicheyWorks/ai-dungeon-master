@@ -71,3 +71,15 @@ game.auth.entitlement.file=/mnt/shared/entitlements.json
 
 Uses `LockedJsonFile` cross-process locks. Fine for small clusters on NFS/EFS;
 Redis or JDBC is preferred under write contention.
+
+## Docker sample
+
+A two-node sticky stack (Postgres auth + shared saves + nginx) lives under
+[`deploy/`](../deploy/README.md):
+
+```bash
+docker compose -f deploy/docker-compose.yml up --build
+# → http://localhost:8080/app/
+```
+
+Redis overlay: add `-f deploy/docker-compose.redis.yml`.

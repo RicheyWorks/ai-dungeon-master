@@ -1,0 +1,15 @@
+# Alternate stack: Redis for sessions/entitlements instead of JDBC.
+# Usage:
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.redis.yml up --build
+#
+# Overrides app env to store=redis (Postgres still present but unused for auth).
+
+services:
+  app1:
+    environment:
+      GAME_AUTH_SESSION_STORE: redis
+      GAME_AUTH_ENTITLEMENT_STORE: redis
+  app2:
+    environment:
+      GAME_AUTH_SESSION_STORE: redis
+      GAME_AUTH_ENTITLEMENT_STORE: redis

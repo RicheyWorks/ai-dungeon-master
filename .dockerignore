@@ -1,0 +1,12 @@
+.git
+**/target
+**/node_modules
+web/node_modules
+web/dist
+**/screenshots
+**/.idea
+**/*.iml
+**/hs_err_pid*
+openapi-generator-cli.jar
+desktop/tauri/src-tauri/target
+**/.DS_Store
