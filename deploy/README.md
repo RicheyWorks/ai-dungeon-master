@@ -74,3 +74,19 @@ java -jar service/target/ai-dungeon-master-service-*.jar
 ```
 
 See also [`docs/MULTI_NODE.md`](../docs/MULTI_NODE.md).
+
+## Production (TLS + secrets)
+
+```bash
+cp deploy/.env.example deploy/.env
+./scripts/gen-secrets.sh >> deploy/.env
+mkdir -p deploy/certs   # place fullchain.pem + privkey.pem
+
+docker compose --env-file deploy/.env \
+  -f deploy/docker-compose.yml \
+  -f deploy/docker-compose.prod.yml \
+  up --build -d
+```
+
+Apps boot with `game.production=true` and refuse insecure defaults
+(`ProductionSecurityGuard`). Full checklist: [`docs/PRODUCTION.md`](../docs/PRODUCTION.md).

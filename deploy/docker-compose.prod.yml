@@ -1,0 +1,66 @@
+# Production-shaped overlay: secrets from env file, prod profile, TLS nginx.
+#
+#   cp deploy/.env.example deploy/.env   # edit secrets
+#   mkdir -p deploy/certs && cp fullchain.pem privkey.pem deploy/certs/
+#   docker compose --env-file deploy/.env \
+#     -f deploy/docker-compose.yml \
+#     -f deploy/docker-compose.prod.yml \
+#     up --build -d
+#
+# Requires GAME_PRODUCTION / strong JWT / non-default DB password or apps will
+# refuse to boot (ProductionSecurityGuard).
+
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dungeon}
+      POSTGRES_USER: ${POSTGRES_USER:-dm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+
+  app1:
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      GAME_PRODUCTION: ${GAME_PRODUCTION:-true}
+      GAME_AUTH_ENABLED: ${GAME_AUTH_ENABLED:-true}
+      GAME_AUTH_JWT_SECRET: ${GAME_AUTH_JWT_SECRET:?set GAME_AUTH_JWT_SECRET}
+      GAME_AUTH_JWT_TTL_SECONDS: ${GAME_AUTH_JWT_TTL_SECONDS:-86400}
+      GAME_AUTH_SESSION_STORE: ${GAME_AUTH_SESSION_STORE:-jdbc}
+      GAME_AUTH_ENTITLEMENT_STORE: ${GAME_AUTH_ENTITLEMENT_STORE:-jdbc}
+      GAME_AUTH_JDBC_URL: ${GAME_AUTH_JDBC_URL:-jdbc:postgresql://postgres:5432/dungeon}
+      GAME_AUTH_JDBC_USERNAME: ${GAME_AUTH_JDBC_USERNAME:-dm}
+      GAME_AUTH_JDBC_PASSWORD: ${GAME_AUTH_JDBC_PASSWORD:?set GAME_AUTH_JDBC_PASSWORD}
+      STOREFRONT_DEV_SECRET: ${STOREFRONT_DEV_SECRET:-}
+      STOREFRONT_GOOGLE_SECRET: ${STOREFRONT_GOOGLE_SECRET:-}
+      STOREFRONT_APPLE_SECRET: ${STOREFRONT_APPLE_SECRET:-}
+      STOREFRONT_STEAM_SECRET: ${STOREFRONT_STEAM_SECRET:-}
+      STOREFRONT_GOOGLE_ACCESS_TOKEN: ${STOREFRONT_GOOGLE_ACCESS_TOKEN:-}
+      STOREFRONT_APPLE_SHARED_SECRET: ${STOREFRONT_APPLE_SHARED_SECRET:-}
+      STOREFRONT_STEAM_PUBLISHER_KEY: ${STOREFRONT_STEAM_PUBLISHER_KEY:-}
+
+  app2:
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      GAME_PRODUCTION: ${GAME_PRODUCTION:-true}
+      GAME_AUTH_ENABLED: ${GAME_AUTH_ENABLED:-true}
+      GAME_AUTH_JWT_SECRET: ${GAME_AUTH_JWT_SECRET:?set GAME_AUTH_JWT_SECRET}
+      GAME_AUTH_JWT_TTL_SECONDS: ${GAME_AUTH_JWT_TTL_SECONDS:-86400}
+      GAME_AUTH_SESSION_STORE: ${GAME_AUTH_SESSION_STORE:-jdbc}
+      GAME_AUTH_ENTITLEMENT_STORE: ${GAME_AUTH_ENTITLEMENT_STORE:-jdbc}
+      GAME_AUTH_JDBC_URL: ${GAME_AUTH_JDBC_URL:-jdbc:postgresql://postgres:5432/dungeon}
+      GAME_AUTH_JDBC_USERNAME: ${GAME_AUTH_JDBC_USERNAME:-dm}
+      GAME_AUTH_JDBC_PASSWORD: ${GAME_AUTH_JDBC_PASSWORD:?set GAME_AUTH_JDBC_PASSWORD}
+      STOREFRONT_DEV_SECRET: ${STOREFRONT_DEV_SECRET:-}
+      STOREFRONT_GOOGLE_SECRET: ${STOREFRONT_GOOGLE_SECRET:-}
+      STOREFRONT_APPLE_SECRET: ${STOREFRONT_APPLE_SECRET:-}
+      STOREFRONT_STEAM_SECRET: ${STOREFRONT_STEAM_SECRET:-}
+      STOREFRONT_GOOGLE_ACCESS_TOKEN: ${STOREFRONT_GOOGLE_ACCESS_TOKEN:-}
+      STOREFRONT_APPLE_SHARED_SECRET: ${STOREFRONT_APPLE_SHARED_SECRET:-}
+      STOREFRONT_STEAM_PUBLISHER_KEY: ${STOREFRONT_STEAM_PUBLISHER_KEY:-}
+
+  proxy:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro

@@ -16,3 +16,8 @@ Thumbs.db
 # web client
 web/node_modules/
 web/dist/
+
+# Production secrets / TLS material
+deploy/.env
+deploy/certs/
+*.pem
