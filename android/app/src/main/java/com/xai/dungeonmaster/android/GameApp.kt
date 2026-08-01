@@ -39,7 +39,7 @@ import com.xai.dungeonmaster.client.models.GameStatusV2
 import com.xai.dungeonmaster.client.models.MemberState
 
 /**
- * v1 client shell (roadmap Phase 3): Game / Mods / Store tabs over the
+ * v1 client shell (roadmap Phase 3): Game / Mods / Store / System tabs over the
  * generated Kotlin SDK, with guest session identity + Bearer auth. Session
  * identity is restored from disk across process restarts.
  */
@@ -52,7 +52,18 @@ fun GameApp() {
     val ui by viewModel.state.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+        viewModel.pollHealth()
+    }
+    LaunchedEffect(ui.baseUrl) {
+        // re-poll when server changes
+        viewModel.pollHealth()
+        while (true) {
+            kotlinx.coroutines.delay(15_000)
+            viewModel.pollHealth()
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -72,12 +83,28 @@ fun GameApp() {
                 buildString {
                     append("Playing as ${session.displayName} · ${session.shortId()}")
                     if (ui.stompConnected) append(" · LIVE")
+                    when (ui.healthOk) {
+                        true -> append(" · READY")
+                        false -> append(" · NOT READY")
+                        null -> Unit
+                    }
                 },
                 style = MaterialTheme.typography.labelMedium,
-                color = if (ui.stompConnected) {
+                color = when {
+                    ui.healthOk == false -> MaterialTheme.colorScheme.error
+                    ui.stompConnected -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.primary
+                },
+            )
+        }
+        if (ui.session == null && ui.healthOk != null) {
+            Text(
+                if (ui.healthOk == true) "Engine READY" else "Engine NOT READY",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (ui.healthOk == true) {
                     MaterialTheme.colorScheme.tertiary
                 } else {
-                    MaterialTheme.colorScheme.primary
+                    MaterialTheme.colorScheme.error
                 },
             )
         }
@@ -112,6 +139,14 @@ fun GameApp() {
                 },
                 text = { Text("Store") },
             )
+            Tab(
+                selected = tab == 3,
+                onClick = {
+                    tab = 3
+                    viewModel.pollHealth()
+                },
+                text = { Text("System") },
+            )
         }
 
         when (tab) {
@@ -123,13 +158,21 @@ fun GameApp() {
                 onToggle = viewModel::togglePack,
                 onUpload = viewModel::uploadPack,
             )
-            else -> EntitlementsScreen(
+            2 -> EntitlementsScreen(
                 entitlements = ui.entitlements,
                 busy = ui.busy,
                 onRefresh = viewModel::loadEntitlements,
                 onVerify = viewModel::verifyReceipt,
                 onSandboxPurchase = viewModel::sandboxPurchase,
-
+            )
+            else -> SystemScreen(
+                readiness = ui.readiness,
+                health = ui.health,
+                healthOk = ui.healthOk,
+                healthError = ui.healthError,
+                healthAtEpochMs = ui.healthAtEpochMs,
+                baseUrl = ui.baseUrl,
+                onRefresh = viewModel::pollHealth,
             )
         }
     }

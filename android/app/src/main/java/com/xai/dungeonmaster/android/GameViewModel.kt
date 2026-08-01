@@ -5,15 +5,20 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.xai.dungeonmaster.client.apis.HealthApi
 import com.xai.dungeonmaster.client.apis.V2Api
 import com.xai.dungeonmaster.client.models.ActionRequest
 import com.xai.dungeonmaster.client.models.CatalogPayload
 import com.xai.dungeonmaster.client.models.EntitlementPayload
 import com.xai.dungeonmaster.client.models.GameStatusV2
+import com.xai.dungeonmaster.client.models.HealthEnvelope
+import com.xai.dungeonmaster.client.models.HealthPayload
 import com.xai.dungeonmaster.client.models.NarrateRequest
+import com.xai.dungeonmaster.client.models.ReadinessResponse
 import com.xai.dungeonmaster.client.models.SessionRequest
 import com.xai.dungeonmaster.client.models.VerifyReceiptRequest
 import com.xai.dungeonmaster.client.infrastructure.ClientException
+import okhttp3.Request
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +56,11 @@ class GameViewModel(
         val stompConnected: Boolean = false,
         val catalog: CatalogPayload? = null,
         val entitlements: EntitlementPayload? = null,
+        val readiness: ReadinessResponse? = null,
+        val health: HealthPayload? = null,
+        val healthOk: Boolean? = null,
+        val healthError: String? = null,
+        val healthAtEpochMs: Long? = null,
         val lastSavePath: String? = null,
         val busy: Boolean = false,
         val error: String? = null,
@@ -86,6 +96,89 @@ class GameViewModel(
 
     private fun api(): V2Api = V2Api(basePath = base(), client = HttpClients.client())
 
+    private fun healthApi(): HealthApi = HealthApi(basePath = base(), client = HttpClients.client())
+
+    /** Public probes — no session required. Soft-handles 503 readiness bodies. */
+    fun pollHealth() {
+        viewModelScope.launch {
+            val snapshot = withContext(Dispatchers.IO) { fetchHealthSnapshot(base()) }
+            publish {
+                it.copy(
+                    readiness = snapshot.readiness,
+                    health = snapshot.health,
+                    healthOk = snapshot.ok,
+                    healthError = snapshot.error,
+                    healthAtEpochMs = System.currentTimeMillis(),
+                )
+            }
+        }
+    }
+
+    private data class HealthSnapshot(
+        val readiness: ReadinessResponse?,
+        val health: HealthPayload?,
+        val ok: Boolean,
+        val error: String?,
+    )
+
+    private fun fetchHealthSnapshot(baseUrl: String): HealthSnapshot {
+        val client = HttpClients.client()
+        val readinessAdapter = moshi.adapter(ReadinessResponse::class.java)
+        val healthEnvAdapter = moshi.adapter(HealthEnvelope::class.java)
+        var readiness: ReadinessResponse? = null
+        var health: HealthPayload? = null
+        var error: String? = null
+        var readyOk = false
+        var healthOk = false
+
+        try {
+            client.newCall(
+                Request.Builder().url("$baseUrl/health/ready").header("Accept", "application/json").get().build(),
+            ).execute().use { res ->
+                val body = res.body?.string().orEmpty()
+                readiness = if (body.isNotBlank()) readinessAdapter.fromJson(body) else null
+                readyOk = res.isSuccessful
+                if (!readyOk && readiness == null) {
+                    error = "readiness HTTP ${res.code}"
+                }
+            }
+        } catch (e: Exception) {
+            error = e.message ?: e.javaClass.simpleName
+        }
+
+        try {
+            client.newCall(
+                Request.Builder().url("$baseUrl/v2/health").header("Accept", "application/json").get().build(),
+            ).execute().use { res ->
+                val body = res.body?.string().orEmpty()
+                val env = if (body.isNotBlank()) healthEnvAdapter.fromJson(body) else null
+                health = env?.payload
+                healthOk = res.isSuccessful
+                if (!healthOk && health == null && error == null) {
+                    error = "health HTTP ${res.code}"
+                }
+            }
+        } catch (e: Exception) {
+            if (error == null) error = e.message ?: e.javaClass.simpleName
+        }
+
+        // Prefer SDK for liveness-only warm path when soft parse failed
+        if (readiness == null && health == null) {
+            try {
+                healthApi().getLiveness()
+            } catch (_: Exception) {
+                /* ignore */
+            }
+        }
+
+        return HealthSnapshot(
+            readiness = readiness,
+            health = health,
+            ok = readyOk && healthOk,
+            error = error,
+        )
+    }
+
     fun setBaseUrl(url: String) {
         store.saveBaseUrl(url)
         if (url.trimEnd('/') != _state.value.baseUrl.trimEnd('/')) {
@@ -99,6 +192,7 @@ class GameViewModel(
                 stompConnected = false,
                 info = "Server changed — new session on next sync",
             )
+            pollHealth()
         } else {
             _state.value = _state.value.copy(baseUrl = url)
         }

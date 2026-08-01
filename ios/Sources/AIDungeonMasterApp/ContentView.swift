@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Root shell: Game / Mods / Store tabs, matching the Android v1 client.
+/// Root shell: Game / Mods / Store / System tabs, matching the Android client.
 public struct ContentView: View {
     @StateObject private var model = GameViewModel()
     @State private var tab = 0
@@ -27,10 +27,16 @@ public struct ContentView: View {
                     .onAppear {
                         if model.entitlements == nil { model.loadEntitlements() }
                     }
+                SystemTab(model: model)
+                    .tabItem { Label("System", systemImage: "heart.text.square") }
+                    .tag(3)
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { model.refresh() }
+        .onAppear {
+            model.refresh()
+            model.startHealthPolling()
+        }
     }
 
     private var serverBar: some View {
@@ -62,7 +68,11 @@ public struct ContentView: View {
             if let session = model.session {
                 Text(sessionLine(session))
                     .font(.caption)
-                    .foregroundStyle(model.stompConnected ? .mint : .accentColor)
+                    .foregroundStyle(sessionLineColor)
+            } else if let ok = model.healthOk {
+                Text(ok ? "Engine READY" : "Engine NOT READY")
+                    .font(.caption)
+                    .foregroundStyle(ok ? .mint : .red)
             }
         }
         .padding()
@@ -71,7 +81,16 @@ public struct ContentView: View {
     private func sessionLine(_ session: SessionInfo) -> String {
         var s = "Playing as \(session.displayName) · \(session.shortId)"
         if model.stompConnected { s += " · LIVE" }
+        if let ok = model.healthOk {
+            s += ok ? " · READY" : " · NOT READY"
+        }
         return s
+    }
+
+    private var sessionLineColor: Color {
+        if model.healthOk == false { return .red }
+        if model.stompConnected { return .mint }
+        return .accentColor
     }
 
     private var statusBanner: some View {
