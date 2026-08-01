@@ -22,8 +22,8 @@ import java.util.Optional;
  *     attribute when a valid token is present (so controllers can read identity
  *     even when enforcement is off).
  *   - When {@code game.auth.enabled=true}, any {@code /v2/**} request other than
- *     the public login endpoint ({@code POST /v2/session}) must carry a valid
- *     token; otherwise the filter short-circuits with a 401 error envelope.
+ *     public endpoints ({@code POST /v2/session}, {@code GET /v2/health}) must
+ *     carry a valid token; otherwise the filter short-circuits with a 401.
  *   - When {@code game.auth.enabled=false} (the default), nothing is blocked —
  *     identity is best-effort. This keeps existing clients and tests working
  *     while the capability is opt-in.
@@ -37,6 +37,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     public static final String SESSION_ATTR = "dm.session";
 
     private static final String LOGIN_PATH = "/v2/session";
+    private static final String HEALTH_V2_PATH = "/v2/health";
 
     private final JwtService jwt;
     private final SessionService sessions;
@@ -75,13 +76,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         chain.doFilter(req, res);
     }
 
-    /** Auth applies to /v2/** except the public login endpoint. */
+    /** Auth applies to /v2/** except public login and health. */
     private boolean requiresAuth(HttpServletRequest req) {
         String path = req.getRequestURI();
         if (path == null || !path.startsWith("/v2")) {
             return false;
         }
-        return !path.equals(LOGIN_PATH);
+        if (path.equals(LOGIN_PATH) || path.equals(HEALTH_V2_PATH)) {
+            return false;
+        }
+        return true;
     }
 
     private static void writeUnauthorized(HttpServletRequest req, HttpServletResponse res) throws IOException {

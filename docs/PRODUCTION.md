@@ -72,3 +72,13 @@ GAME_PRODUCTION=true GAME_AUTH_ENABLED=true \
 
 # Should pass with hardened env from gen-secrets.sh
 ```
+
+## Health probes
+
+| Path | Use |
+|---|---|
+| `GET /health` | Liveness (Docker / k8s) |
+| `GET /health/ready` | Readiness + session/engine counts |
+| `GET /v2/health` | Metrics envelope (uptime, memory) — public, no auth |
+
+Compose healthchecks already hit `/health`.

@@ -72,6 +72,9 @@ Once it's up, open the mod browser at `http://localhost:8080/mod-browser.html`, 
 smoke-test the API:
 
 ```bash
+curl -s localhost:8080/health          # liveness for LBs
+curl -s localhost:8080/health/ready    # readiness + session/engine counts
+curl -s localhost:8080/v2/health       # metrics envelope
 curl -s localhost:8080/v2/status      # typed game_status envelope
 curl -s localhost:8080/v2/catalog     # installed packs + plugins
 ```
