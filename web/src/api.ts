@@ -1,17 +1,28 @@
 import {
   Configuration,
+  HealthApi,
   V2Api,
   type ActionRequest,
   type CatalogPayload,
   type EntitlementPayload,
   type GameStatusV2,
+  type HealthPayload,
+  type LivenessResponse,
   type NarrateRequest,
+  type ReadinessResponse,
   type SessionRequest,
   type VerifyReceiptRequest,
 } from "@ai-dungeon-master/client";
 import type { SessionInfo } from "./sessionStore";
 
-export type { CatalogPayload, EntitlementPayload, GameStatusV2 };
+export type {
+  CatalogPayload,
+  EntitlementPayload,
+  GameStatusV2,
+  HealthPayload,
+  LivenessResponse,
+  ReadinessResponse,
+};
 
 /**
  * Resolve API base URL. Empty / whitespace means same origin (engine-hosted
@@ -142,4 +153,65 @@ export async function loadGame(baseUrl: string, token: string): Promise<GameStat
 
 export async function resetGame(baseUrl: string, token: string): Promise<GameStatusV2> {
   return (await createApi(baseUrl, token).resetGameV2()).payload;
+}
+
+function createHealthApi(baseUrl: string): HealthApi {
+  return new HealthApi(new Configuration({ basePath: resolveBase(baseUrl) }));
+}
+
+/** Liveness — always up when the process answers. No auth. */
+export async function getLiveness(baseUrl: string): Promise<LivenessResponse> {
+  return createHealthApi(baseUrl).getLiveness();
+}
+
+/**
+ * Readiness with dependency map. Throws on network error; on 503 the SDK may
+ * still throw — callers should use {@link fetchReadiness} for soft handling.
+ */
+export async function getReadiness(baseUrl: string): Promise<ReadinessResponse> {
+  return createHealthApi(baseUrl).getReadiness();
+}
+
+/** Soft readiness: returns body for both 200 and 503. */
+export async function fetchReadiness(baseUrl: string): Promise<{
+  ok: boolean;
+  body: ReadinessResponse | null;
+  error?: string;
+}> {
+  const base = resolveBase(baseUrl);
+  try {
+    const res = await fetch(`${base}/health/ready`, {
+      headers: { Accept: "application/json" },
+    });
+    const body = (await res.json()) as ReadinessResponse;
+    return { ok: res.ok, body };
+  } catch (e) {
+    return {
+      ok: false,
+      body: null,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+/** Soft v2 health metrics envelope (works with 503 bodies). */
+export async function fetchHealthV2(baseUrl: string): Promise<{
+  ok: boolean;
+  payload: HealthPayload | null;
+  error?: string;
+}> {
+  const base = resolveBase(baseUrl);
+  try {
+    const res = await fetch(`${base}/v2/health`, {
+      headers: { Accept: "application/json" },
+    });
+    const env = (await res.json()) as { payload?: HealthPayload };
+    return { ok: res.ok, payload: env.payload ?? null };
+  } catch (e) {
+    return {
+      ok: false,
+      payload: null,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
 }

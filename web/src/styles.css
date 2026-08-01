@@ -85,7 +85,40 @@ input, textarea {
 .narration { white-space: pre-wrap; }
 .pack-title { font-weight: 700; }
 .sku-btn { width: 100%; text-align: left; }
+.pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: #12151c;
+}
+.pill.up {
+  color: #0d2a1a;
+  background: var(--live);
+  border-color: transparent;
+}
+.pill.down {
+  color: #fff;
+  background: var(--danger);
+  border-color: transparent;
+}
+.pill.muted-pill {
+  color: var(--muted);
+  background: #12151c;
+}
+.stat {
+  background: #12151c;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.9rem;
+}
+.stat b { color: var(--accent); margin-left: 0.25rem; }
 @media (max-width: 560px) {
   .app { padding: 0.75rem; }
-  .tabs button { font-size: 0.9rem; }
+  .tabs button { font-size: 0.85rem; padding: 0.4rem 0.35rem; }
 }
