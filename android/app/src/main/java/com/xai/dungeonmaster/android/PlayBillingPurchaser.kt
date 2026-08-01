@@ -1,10 +1,12 @@
 package com.xai.dungeonmaster.android
 
 import android.app.Activity
+import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
@@ -13,21 +15,17 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import org.json.JSONObject
 
 /**
- * Thin Play Billing wrapper that produces the JSON receipt envelope
- * expected by server {@code google_play} storefront verification:
- * {@code {"packageName","productId","purchaseToken"}}.
- *
- * Falls back to caller-handled sandbox when Billing is unavailable (emulator
- * without Play Services, etc.).
+ * Play Billing wrapper → server `google_play` JSON receipt, then client-side
+ * acknowledge (and optional consume) after a successful grant.
  */
 class PlayBillingPurchaser(
     private val activity: Activity,
-    private val onReceipt: (productId: String, receiptJson: String) -> Unit,
+    private val onReceipt: (productId: String, receiptJson: String, purchaseToken: String) -> Unit,
     private val onError: (String) -> Unit,
+    private val consumeAfterAck: Boolean = false,
 ) : PurchasesUpdatedListener {
 
     private var client: BillingClient? = null
-    private var pendingSku: String? = null
 
     fun start() {
         if (client != null) return
@@ -58,7 +56,6 @@ class PlayBillingPurchaser(
             start()
             return
         }
-        pendingSku = productId
         val product = QueryProductDetailsParams.Product.newBuilder()
             .setProductId(productId)
             .setProductType(BillingClient.ProductType.INAPP)
@@ -103,8 +100,30 @@ class PlayBillingPurchaser(
                     .put("productId", sku)
                     .put("purchaseToken", p.purchaseToken)
                     .toString()
-                onReceipt(sku, json)
+                onReceipt(sku, json, p.purchaseToken)
             }
+        }
+    }
+
+    /** Acknowledge (and optionally consume) after server grant succeeds. */
+    fun settle(purchaseToken: String, onSettled: ((Boolean) -> Unit)? = null) {
+        val c = client
+        if (c == null || purchaseToken.isBlank()) {
+            onSettled?.invoke(false)
+            return
+        }
+        if (consumeAfterAck) {
+            val params = ConsumeParams.newBuilder().setPurchaseToken(purchaseToken).build()
+            c.consumeAsync(params) { result, _ ->
+                onSettled?.invoke(result.responseCode == BillingClient.BillingResponseCode.OK)
+            }
+            return
+        }
+        val params = AcknowledgePurchaseParams.newBuilder()
+            .setPurchaseToken(purchaseToken)
+            .build()
+        c.acknowledgePurchase(params) { result ->
+            onSettled?.invoke(result.responseCode == BillingClient.BillingResponseCode.OK)
         }
     }
 

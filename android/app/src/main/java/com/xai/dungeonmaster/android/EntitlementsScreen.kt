@@ -44,15 +44,19 @@ fun EntitlementsScreen(
     var billingNote by remember { mutableStateOf<String?>(null) }
 
     val activity = LocalContext.current as? Activity
+    val billingHolder = remember { arrayOfNulls<PlayBillingPurchaser>(1) }
     val billing = remember(activity) {
         activity?.let { act ->
             PlayBillingPurchaser(
                 activity = act,
-                onReceipt = { sku, json ->
+                onReceipt = { sku, json, token ->
                     onVerify(sku, json, DevReceipts.STOREFRONT_GOOGLE_PLAY)
+                    act.window.decorView.post {
+                        billingHolder[0]?.settle(token)
+                    }
                 },
                 onError = { billingNote = it },
-            )
+            ).also { billingHolder[0] = it }
         }
     }
     DisposableEffect(billing) {

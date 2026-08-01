@@ -45,6 +45,15 @@ public interface StorefrontIntegration extends Plugin {
      */
     boolean verifyReceipt(String receipt);
 
+    /**
+     * Called after a receipt verified and the entitlement was granted.
+     * Use for store-side settle steps (Google Play acknowledge/consume,
+     * Steam FinalizeTxn, etc.). Default is a no-op.
+     */
+    default void afterGrant(String productId, String receipt) {
+        // optional
+    }
+
     /** Stable storefront user identity. */
     final class Identity {
         public final String storefrontUserId;

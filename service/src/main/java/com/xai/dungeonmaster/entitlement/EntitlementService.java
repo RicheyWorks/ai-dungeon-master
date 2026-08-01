@@ -50,6 +50,12 @@ public class EntitlementService {
             return new Grant(false, productId, storefront.id(), "receipt failed verification");
         }
         store.grant(sessionId, productId);
+        try {
+            storefront.afterGrant(productId, receipt);
+        } catch (Exception e) {
+            System.err.println("[entitlements] afterGrant failed for " + storefront.id()
+                    + ": " + e.getMessage());
+        }
         return new Grant(true, productId, storefront.id(), "granted");
     }
 
