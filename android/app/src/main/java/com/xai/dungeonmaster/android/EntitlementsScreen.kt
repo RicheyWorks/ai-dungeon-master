@@ -1,5 +1,6 @@
 package com.xai.dungeonmaster.android
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,19 +16,19 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.xai.dungeonmaster.client.models.EntitlementPayload
 
 /**
- * Store / entitlements tab: list owned products, paste a receipt, or mint a
- * sandbox receipt for `dev` / `google_play` / `app_store` (HMAC matching the
- * server plugins — see docs/STOREFRONTS.md).
+ * Store / entitlements: sandbox HMAC, live Play Billing, or paste-a-receipt.
  */
 @Composable
 fun EntitlementsScreen(
@@ -40,6 +41,24 @@ fun EntitlementsScreen(
     var productId by remember { mutableStateOf("sku_gold") }
     var storefront by remember { mutableStateOf(DevReceipts.STOREFRONT_DEV) }
     var receipt by remember { mutableStateOf("") }
+    var billingNote by remember { mutableStateOf<String?>(null) }
+
+    val activity = LocalContext.current as? Activity
+    val billing = remember(activity) {
+        activity?.let { act ->
+            PlayBillingPurchaser(
+                activity = act,
+                onReceipt = { sku, json ->
+                    onVerify(sku, json, DevReceipts.STOREFRONT_GOOGLE_PLAY)
+                },
+                onError = { billingNote = it },
+            )
+        }
+    }
+    DisposableEffect(billing) {
+        billing?.start()
+        onDispose { billing?.end() }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -63,7 +82,7 @@ fun EntitlementsScreen(
                     val owned = entitlements?.owned.orEmpty()
                     if (owned.isEmpty()) {
                         Text(
-                            "None yet — sandbox-buy a SKU or verify a receipt.",
+                            "None yet — buy via Play Billing, sandbox, or verify a receipt.",
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     } else {
@@ -79,6 +98,44 @@ fun EntitlementsScreen(
         }
 
         item {
+            Text("Google Play Billing (live)", style = MaterialTheme.typography.titleMedium)
+        }
+        item {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Launches Play Billing for the product id, then posts " +
+                            "{\"packageName\",\"productId\",\"purchaseToken\"} to " +
+                            "POST /v2/entitlements/verify (storefront google_play).",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    OutlinedTextField(
+                        value = productId,
+                        onValueChange = { productId = it },
+                        label = { Text("Play product id") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Button(
+                        onClick = {
+                            billingNote = null
+                            if (billing == null) {
+                                billingNote = "Activity unavailable for Billing"
+                            } else {
+                                billing.purchase(productId.trim())
+                            }
+                        },
+                        enabled = !busy && productId.isNotBlank() && billing != null,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Buy with Play Billing") }
+                    billingNote?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+
+        item {
             Text("Sandbox purchase", style = MaterialTheme.typography.titleMedium)
         }
         item {
@@ -86,8 +143,7 @@ fun EntitlementsScreen(
                 Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
                     Text(
                         "Mints a signed sandbox receipt for the selected storefront and posts it to " +
-                            "POST /v2/entitlements/verify. google_play / app_store use JSON envelopes " +
-                            "matching live Play Billing / StoreKit payloads.",
+                            "POST /v2/entitlements/verify.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -124,7 +180,7 @@ fun EntitlementsScreen(
             Text("Verify arbitrary receipt", style = MaterialTheme.typography.titleMedium)
         }
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Card(modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = storefront,

@@ -423,6 +423,14 @@ paths:
           description: Async install job accepted.
         '404':
           description: Unknown pack.
+  /v2/entitlements/storefronts:
+    get:
+      tags: [v2]
+      operationId: listStorefrontsV2
+      summary: List registered storefronts and live/sandbox mode.
+      responses:
+        '200':
+          description: Storefront inventory.
   /v2/entitlements:
     get:
       tags: [v2]

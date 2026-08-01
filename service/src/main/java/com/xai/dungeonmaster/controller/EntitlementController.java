@@ -7,20 +7,26 @@ import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.dto.ErrorPayload;
 import com.xai.dungeonmaster.dto.VerifyReceiptRequest;
 import com.xai.dungeonmaster.entitlement.EntitlementService;
+import com.xai.dungeonmaster.plugin.StorefrontIntegration;
+import com.xai.dungeonmaster.plugin.StorefrontRegistry;
+import com.xai.dungeonmaster.plugin.builtin.AppStoreStorefront;
+import com.xai.dungeonmaster.plugin.builtin.GooglePlayStorefront;
+import com.xai.dungeonmaster.plugin.builtin.SteamStorefront;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Player entitlements from validated store purchases.
  *
  * POST /v2/entitlements/verify — validate a receipt via the storefront plugin and grant the product
  * GET  /v2/entitlements        — list the caller's owned products
- *
- * Both are session-scoped: the authenticated session comes from the request
- * attribute set by {@link JwtAuthFilter}. Verification failures return 402.
+ * GET  /v2/entitlements/storefronts — registered storefronts + live/sandbox mode
  */
 @RestController
 @RequestMapping("/v2/entitlements")
@@ -31,6 +37,25 @@ public class EntitlementController {
 
     public EntitlementController(EntitlementService entitlements) {
         this.entitlements = entitlements;
+    }
+
+    @GetMapping("/storefronts")
+    public Envelope<Map<String, Object>> storefronts(
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (String id : StorefrontRegistry.registeredIds().stream().sorted().toList()) {
+            StorefrontIntegration s = StorefrontRegistry.get(id);
+            if (s == null) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", s.id());
+            row.put("displayName", s.displayName());
+            row.put("live", isLive(s));
+            list.add(row);
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("storefronts", list);
+        payload.put("active", StorefrontRegistry.getActive().id());
+        return Envelope.of("storefronts", payload, requestId);
     }
 
     @PostMapping("/verify")
@@ -69,5 +94,12 @@ public class EntitlementController {
         EntitlementPayload payload = new EntitlementPayload(
                 true, null, null, "ok", new ArrayList<>(entitlements.entitlements(session.id())));
         return ResponseEntity.ok(Envelope.of("entitlements", payload, requestId));
+    }
+
+    private static boolean isLive(StorefrontIntegration s) {
+        if (s instanceof GooglePlayStorefront g) return g.isLive();
+        if (s instanceof AppStoreStorefront a) return a.isLive();
+        if (s instanceof SteamStorefront st) return st.isLive();
+        return false;
     }
 }

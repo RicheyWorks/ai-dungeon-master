@@ -177,3 +177,21 @@ Phases: `QUEUED` → `DOWNLOADING` → `VERIFYING` → `INSTALLING` → `DONE` |
 | `game.marketplace.jobs.ttl-seconds` | Redis key TTL (default 3600) |
 
 Job snapshots (`phase`, bytes, cancel) are written to Redis so other nodes can poll progress. Download workers remain process-local; orphaned non-terminal jobs report `FAILED` after restart.
+
+## Live storefronts (Play / App Store / Steam)
+
+| Property | Env equivalent |
+|---|---|
+| `game.storefront.google.package-name` | `STOREFRONT_GOOGLE_PACKAGE_NAME` |
+| `game.storefront.google.access-token` | `STOREFRONT_GOOGLE_ACCESS_TOKEN` |
+| `game.storefront.google.service-account-json` | `STOREFRONT_GOOGLE_SERVICE_ACCOUNT_JSON` (path to SA key; auto-mints Publisher API tokens) |
+| `game.storefront.apple.shared-secret` | `STOREFRONT_APPLE_SHARED_SECRET` |
+| `game.storefront.apple.bundle-id` | `STOREFRONT_APPLE_BUNDLE_ID` |
+| `game.storefront.steam.publisher-key` / `app-id` | `STOREFRONT_STEAM_*` |
+
+`GET /v2/entitlements/storefronts` reports which plugins are **live** vs sandbox.
+
+### Clients
+- **Android**: Play Billing → JSON `{packageName,productId,purchaseToken}` → verify `google_play`
+- **iOS**: StoreKit 2 → `{receiptData,productId}` → verify `app_store`
+- Sandbox HMAC mint remains for local/CI

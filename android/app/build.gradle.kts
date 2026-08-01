@@ -63,6 +63,9 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
+    // Google Play Billing (live IAP → server google_play verify)
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
+
     // Required by the generated SDK sources (jvm-okhttp4 + moshi).
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.moshi:moshi:1.15.1")
