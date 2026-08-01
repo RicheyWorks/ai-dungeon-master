@@ -2,6 +2,7 @@ package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.plugin.ContentRegistry;
 import com.xai.dungeonmaster.service.MarketplaceService;
+import com.xai.dungeonmaster.service.PackUploadService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,8 @@ class MarketplaceControllerTest {
     @BeforeEach
     void setUp() throws Exception {
         ContentRegistry.clearForTests();
-        Path pack = tmp.resolve("demo-pack");
+        Path packs = tmp.resolve("packs");
+        Path pack = packs.resolve("demo-pack");
         Files.createDirectories(pack);
         Files.writeString(pack.resolve("pack.yaml"), """
                 id: "demo-pack"
@@ -37,7 +39,9 @@ class MarketplaceControllerTest {
                 description: "Controller test pack"
                 """);
         Files.createDirectories(pack.resolve("items"));
-        mvc = standaloneSetup(new MarketplaceController(new MarketplaceService(tmp))).build();
+        PackUploadService uploads = new PackUploadService(packs.toString());
+        MarketplaceService svc = new MarketplaceService(packs, "", 0, uploads);
+        mvc = standaloneSetup(new MarketplaceController(svc)).build();
     }
 
     @AfterEach
@@ -51,7 +55,8 @@ class MarketplaceControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type", equalTo("marketplace")))
                 .andExpect(jsonPath("$.payload.available", greaterThanOrEqualTo(1)))
-                .andExpect(jsonPath("$.payload.packs[0].id", equalTo("demo-pack")));
+                .andExpect(jsonPath("$.payload.packs[0].id", equalTo("demo-pack")))
+                .andExpect(jsonPath("$.payload.packs[0].source", equalTo("local")));
     }
 
     @Test
