@@ -2,9 +2,11 @@ import SwiftUI
 
 struct StoreTab: View {
     @ObservedObject var model: GameViewModel
+    @StateObject private var storeKit = StoreKitPurchaser()
     @State private var productId = "sku_gold"
     @State private var storefront = DevReceipts.storefrontDev
     @State private var receipt = ""
+    @State private var storeKitBusy = false
 
     private let demoSkus = ["sku_gold", "sku_season_pass", "pack_the_hollows"]
 
@@ -19,6 +21,7 @@ struct StoreTab: View {
                 }
 
                 ownedCard
+                storeKitCard
                 sandboxPurchaseCard
                 verifyCard
                 demoSection
@@ -32,7 +35,7 @@ struct StoreTab: View {
             Text("Owned products").font(.subheadline.bold())
             let owned = model.entitlements?.owned ?? []
             if owned.isEmpty {
-                Text("None yet — sandbox-buy a SKU or verify a receipt.")
+                Text("None yet — buy via StoreKit, sandbox, or verify a receipt.")
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(owned, id: \.self) { sku in
@@ -50,10 +53,45 @@ struct StoreTab: View {
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
+    private var storeKitCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("App Store (StoreKit 2)").font(.subheadline.bold())
+            Text("Purchases a StoreKit product, then posts {receiptData, productId} to POST /v2/entitlements/verify (storefront app_store). Requires a signed app + IAP catalog.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("Product id", text: $productId)
+                .textFieldStyle(.roundedBorder)
+            Button(storeKitBusy ? "Purchasing…" : "Buy with StoreKit") {
+                Task {
+                    storeKitBusy = true
+                    defer { storeKitBusy = false }
+                    if let result = await storeKit.purchase(productId: productId.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                        model.verifyReceipt(
+                            productId: result.productId,
+                            receipt: result.receiptJson,
+                            storefront: DevReceipts.storefrontAppStore
+                        )
+                    } else if let err = storeKit.lastError {
+                        model.error = err
+                    }
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(model.busy || storeKitBusy || productId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .frame(maxWidth: .infinity)
+            if let err = storeKit.lastError {
+                Text(err).font(.caption).foregroundStyle(.red)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
     private var sandboxPurchaseCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Sandbox purchase").font(.subheadline.bold())
-            Text("Mints a storefront-shaped receipt (HMAC sandbox for google_play / app_store JSON envelopes) and posts it to POST /v2/entitlements/verify.")
+            Text("Mints a storefront-shaped receipt (HMAC sandbox) and posts it to POST /v2/entitlements/verify.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Picker("Storefront", selection: $storefront) {

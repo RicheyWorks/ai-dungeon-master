@@ -8,71 +8,74 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Google Play storefront ({@code id = "google_play"}).
  *
- * <p><b>Live mode</b> — when {@code STOREFRONT_GOOGLE_ACCESS_TOKEN} (and package
- * name) are set, verifies purchase tokens against the Android Publisher API:
- * {@code GET …/applications/{package}/purchases/products/{sku}/tokens/{token}}.
+ * <p><b>Live mode</b> when package name is set and either:
+ * <ul>
+ *   <li>{@code STOREFRONT_GOOGLE_ACCESS_TOKEN} is set, or</li>
+ *   <li>{@code STOREFRONT_GOOGLE_SERVICE_ACCOUNT_JSON} points at a service-account key
+ *       (auto-mints Android Publisher OAuth tokens)</li>
+ * </ul>
  * Receipts are JSON:
  * <pre>{@code {"packageName":"…","productId":"…","purchaseToken":"…"}}</pre>
  *
- * <p><b>Sandbox mode</b> (default without a live token) — accepts HMAC receipts
- * signed with {@code STOREFRONT_GOOGLE_SECRET} (same shape as {@link DevStorefront}),
- * so CI and local Android clients can exercise the grant loop without calling Google.
- *
- * Access tokens are expected to be supplied by the operator (short-lived OAuth);
- * minting service-account JWTs is left to the deploy environment.
+ * <p><b>Sandbox mode</b> (default) — HMAC receipts via {@code STOREFRONT_GOOGLE_SECRET}.
  */
 public final class GooglePlayStorefront implements StorefrontIntegration {
 
     public static final String ID = "google_play";
 
-    private static final Pattern JSON_STRING = Pattern.compile("\"%s\"\\s*:\\s*\"([^\"]*)\"");
-
-    private final String packageName;
-    private final String accessToken;
-    private final byte[] sandboxSecret;
+    private final Supplier<String> packageName;
+    private final Supplier<String> accessToken;
+    private final Supplier<byte[]> sandboxSecret;
     private final HttpClient http;
-    private final boolean live;
+    private final GoogleServiceAccountTokens serviceAccount;
 
     public GooglePlayStorefront() {
-        this(
-                env("STOREFRONT_GOOGLE_PACKAGE_NAME", ""),
-                env("STOREFRONT_GOOGLE_ACCESS_TOKEN", ""),
-                env("STOREFRONT_GOOGLE_SECRET", "google-play-sandbox-insecure-secret").getBytes(StandardCharsets.UTF_8),
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        this.http = client;
+        this.packageName = () -> env("STOREFRONT_GOOGLE_PACKAGE_NAME", "");
+        this.accessToken = () -> env("STOREFRONT_GOOGLE_ACCESS_TOKEN", "");
+        this.sandboxSecret = () -> env("STOREFRONT_GOOGLE_SECRET", "google-play-sandbox-insecure-secret")
+                .getBytes(StandardCharsets.UTF_8);
+        String saPath = env("STOREFRONT_GOOGLE_SERVICE_ACCOUNT_JSON", "");
+        this.serviceAccount = saPath.isBlank() || !Files.isRegularFile(Path.of(saPath))
+                ? null
+                : new GoogleServiceAccountTokens(Path.of(saPath), client);
     }
 
-    /** Test / embedder constructor. */
+    /** Test / embedder constructor (fixed credentials, no service account). */
     public GooglePlayStorefront(String packageName, String accessToken, byte[] sandboxSecret, HttpClient http) {
-        this.packageName = packageName == null ? "" : packageName.trim();
-        this.accessToken = accessToken == null ? "" : accessToken.trim();
-        this.sandboxSecret = sandboxSecret;
+        this.packageName = () -> packageName == null ? "" : packageName.trim();
+        this.accessToken = () -> accessToken == null ? "" : accessToken.trim();
+        this.sandboxSecret = () -> sandboxSecret;
         this.http = http;
-        this.live = !this.accessToken.isBlank() && !this.packageName.isBlank();
+        this.serviceAccount = null;
     }
 
     @Override public String id() { return ID; }
 
     @Override
     public String displayName() {
-        return live ? "Google Play (live)" : "Google Play (sandbox HMAC)";
+        return isLive() ? "Google Play (live)" : "Google Play (sandbox HMAC)";
     }
 
-    /** Mint a sandbox receipt for local/CI use. */
     public String signSandboxReceipt(String productId) {
-        return HmacReceipts.sign(productId, sandboxSecret);
+        return HmacReceipts.sign(productId, sandboxSecret.get());
     }
 
     public boolean isLive() {
-        return live;
+        return !packageName.get().isBlank() && !resolveAccessToken().isBlank();
     }
 
     @Override
@@ -82,8 +85,7 @@ public final class GooglePlayStorefront implements StorefrontIntegration {
         if (trimmed.startsWith("{")) {
             return verifyJsonReceipt(trimmed);
         }
-        // Sandbox HMAC (or client sent bare signed form)
-        return HmacReceipts.verify(trimmed, sandboxSecret);
+        return HmacReceipts.verify(trimmed, sandboxSecret.get());
     }
 
     private boolean verifyJsonReceipt(String json) {
@@ -92,21 +94,32 @@ public final class GooglePlayStorefront implements StorefrontIntegration {
         Optional<String> pkg = jsonString(json, "packageName");
         if (productId.isEmpty() || token.isEmpty()) return false;
 
-        if (live) {
-            String usePkg = pkg.filter(p -> !p.isBlank()).orElse(packageName);
+        if (isLive()) {
+            String usePkg = pkg.filter(p -> !p.isBlank()).orElse(packageName.get());
             if (usePkg.isBlank()) return false;
-            if (!packageName.isBlank() && !packageName.equals(usePkg)) return false;
+            String configured = packageName.get();
+            if (!configured.isBlank() && !configured.equals(usePkg)) return false;
             return verifyWithGoogle(usePkg, productId.get(), token.get());
         }
 
-        // Sandbox: purchaseToken itself must be an HMAC receipt for productId
-        if (!HmacReceipts.verify(token.get(), sandboxSecret)) return false;
+        if (!HmacReceipts.verify(token.get(), sandboxSecret.get())) return false;
         String fromBody = HmacReceipts.productIdFromReceipt(token.get());
         return productId.get().equals(fromBody);
     }
 
+    private String resolveAccessToken() {
+        String direct = accessToken.get();
+        if (direct != null && !direct.isBlank()) return direct.trim();
+        if (serviceAccount != null) {
+            return serviceAccount.accessToken().orElse("");
+        }
+        return "";
+    }
+
     private boolean verifyWithGoogle(String pkg, String productId, String purchaseToken) {
         try {
+            String bearer = resolveAccessToken();
+            if (bearer.isBlank()) return false;
             String url = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/"
                     + enc(pkg)
                     + "/purchases/products/"
@@ -115,13 +128,12 @@ public final class GooglePlayStorefront implements StorefrontIntegration {
                     + enc(purchaseToken);
             HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofSeconds(10))
-                    .header("Authorization", "Bearer " + accessToken)
+                    .header("Authorization", "Bearer " + bearer)
                     .GET()
                     .build();
             HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() != 200) return false;
             String body = res.body() == null ? "" : res.body();
-            // purchaseState 0 = purchased
             Optional<String> state = jsonNumberOrString(body, "purchaseState");
             return state.isEmpty() || "0".equals(state.get());
         } catch (Exception e) {
@@ -135,8 +147,8 @@ public final class GooglePlayStorefront implements StorefrontIntegration {
         final String receipt = signSandboxReceipt(productId);
         return new PurchaseFlow() {
             @Override public boolean isComplete() { return true; }
-            @Override public boolean wasSuccessful() { return !live; }
-            @Override public String receipt() { return live ? null : receipt; }
+            @Override public boolean wasSuccessful() { return !isLive(); }
+            @Override public String receipt() { return isLive() ? null : receipt; }
         };
     }
 
