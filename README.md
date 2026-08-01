@@ -77,6 +77,7 @@ curl -s localhost:8080/health/ready    # readiness + session/engine counts
 curl -s localhost:8080/v2/health       # metrics envelope
 curl -s localhost:8080/metrics         # Prometheus scrape
 curl -s localhost:8080/v2/status      # typed game_status envelope
+curl -s localhost:8080/v2/marketplace     # content-pack discovery
 curl -s localhost:8080/v2/catalog     # installed packs + plugins
 ```
 
