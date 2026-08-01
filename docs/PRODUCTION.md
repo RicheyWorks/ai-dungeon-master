@@ -197,3 +197,22 @@ Job snapshots (`phase`, bytes, cancel) are written to Redis so other nodes can p
 - **Android**: Play Billing → JSON `{packageName,productId,purchaseToken}` → verify `google_play`
 - **iOS**: StoreKit 2 → `{receiptData,productId}` → verify `app_store`
 - Sandbox HMAC mint remains for local/CI
+
+## Entitlement-gated content packs
+
+`pack.yaml` may declare:
+
+```yaml
+requiredProductId: "pack_the_hollows"
+# or:
+# requiredProductIds: ["sku_a", "sku_b"]
+# requireAllProducts: false   # any one SKU (default)
+```
+
+With `game.content.entitlement-gates=true` (default):
+
+- Install leaves gated packs **disabled**
+- `POST /v2/catalog/packs/{id}/enable` requires a session that owns the SKU(s) → else **402**
+- Catalog `PackInfo.locked` / `requiredProductIds` surface the gate to clients
+
+Note: `ContentRegistry` is process-wide; gating protects the **enable** action for the calling session (typical single-player / host console).

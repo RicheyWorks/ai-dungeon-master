@@ -164,6 +164,8 @@ export type MarketplaceListing = {
   description?: string;
   installed?: boolean;
   enabled?: boolean;
+  requiredProductIds?: string[];
+  locked?: boolean;
   sourcePath?: string;
   /** `local` or `remote` */
   source?: string;
@@ -393,3 +395,9 @@ export async function fetchHealthV2(baseUrl: string): Promise<{
     };
   }
 }
+
+/** Catalog pack fields added for entitlement gates (extra JSON on PackInfo). */
+export type CatalogPackExtras = {
+  requiredProductIds?: string[];
+  locked?: boolean;
+};

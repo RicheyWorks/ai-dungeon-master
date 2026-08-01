@@ -8,3 +8,6 @@ displayName: "The Black Hollows"
 version: "1.0.0"
 minEngineVersion: "1.0.0"
 description: "A drowned parish of wretches and revenants, stalked by the weeping tree at its heart. Ships grave-salt, funeral relics, and a boss encounter."
+
+# DLC gate — enable only if session owns this store SKU
+requiredProductId: "pack_the_hollows"

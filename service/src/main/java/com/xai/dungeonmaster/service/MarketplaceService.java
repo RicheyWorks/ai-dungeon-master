@@ -226,7 +226,7 @@ public class MarketplaceService {
         if (pack == null) {
             return InstallResult.fail("Failed to load pack at " + dir);
         }
-        ContentRegistry.setEnabled(pack.id(), true);
+        enableAfterInstall(pack);
         return InstallResult.installed(pack.id());
     }
 
@@ -368,7 +368,7 @@ public class MarketplaceService {
                     state.persist(jobStore);
                     return;
                 }
-                ContentRegistry.setEnabled(pack.id(), true);
+                enableAfterInstall(pack);
                 state.phase.set("DONE");
                 state.message.set("Installed " + pack.id());
                 state.bytesTotal.set(Math.max(1, state.bytesTotal.get()));
@@ -453,7 +453,7 @@ public class MarketplaceService {
                 job.persist(jobStore);
             }
             PackUploadService.InstalledPack installed = uploads.install(zip, false);
-            ContentRegistry.setEnabled(installed.pack().id(), true);
+            enableAfterInstall(installed.pack());
             return InstallResult.installed(installed.pack().id());
         } catch (PackUploadService.PackUploadException e) {
             if (e.isConflict()) {
@@ -466,6 +466,14 @@ public class MarketplaceService {
         } catch (Exception e) {
             return InstallResult.fail("Download failed: " + e.getMessage());
         }
+    }
+
+
+    /** Free packs enable immediately; SKU-gated packs stay disabled until /enable. */
+    private static void enableAfterInstall(ContentPack pack) {
+        if (pack == null) return;
+        boolean free = pack.requiredProductIds() == null || pack.requiredProductIds().isEmpty();
+        ContentRegistry.setEnabled(pack.id(), free);
     }
 
     private void pruneJobs() {

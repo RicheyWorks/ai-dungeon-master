@@ -853,15 +853,25 @@ function ModsTab(props: {
       {livePacks.map((pack) => (
         <div className="card switch" key={pack.id ?? pack.displayName}>
           <div>
-            <div className="pack-title">{pack.displayName ?? pack.id ?? "?"}</div>
+            <div className="pack-title">
+              {pack.displayName ?? pack.id ?? "?"}
+              {pack.locked ? (
+                <span className="pill muted-pill" title={(pack.requiredProductIds ?? []).join(", ")}>
+                  {" "}LOCKED
+                </span>
+              ) : null}
+            </div>
             <div className="muted">
               v{pack.version ?? "?"} · {pack.monsters ?? 0} monsters · {pack.items ?? 0} items
+              {pack.requiredProductIds && pack.requiredProductIds.length
+                ? ` · requires ${pack.requiredProductIds.join(" | ")}`
+                : ""}
             </div>
           </div>
           <input
             type="checkbox"
             checked={pack.enabled === true}
-            disabled={props.busy || !pack.id}
+            disabled={props.busy || !pack.id || (!!pack.locked && !pack.enabled)}
             onChange={(e) => pack.id && props.onToggle(pack.id, e.target.checked)}
           />
         </div>

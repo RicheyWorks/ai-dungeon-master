@@ -933,6 +933,13 @@ components:
         monsters: { type: integer }
         items: { type: integer }
         enabled: { type: boolean }
+        requiredProductIds:
+          type: array
+          items: { type: string }
+          description: Store SKUs required to enable this pack.
+        locked:
+          type: boolean
+          description: True when the caller cannot enable the pack (missing entitlement).
     PluginSummary:
       type: object
       description: Registered plugin ids (or biome tags) grouped by SPI.

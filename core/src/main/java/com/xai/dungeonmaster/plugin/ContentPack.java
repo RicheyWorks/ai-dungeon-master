@@ -69,4 +69,17 @@ public interface ContentPack extends Plugin {
     default Map<String, com.xai.dungeonmaster.Faction> factions() {
         return Collections.emptyMap();
     }
+
+    /**
+     * Store product ids required to <em>enable</em> this pack (any one is enough
+     * unless {@link #requireAllProducts()} is true). Empty = free pack.
+     */
+    default java.util.List<String> requiredProductIds() {
+        return java.util.List.of();
+    }
+
+    /** When true, every id in {@link #requiredProductIds()} must be owned. */
+    default boolean requireAllProducts() {
+        return false;
+    }
 }
