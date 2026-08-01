@@ -328,6 +328,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+
+  /v2/marketplace:
+    get:
+      tags: [v2]
+      operationId: listMarketplaceV2
+      summary: List local marketplace content packs.
+      description: |
+        Discovers packs under `game.content-packs.dir` (default `content-packs/`)
+        with install/enabled status from the live catalog.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - name: q
+          in: query
+          schema: { type: string }
+          description: Filter by id, name, or description
+      responses:
+        '200':
+          description: Marketplace listing envelope.
+  /v2/marketplace/{id}:
+    get:
+      tags: [v2]
+      operationId: getMarketplacePackV2
+      summary: Marketplace pack detail.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Pack detail.
+        '404':
+          description: Unknown pack.
+  /v2/marketplace/{id}/install:
+    post:
+      tags: [v2]
+      operationId: installMarketplacePackV2
+      summary: Install a marketplace pack into the live catalog.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Newly installed.
+        '200':
+          description: Already installed.
+        '404':
+          description: Unknown pack.
   /v2/entitlements:
     get:
       tags: [v2]

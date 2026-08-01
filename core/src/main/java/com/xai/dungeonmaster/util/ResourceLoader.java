@@ -157,6 +157,24 @@ public final class ResourceLoader {
     }
 
     /**
+     * Read {@code pack.yaml} from a pack directory without loading content.
+     * Returns null if missing or invalid.
+     */
+    public static PackManifest readPackManifest(Path dir) {
+        if (dir == null || !Files.isDirectory(dir)) return null;
+        Path manifest = dir.resolve("pack.yaml");
+        if (!Files.isRegularFile(manifest)) return null;
+        try {
+            PackManifest meta = YAML.readValue(manifest.toFile(), PackManifest.class);
+            if (meta == null || meta.id == null || meta.id.isBlank()) return null;
+            return meta;
+        } catch (Exception e) {
+            System.err.println("Failed to read pack.yaml at " + manifest + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Load a single pack directory (must contain pack.yaml) and register it
      * in the ContentRegistry — the runtime-install path used by the pack
      * upload API. Quests and campaigns inside the pack register as part of
