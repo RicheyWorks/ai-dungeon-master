@@ -6,6 +6,7 @@ public enum DevReceipts {
     public static let storefrontDev = "dev"
     public static let storefrontGooglePlay = "google_play"
     public static let storefrontAppStore = "app_store"
+    public static let storefrontSteam = "steam"
 
     /// Backward-compatible alias.
     public static let storefrontId = storefrontDev
@@ -13,17 +14,22 @@ public enum DevReceipts {
     public static let secretDev = "dev-storefront-insecure-secret-change-me"
     public static let secretGoogle = "google-play-sandbox-insecure-secret"
     public static let secretApple = "app-store-sandbox-insecure-secret"
+    public static let secretSteam = "steam-sandbox-insecure-secret"
     public static let defaultPackageName = "com.xai.dungeonmaster"
 
-    public static let knownStorefronts = [storefrontDev, storefrontGooglePlay, storefrontAppStore]
+    public static let knownStorefronts = [
+        storefrontDev, storefrontGooglePlay, storefrontAppStore, storefrontSteam,
+    ]
 
     public static func secret(for storefront: String) -> String {
         switch storefront.lowercased() {
         case storefrontGooglePlay: return secretGoogle
         case storefrontAppStore: return secretApple
+        case storefrontSteam: return secretSteam
         default: return secretDev
         }
     }
+
 
     public static func sign(productId: String, secret: String = secretDev) -> String {
         let productData = Data(productId.utf8)
@@ -51,9 +57,12 @@ public enum DevReceipts {
             receipt = #"{"packageName":\#(json(packageName)),"productId":\#(json(productId)),"purchaseToken":\#(json(hmac))}"#
         case storefrontAppStore:
             receipt = #"{"receiptData":\#(json(hmac)),"productId":\#(json(productId))}"#
+        case storefrontSteam:
+            receipt = #"{"orderId":\#(json(hmac)),"steamId":"76561198000000000","productId":\#(json(productId))}"#
         default:
             receipt = hmac
         }
+
         return Minted(storefront: id, productId: productId, receipt: receipt)
     }
 

@@ -19,6 +19,8 @@ object DevReceipts {
     const val STOREFRONT_DEV = "dev"
     const val STOREFRONT_GOOGLE_PLAY = "google_play"
     const val STOREFRONT_APP_STORE = "app_store"
+    const val STOREFRONT_STEAM = "steam"
+
 
     /** @deprecated use [STOREFRONT_DEV] */
     const val STOREFRONT_ID = STOREFRONT_DEV
@@ -26,6 +28,8 @@ object DevReceipts {
     const val SECRET_DEV = "dev-storefront-insecure-secret-change-me"
     const val SECRET_GOOGLE = "google-play-sandbox-insecure-secret"
     const val SECRET_APPLE = "app-store-sandbox-insecure-secret"
+    const val SECRET_STEAM = "steam-sandbox-insecure-secret"
+
 
     /** Default package / bundle used in JSON wrappers (override in real builds). */
     const val DEFAULT_PACKAGE_NAME = "com.xai.dungeonmaster"
@@ -37,13 +41,16 @@ object DevReceipts {
         STOREFRONT_DEV,
         STOREFRONT_GOOGLE_PLAY,
         STOREFRONT_APP_STORE,
+        STOREFRONT_STEAM,
     )
 
     fun secretFor(storefront: String): String = when (storefront.lowercase()) {
         STOREFRONT_GOOGLE_PLAY -> SECRET_GOOGLE
         STOREFRONT_APP_STORE -> SECRET_APPLE
+        STOREFRONT_STEAM -> SECRET_STEAM
         else -> SECRET_DEV
     }
+
 
     fun sign(productId: String, secret: String = SECRET_DEV): String {
         val p = productId.toByteArray(Charsets.UTF_8)
@@ -64,8 +71,11 @@ object DevReceipts {
                 """{"packageName":${json(packageName)},"productId":${json(productId)},"purchaseToken":${json(hmac)}}"""
             STOREFRONT_APP_STORE ->
                 """{"receiptData":${json(hmac)},"productId":${json(productId)}}"""
+            STOREFRONT_STEAM ->
+                """{"orderId":${json(hmac)},"steamId":"76561198000000000","productId":${json(productId)}}"""
             else -> hmac
         }
+
         return Minted(storefront = id, productId = productId, receipt = receipt)
     }
 
