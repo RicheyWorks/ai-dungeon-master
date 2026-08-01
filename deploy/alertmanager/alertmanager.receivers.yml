@@ -1,0 +1,89 @@
+# Production-shaped receivers: Slack + PagerDuty.
+# Copy to alertmanager.active.yml and replace placeholders, or set env and use
+# scripts/render-alertmanager.sh (see README).
+#
+# Placeholders:
+#   __SLACK_WEBHOOK_URL__     Incoming webhook (https://hooks.slack.com/services/…)
+#   __SLACK_CHANNEL__         e.g. #dm-alerts
+#   __PAGERDUTY_ROUTING_KEY__ Events API v2 integration key
+
+global:
+  resolve_timeout: 5m
+  slack_api_url: '__SLACK_WEBHOOK_URL__'
+
+templates:
+  - /etc/alertmanager/templates/*.tmpl
+
+route:
+  receiver: default
+  group_by: [alertname, service, severity, instance]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = critical
+      receiver: critical
+      continue: true
+    - matchers:
+        - severity = warning
+      receiver: warning
+      continue: true
+
+receivers:
+  # Non-matching / informational
+  - name: default
+    slack_configs:
+      - channel: '__SLACK_CHANNEL__'
+        send_resolved: true
+        title: '{{ template "slack.title" . }}'
+        text: '{{ template "slack.text" . }}'
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+        actions:
+          - type: button
+            text: 'Prometheus'
+            url: '{{ (index .Alerts 0).GeneratorURL }}'
+
+  - name: warning
+    slack_configs:
+      - channel: '__SLACK_CHANNEL__'
+        send_resolved: true
+        title: '{{ template "slack.title" . }}'
+        text: '{{ template "slack.text" . }}'
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+        actions:
+          - type: button
+            text: 'Runbook / Prometheus'
+            url: '{{ (index .Alerts 0).GeneratorURL }}'
+
+  - name: critical
+    slack_configs:
+      - channel: '__SLACK_CHANNEL__'
+        send_resolved: true
+        title: '{{ template "slack.title" . }}'
+        text: '{{ template "slack.text" . }}'
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+        actions:
+          - type: button
+            text: 'Prometheus'
+            url: '{{ (index .Alerts 0).GeneratorURL }}'
+    pagerduty_configs:
+      - routing_key: '__PAGERDUTY_ROUTING_KEY__'
+        severity: '{{ if eq .CommonLabels.severity "critical" }}critical{{ else }}warning{{ end }}'
+        description: '{{ template "pagerduty.description" . }}'
+        client: 'AI Dungeon Master Alertmanager'
+        client_url: 'http://localhost:9093'
+        details:
+          summary: '{{ template "pagerduty.summary" . }}'
+          service: '{{ .CommonLabels.service }}'
+          severity: '{{ .CommonLabels.severity }}'
+          firing: '{{ .Alerts.Firing | len }}'
+          resolved: '{{ .Alerts.Resolved | len }}'
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers:
+      - alertname = DmEngineDown
+    target_matchers:
+      - alertname =~ "DmEngineNotReady|DmAuthDependencyDown"
+    equal: [instance]

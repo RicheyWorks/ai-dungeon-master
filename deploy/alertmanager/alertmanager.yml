@@ -1,11 +1,20 @@
-# Local Alertmanager config. Default route logs to the webhook receiver
-# (blackhole). Point `webhook_configs` / `email_configs` / Slack at real sinks
-# for production.
+# Local / default Alertmanager config (UI only).
+# For Slack + PagerDuty, copy the production template and inject secrets:
+#
+#   cp deploy/alertmanager/alertmanager.receivers.yml deploy/alertmanager/alertmanager.active.yml
+#   # edit webhooks / routing keys (never commit real secrets)
+#   # set ALERTMANAGER_CONFIG=alertmanager.active.yml in compose env
 #
 # UI: http://localhost:9093
+# Templates: ./templates/*.tmpl
 
 global:
   resolve_timeout: 5m
+  # Optional Slack API URL for all slack_configs (overridden per-receiver):
+  # slack_api_url: 'https://hooks.slack.com/services/XXX'
+
+templates:
+  - /etc/alertmanager/templates/*.tmpl
 
 route:
   receiver: default
@@ -18,22 +27,20 @@ route:
         - severity = critical
       receiver: critical
       continue: true
+    - matchers:
+        - severity = warning
+      receiver: warning
+      continue: true
 
 receivers:
   - name: default
-    # No-op: alerts still appear in the Alertmanager UI / Prometheus Alerts page.
+    webhook_configs: []
+
+  - name: warning
     webhook_configs: []
 
   - name: critical
     webhook_configs: []
-    # Example Slack (uncomment + set secret):
-    # slack_configs:
-    #   - api_url: 'https://hooks.slack.com/services/XXX'
-    #     channel: '#dm-alerts'
-    #     title: '{{ .Status | toUpper }} {{ .CommonLabels.alertname }}'
-    #     text: >-
-    #       {{ range .Alerts }}{{ .Annotations.summary }}
-    #       {{ .Annotations.description }}{{ end }}
 
 inhibit_rules:
   - source_matchers:

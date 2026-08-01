@@ -21,3 +21,6 @@ web/dist/
 deploy/.env
 deploy/certs/
 *.pem
+
+# Rendered Alertmanager secrets
+deploy/alertmanager/alertmanager.active.yml
