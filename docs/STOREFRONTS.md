@@ -10,6 +10,8 @@ validates, then entitlements are granted.
 | `dev` | `DevStorefront` | HMAC test receipts |
 | `google_play` | `GooglePlayStorefront` | Live Android Publisher **or** sandbox HMAC |
 | `app_store` | `AppStoreStorefront` | Live Apple `verifyReceipt` **or** sandbox HMAC |
+| `steam` | `SteamStorefront` | Live Steam MicroTxn QueryTxn **or** sandbox HMAC |
+
 
 ## Developer (`dev`)
 
@@ -88,13 +90,46 @@ Receipt: raw base64 App Store receipt, or:
 }
 ```
 
+## Steam (`steam`)
+
+### Sandbox (default)
+
+```text
+STOREFRONT_STEAM_SECRET=…   # HMAC secret (default insecure)
+```
+
+Receipt JSON:
+
+```json
+{
+  "orderId": "<hmac-receipt-for-productId>",
+  "steamId": "76561198000000000",
+  "productId": "sku_gold"
+}
+```
+
+Bare HMAC strings are also accepted.
+
+### Live
+
+```text
+STOREFRONT_STEAM_PUBLISHER_KEY=<steamworks-publisher-web-api-key>
+STOREFRONT_STEAM_APP_ID=480
+STOREFRONT_STEAM_SANDBOX=true   # use ISteamMicroTxnSandbox
+```
+
+Calls Partner API `ISteamMicroTxn[Sandbox]/QueryTxn/v3` with `orderid`.
+
 ## Client wiring
+
 
 | Client | How to buy |
 |---|---|
-| Web / Android / iOS Store tab | Sandbox purchase chips: `dev`, `google_play`, `app_store` (HMAC + JSON envelopes) |
+| Web / Android / iOS Store tab | Sandbox purchase chips: `dev`, `google_play`, `app_store`, `steam` |
 | Android Play Billing (live) | Real purchase token → `storefront=google_play` + JSON body |
 | iOS StoreKit (live) | App receipt → `storefront=app_store` |
+| Steamworks / desktop (live) | MicroTxn order id → `storefront=steam` + JSON body |
+
 
 All three clients mint sandbox receipts via shared helpers (`DevReceipts` /
 `mintReceipt`) whose secrets match the server defaults.

@@ -3,17 +3,20 @@
 export const STOREFRONT_DEV = "dev";
 export const STOREFRONT_GOOGLE_PLAY = "google_play";
 export const STOREFRONT_APP_STORE = "app_store";
+export const STOREFRONT_STEAM = "steam";
 export const DEV_STOREFRONT = STOREFRONT_DEV;
 
 export const KNOWN_STOREFRONTS = [
   STOREFRONT_DEV,
   STOREFRONT_GOOGLE_PLAY,
   STOREFRONT_APP_STORE,
+  STOREFRONT_STEAM,
 ] as const;
 
 const SECRET_DEV = "dev-storefront-insecure-secret-change-me";
 const SECRET_GOOGLE = "google-play-sandbox-insecure-secret";
 const SECRET_APPLE = "app-store-sandbox-insecure-secret";
+const SECRET_STEAM = "steam-sandbox-insecure-secret";
 export const DEFAULT_PACKAGE_NAME = "com.xai.dungeonmaster";
 
 function b64url(bytes: ArrayBuffer | Uint8Array): string {
@@ -29,6 +32,8 @@ export function secretFor(storefront: string): string {
       return SECRET_GOOGLE;
     case STOREFRONT_APP_STORE:
       return SECRET_APPLE;
+    case STOREFRONT_STEAM:
+      return SECRET_STEAM;
     default:
       return SECRET_DEV;
   }
@@ -75,6 +80,12 @@ export async function mintReceipt(
   } else if (id === STOREFRONT_APP_STORE) {
     receipt = JSON.stringify({
       receiptData: hmac,
+      productId,
+    });
+  } else if (id === STOREFRONT_STEAM) {
+    receipt = JSON.stringify({
+      orderId: hmac,
+      steamId: "76561198000000000",
       productId,
     });
   }
