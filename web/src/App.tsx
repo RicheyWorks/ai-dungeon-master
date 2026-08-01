@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CatalogPayload, EntitlementPayload, GameStatusV2 } from "./api";
+import type {
+  CatalogPayload,
+  EntitlementPayload,
+  GameStatusV2,
+  HealthPayload,
+  ReadinessResponse,
+} from "./api";
 import * as api from "./api";
 import {
   DEV_STOREFRONT,
@@ -21,7 +27,7 @@ const DEFAULT_BASE =
     ? "" // same origin (Vite proxy or engine-hosted /app)
     : "http://127.0.0.1:8080";
 
-type Tab = "game" | "mods" | "store";
+type Tab = "game" | "mods" | "store" | "system";
 
 export function App() {
   const [baseUrl, setBaseUrl] = useState(() => sessionStore.loadBaseUrl(DEFAULT_BASE));
@@ -46,9 +52,30 @@ export function App() {
   const [storefront, setStorefront] = useState(DEV_STOREFRONT);
   const [receipt, setReceipt] = useState("");
   const [replace, setReplace] = useState(false);
+  const [readiness, setReadiness] = useState<ReadinessResponse | null>(null);
+  const [health, setHealth] = useState<HealthPayload | null>(null);
+  const [healthOk, setHealthOk] = useState<boolean | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [healthAt, setHealthAt] = useState<string | null>(null);
   const stompRef = useRef<StompClient | null>(null);
 
   const token = session?.token ?? null;
+
+  const pollHealth = useCallback(async (url = baseUrl) => {
+    const ready = await api.fetchReadiness(url);
+    const v2 = await api.fetchHealthV2(url);
+    setReadiness(ready.body);
+    setHealth(v2.payload);
+    setHealthOk(ready.ok && v2.ok);
+    setHealthError(ready.error ?? v2.error ?? null);
+    setHealthAt(new Date().toLocaleTimeString());
+  }, [baseUrl]);
+
+  useEffect(() => {
+    void pollHealth();
+    const id = window.setInterval(() => void pollHealth(), 15_000);
+    return () => window.clearInterval(id);
+  }, [pollHealth]);
 
   const disconnectStomp = useCallback(() => {
     stompRef.current?.disconnect();
@@ -215,6 +242,24 @@ export function App() {
         <div className={`session-line${stompConnected ? " live" : ""}`}>
           Playing as {session.displayName} · {shortId(session.sessionId)}
           {stompConnected ? " · LIVE" : ""}
+          {" · "}
+          <span
+            className={
+              healthOk === true ? "pill up" : healthOk === false ? "pill down" : "pill"
+            }
+            title={healthError ?? readiness?.status ?? "checking"}
+          >
+            {healthOk === true ? "READY" : healthOk === false ? "NOT READY" : "…"}
+          </span>
+        </div>
+      )}
+      {!session && healthOk !== null && (
+        <div className="session-line">
+          Engine{" "}
+          <span className={healthOk ? "pill up" : "pill down"}>
+            {healthOk ? "READY" : "NOT READY"}
+          </span>
+          {healthAt ? ` · checked ${healthAt}` : ""}
         </div>
       )}
       {info && <div className="banner">{info}</div>}
@@ -247,6 +292,16 @@ export function App() {
           }}
         >
           Store
+        </button>
+        <button
+          type="button"
+          className={tab === "system" ? "active" : ""}
+          onClick={() => {
+            setTab("system");
+            void pollHealth();
+          }}
+        >
+          System
         </button>
       </nav>
 
@@ -374,6 +429,18 @@ export function App() {
               );
             })
           }
+        />
+      )}
+
+      {tab === "system" && (
+        <SystemTab
+          readiness={readiness}
+          health={health}
+          healthOk={healthOk}
+          healthError={healthError}
+          healthAt={healthAt}
+          baseUrl={baseUrl}
+          onRefresh={() => void pollHealth()}
         />
       )}
 
@@ -702,4 +769,120 @@ function StoreTab(props: {
       </div>
     </div>
   );
+}
+
+function SystemTab(props: {
+  readiness: ReadinessResponse | null;
+  health: HealthPayload | null;
+  healthOk: boolean | null;
+  healthError: string | null;
+  healthAt: string | null;
+  baseUrl: string;
+  onRefresh: () => void;
+}) {
+  const deps = props.readiness?.dependencies ?? props.health?.dependencies ?? {};
+  const depEntries = Object.entries(deps as Record<string, { status?: string; detail?: string }>);
+  const mem = props.health?.memory;
+
+  return (
+    <div className="stack">
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <h3 style={{ margin: 0 }}>System health</h3>
+        <button type="button" onClick={props.onRefresh}>
+          Refresh
+        </button>
+      </div>
+      <p className="muted">
+        Public probes via <code>/health/ready</code> and <code>/v2/health</code> (no session
+        required). Auto-refreshes every 15s.
+      </p>
+
+      <div className="card stack">
+        <div className="row">
+          <strong>Status</strong>
+          <span
+            className={
+              props.healthOk === true ? "pill up" : props.healthOk === false ? "pill down" : "pill"
+            }
+          >
+            {props.healthOk === true ? "UP" : props.healthOk === false ? "DOWN" : "…"}
+          </span>
+          {props.healthAt && <span className="muted">as of {props.healthAt}</span>}
+        </div>
+        {props.healthError && <div className="banner error">{props.healthError}</div>}
+        <div className="muted">
+          Base URL: {props.baseUrl.trim() || "(same origin)"}
+        </div>
+      </div>
+
+      <div className="card">
+        <strong>Metrics</strong>
+        <div className="row" style={{ marginTop: "0.5rem" }}>
+          <span className="stat">
+            Sessions <b>{props.health?.sessions ?? props.readiness?.sessions ?? "—"}</b>
+          </span>
+          <span className="stat">
+            Engines <b>{props.health?.engines ?? props.readiness?.engines ?? "—"}</b>
+          </span>
+          <span className="stat">
+            Uptime{" "}
+            <b>
+              {props.health?.uptimeSeconds != null
+                ? formatUptime(props.health.uptimeSeconds)
+                : "—"}
+            </b>
+          </span>
+        </div>
+        {mem && (
+          <div className="muted" style={{ marginTop: "0.5rem" }}>
+            Heap free {fmtBytes(mem.freeBytes)} / total {fmtBytes(mem.totalBytes)} (max{" "}
+            {fmtBytes(mem.maxBytes)})
+          </div>
+        )}
+      </div>
+
+      <div className="card stack">
+        <strong>Dependencies</strong>
+        {depEntries.length === 0 ? (
+          <p className="muted">No dependency data yet — hit Refresh.</p>
+        ) : (
+          depEntries.map(([name, check]) => (
+            <div key={name} className="switch">
+              <span>{name}</span>
+              <span
+                className={
+                  check.status === "UP"
+                    ? "pill up"
+                    : check.status === "DOWN"
+                      ? "pill down"
+                      : "pill muted-pill"
+                }
+              >
+                {check.status ?? "?"}
+                {check.detail ? ` · ${check.detail}` : ""}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function formatUptime(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${r}s`;
+  return `${r}s`;
+}
+
+function fmtBytes(n?: number): string {
+  if (n == null || Number.isNaN(n)) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
