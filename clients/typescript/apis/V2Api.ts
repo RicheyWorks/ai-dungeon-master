@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * AI Dungeon Master API
- * HTTP API for the AI Dungeon Master engine.  The **v2** API (`/v2/_*`) wraps every response in a typed, versioned `Envelope` — `{ type, version, payload, requestId }` — so native clients get a stable, self-describing contract. The legacy `/api/game/_*` endpoints remain for existing clients and are documented under the `legacy` tag. 
+ * HTTP API for the AI Dungeon Master engine.  The **v2** API (`/v2/_*`) wraps every response in a typed, versioned `Envelope` — `{ type, version, payload, requestId }` — so native clients get a stable, self-describing contract. The legacy `/api/game/_*` endpoints remain for existing clients and are documented under the `legacy` tag.  Public **health** probes (`/health`, `/health/ready`, `/v2/health`) need no auth. 
  *
  * The version of the OpenAPI document: 2.0.0
  * 
@@ -21,6 +21,7 @@ import type {
   ErrorEnvelope,
   GameSaveEnvelope,
   GameStatusEnvelope,
+  HealthEnvelope,
   NarrateRequest,
   NarrativeEnvelope,
   SessionEnvelope,
@@ -40,6 +41,8 @@ import {
     GameSaveEnvelopeToJSON,
     GameStatusEnvelopeFromJSON,
     GameStatusEnvelopeToJSON,
+    HealthEnvelopeFromJSON,
+    HealthEnvelopeToJSON,
     NarrateRequestFromJSON,
     NarrateRequestToJSON,
     NarrativeEnvelopeFromJSON,
@@ -68,6 +71,10 @@ export interface EnablePackV2Request {
 }
 
 export interface GetCatalogV2Request {
+    xRequestId?: string;
+}
+
+export interface GetHealthV2Request {
     xRequestId?: string;
 }
 
@@ -257,6 +264,38 @@ export class V2Api extends runtime.BaseAPI {
      */
     async getCatalogV2(requestParameters: GetCatalogV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CatalogEnvelope> {
         const response = await this.getCatalogV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as `/health/ready`. Excluded from JWT enforcement. 
+     * Health metrics envelope (public, no auth).
+     */
+    async getHealthV2Raw(requestParameters: GetHealthV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<HealthEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/health`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => HealthEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as `/health/ready`. Excluded from JWT enforcement. 
+     * Health metrics envelope (public, no auth).
+     */
+    async getHealthV2(requestParameters: GetHealthV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<HealthEnvelope> {
+        const response = await this.getHealthV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 

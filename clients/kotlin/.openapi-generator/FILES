@@ -3,6 +3,7 @@ build.gradle
 docs/ActionRequest.md
 docs/CatalogEnvelope.md
 docs/CatalogPayload.md
+docs/DependencyCheck.md
 docs/EntitlementEnvelope.md
 docs/EntitlementPayload.md
 docs/Envelope.md
@@ -13,7 +14,12 @@ docs/GameSaveEnvelopeAllOfPayload.md
 docs/GameStatusEnvelope.md
 docs/GameStatusResponse.md
 docs/GameStatusV2.md
+docs/HealthApi.md
+docs/HealthEnvelope.md
+docs/HealthPayload.md
+docs/HealthPayloadMemory.md
 docs/LegacyApi.md
+docs/LivenessResponse.md
 docs/MemberState.md
 docs/NarrateRequest.md
 docs/NarrationInfo.md
@@ -22,6 +28,7 @@ docs/NarrativePayload.md
 docs/PackInfo.md
 docs/PluginSummary.md
 docs/QuestInfo.md
+docs/ReadinessResponse.md
 docs/SessionEnvelope.md
 docs/SessionPayload.md
 docs/SessionRequest.md
@@ -32,6 +39,7 @@ gradle/wrapper/gradle-wrapper.properties
 gradlew
 gradlew.bat
 settings.gradle
+src/main/kotlin/com/xai/dungeonmaster/client/apis/HealthApi.kt
 src/main/kotlin/com/xai/dungeonmaster/client/apis/LegacyApi.kt
 src/main/kotlin/com/xai/dungeonmaster/client/apis/V2Api.kt
 src/main/kotlin/com/xai/dungeonmaster/client/infrastructure/ApiAbstractions.kt
@@ -54,6 +62,7 @@ src/main/kotlin/com/xai/dungeonmaster/client/infrastructure/UUIDAdapter.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/ActionRequest.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/CatalogEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/CatalogPayload.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/DependencyCheck.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/EntitlementEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/EntitlementPayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/Envelope.kt
@@ -64,6 +73,10 @@ src/main/kotlin/com/xai/dungeonmaster/client/models/GameSaveEnvelopeAllOfPayload
 src/main/kotlin/com/xai/dungeonmaster/client/models/GameStatusEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/GameStatusResponse.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/GameStatusV2.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/HealthEnvelope.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/HealthPayload.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/HealthPayloadMemory.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/LivenessResponse.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/MemberState.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/NarrateRequest.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/NarrationInfo.kt
@@ -72,9 +85,8 @@ src/main/kotlin/com/xai/dungeonmaster/client/models/NarrativePayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/PackInfo.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/PluginSummary.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/QuestInfo.kt
+src/main/kotlin/com/xai/dungeonmaster/client/models/ReadinessResponse.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/SessionEnvelope.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/SessionPayload.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/SessionRequest.kt
 src/main/kotlin/com/xai/dungeonmaster/client/models/VerifyReceiptRequest.kt
-src/test/kotlin/com/xai/dungeonmaster/client/models/GameSaveEnvelopeAllOfPayloadTest.kt
-src/test/kotlin/com/xai/dungeonmaster/client/models/GameSaveEnvelopeTest.kt

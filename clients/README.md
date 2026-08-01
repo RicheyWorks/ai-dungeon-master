@@ -12,7 +12,7 @@ with [openapi-generator](https://openapi-generator.tech) **7.7.0**.
 
 All three expose the same surface: a `V2Api`/`V2API` covering every `/v2`
 operation — game status/action/narrate, sessions, catalog and pack toggles, and
-entitlements — plus a `LegacyApi`/`LegacyAPI`, over the typed
+entitlements and health — plus a `HealthApi`/`HealthAPI` and `LegacyApi`/`LegacyAPI`, over the typed
 `Envelope { type, version, payload, requestId }` models.
 
 ## Regenerate

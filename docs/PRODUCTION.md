@@ -84,3 +84,5 @@ GAME_PRODUCTION=true GAME_AUTH_ENABLED=true \
 `AuthDependencyProbe` only checks backends your store config actually uses
 (`memory` → `NOT_CONFIGURED`). Compose healthchecks hit `/health/ready` so a
 node is not marked healthy until Postgres/Redis answer.
+
+OpenAPI: [`docs/api/openapi.yaml`](api/openapi.yaml) (`HealthApi` + `getHealthV2`).
