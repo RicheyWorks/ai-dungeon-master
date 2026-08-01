@@ -51,4 +51,8 @@ engine SPA so session + STOMP work without re-bundling the UI.
 1. `./scripts/build-web.sh` so `/app/` is current in the jar  
 2. `mvn -pl service -am -DskipTests package`  
 3. Ship jar + `desktop/launch.sh` (or a Steam “launch option” that runs Java + URL)  
-4. Later: Tauri sidecar that spawns the jar and owns the window  
+4. Later: Tauri sidecar that spawns the jar and owns the window
+
+## Steam MicroTxn
+
+See [`STEAM.md`](STEAM.md) for the desktop orderId → verify → FinalizeTxn path.

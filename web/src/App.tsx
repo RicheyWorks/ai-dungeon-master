@@ -14,6 +14,7 @@ import {
   KNOWN_STOREFRONTS,
   mintReceipt,
 } from "./devReceipts";
+import { steamBridge, steamReceipt } from "./steamPurchase";
 
 import {
   isExpired,
@@ -473,15 +474,17 @@ export function App() {
           onRefresh={() =>
             void run(async (s) => setEntitlements(await api.listEntitlements(baseUrl, s.token)))
           }
-          onVerify={() =>
+          onVerify={(override) =>
             void run(async (s) => {
               try {
                 const p = await api.verifyReceipt(baseUrl, s.token, {
-                  productId,
-                  receipt,
-                  storefront: storefront || DEV_STOREFRONT,
+                  productId: override?.productId ?? productId,
+                  receipt: override?.receipt ?? receipt,
+                  storefront: (override?.storefront ?? storefront) || DEV_STOREFRONT,
                 });
                 setEntitlements(p);
+                if (override?.receipt) setReceipt(override.receipt);
+                if (override?.storefront) setStorefront(override.storefront);
                 setInfo(p.granted ? `Granted ${p.productId}` : `Not granted: ${p.reason ?? ""}`);
               } catch (e) {
                 setError(e instanceof Error ? e.message : String(e));
@@ -889,7 +892,7 @@ function StoreTab(props: {
   receipt: string;
   setReceipt: (v: string) => void;
   onRefresh: () => void;
-  onVerify: () => void;
+  onVerify: (override?: { productId?: string; receipt?: string; storefront?: string }) => void;
   onSandboxBuy: (sku: string, storefront: string) => void;
 }) {
   const owned = props.entitlements?.owned ?? [];
@@ -907,7 +910,7 @@ function StoreTab(props: {
       <div className="card">
         <strong>Owned products</strong>
         {owned.length === 0 ? (
-          <p className="muted">None yet — sandbox-buy a SKU or verify a receipt.</p>
+          <p className="muted">None yet — buy via Steam/desktop, sandbox, or verify a receipt.</p>
         ) : (
           owned.map((sku) => <div key={sku}>• {sku}</div>)
         )}
@@ -917,10 +920,27 @@ function StoreTab(props: {
       </div>
 
       <div className="card stack">
+        <strong>Steam desktop (orderId)</strong>
+        <p className="muted">
+          Steamworks MicroTxn: paste orderId from InitTxn, then verify storefront{" "}
+          <code>steam</code>. Live engines QueryTxn then FinalizeTxn after grant (
+          <code>desktop/STEAM.md</code>). Optional bridge: <code>window.__dmSteam</code>.
+        </p>
+        <SteamOrderPanel
+          busy={props.busy}
+          productId={props.productId}
+          setProductId={props.setProductId}
+          setStorefront={props.setStorefront}
+          setReceipt={props.setReceipt}
+          onVerify={props.onVerify}
+        />
+      </div>
+
+      <div className="card stack">
         <strong>Sandbox purchase</strong>
         <p className="muted">
           Mints a storefront-shaped receipt (HMAC sandbox; JSON envelopes for google_play /
-          app_store) and posts it to POST /v2/entitlements/verify.
+          app_store / steam) and posts it to POST /v2/entitlements/verify.
         </p>
         <div className="row">
           {KNOWN_STOREFRONTS.map((id) => (
@@ -968,7 +988,7 @@ function StoreTab(props: {
           type="button"
           className="primary"
           disabled={props.busy || !props.productId.trim() || !props.receipt.trim()}
-          onClick={props.onVerify}
+          onClick={() => props.onVerify()}
         >
           Verify receipt
         </button>
@@ -989,6 +1009,99 @@ function StoreTab(props: {
         ))}
       </div>
     </div>
+  );
+}
+
+
+function SteamOrderPanel(props: {
+  busy: boolean;
+  productId: string;
+  setProductId: (v: string) => void;
+  setStorefront: (v: string) => void;
+  setReceipt: (v: string) => void;
+  onVerify: (override?: { productId?: string; receipt?: string; storefront?: string }) => void;
+}) {
+  const [steamOrderId, setSteamOrderId] = useState("");
+  const [steamId, setSteamId] = useState("76561198000000000");
+  const [note, setNote] = useState<string | null>(null);
+  const fill = () => {
+    const r = steamReceipt({
+      orderId: steamOrderId,
+      productId: props.productId,
+      steamId,
+    });
+    props.setStorefront("steam");
+    props.setReceipt(r);
+    return r;
+  };
+  return (
+    <>
+      <input
+        value={steamOrderId}
+        onChange={(e) => setSteamOrderId(e.target.value)}
+        placeholder="Steam orderId"
+      />
+      <input
+        value={steamId}
+        onChange={(e) => setSteamId(e.target.value)}
+        placeholder="SteamID64 (optional)"
+      />
+      <input
+        value={props.productId}
+        onChange={(e) => props.setProductId(e.target.value)}
+        placeholder="Product id"
+      />
+      <div className="row">
+        <button
+          type="button"
+          className="primary"
+          disabled={props.busy || !steamOrderId.trim() || !props.productId.trim()}
+          onClick={() => {
+            fill();
+            setNote("Receipt filled — click Verify receipt below.");
+          }}
+        >
+          Fill steam receipt
+        </button>
+        <button
+          type="button"
+          disabled={props.busy || !steamOrderId.trim() || !props.productId.trim()}
+          onClick={() => {
+            const r = fill();
+            props.onVerify({ productId: props.productId.trim(), receipt: r, storefront: "steam" });
+          }}
+        >
+          Verify steam order
+        </button>
+        <button
+          type="button"
+          disabled={props.busy || !props.productId.trim() || !steamBridge()?.initPurchase}
+          onClick={() => {
+            const bridge = steamBridge();
+            if (!bridge?.initPurchase) {
+              setNote("No window.__dmSteam.initPurchase");
+              return;
+            }
+            void (async () => {
+              try {
+                const orderId = await bridge.initPurchase!(props.productId.trim());
+                setSteamOrderId(orderId);
+                if (bridge.getSteamId) {
+                  const id = await bridge.getSteamId();
+                  if (id) setSteamId(id);
+                }
+                setNote(`InitTxn orderId=${orderId}`);
+              } catch (e) {
+                setNote(e instanceof Error ? e.message : String(e));
+              }
+            })();
+          }}
+        >
+          Init via __dmSteam
+        </button>
+      </div>
+      {note && <div className="muted">{note}</div>}
+    </>
   );
 }
 

@@ -125,13 +125,11 @@ public final class SteamStorefront implements StorefrontIntegration {
             HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() != 200) return false;
             String body = res.body() == null ? "" : res.body();
-            // success result: "result":"OK" or result: 1 depending on version
             boolean ok = body.contains("\"result\":\"OK\"")
                     || body.contains("\"result\": \"OK\"")
                     || body.matches("(?s).*\"result\"\\s*:\\s*1\\b.*");
             if (!ok) return false;
             if (expectedProduct != null && !expectedProduct.isBlank()) {
-                // Best-effort: item description / status may include the product id
                 return body.contains(expectedProduct)
                         || body.toLowerCase(Locale.ROOT).contains(expectedProduct.toLowerCase(Locale.ROOT));
             }
@@ -139,6 +137,44 @@ public final class SteamStorefront implements StorefrontIntegration {
         } catch (Exception e) {
             System.err.println("[steam] verify failed: " + e.getMessage());
             return false;
+        }
+    }
+
+    @Override
+    public void afterGrant(String productId, String receipt) {
+        if (!live || receipt == null || receipt.isBlank()) return;
+        String orderId;
+        String trimmed = receipt.trim();
+        if (trimmed.startsWith("{")) {
+            orderId = jsonString(trimmed, "orderId").orElse("");
+        } else {
+            orderId = trimmed;
+        }
+        if (orderId.isBlank()) return;
+        finalizeTxn(orderId);
+    }
+
+    /** Steam Partner FinalizeTxn so the microtransaction is settled after grant. */
+    private void finalizeTxn(String orderId) {
+        try {
+            String iface = partnerSandbox ? "ISteamMicroTxnSandbox" : "ISteamMicroTxn";
+            // v2 FinalizeTxn is form POST
+            String form = "key=" + enc(publisherKey)
+                    + "&appid=" + enc(appId)
+                    + "&orderid=" + enc(orderId);
+            HttpRequest req = HttpRequest.newBuilder(
+                            URI.create("https://partner.steam-api.com/" + iface + "/FinalizeTxn/v2/"))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(form))
+                    .build();
+            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (res.statusCode() >= 300) {
+                System.err.println("[steam] FinalizeTxn HTTP " + res.statusCode()
+                        + " " + (res.body() == null ? "" : res.body()));
+            }
+        } catch (Exception e) {
+            System.err.println("[steam] FinalizeTxn failed: " + e.getMessage());
         }
     }
 

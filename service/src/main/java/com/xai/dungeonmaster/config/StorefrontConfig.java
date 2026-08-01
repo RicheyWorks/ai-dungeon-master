@@ -31,6 +31,12 @@ public class StorefrontConfig {
     @Value("${game.storefront.google.sandbox-secret:}")
     private String googleSandboxSecret;
 
+    @Value("${game.storefront.google.auto-acknowledge:true}")
+    private String googleAutoAck;
+
+    @Value("${game.storefront.google.auto-consume:false}")
+    private String googleAutoConsume;
+
     @Value("${game.storefront.apple.shared-secret:}")
     private String appleSharedSecret;
 
@@ -58,6 +64,8 @@ public class StorefrontConfig {
         set("STOREFRONT_GOOGLE_ACCESS_TOKEN", googleAccessToken);
         set("STOREFRONT_GOOGLE_SERVICE_ACCOUNT_JSON", googleServiceAccountJson);
         set("STOREFRONT_GOOGLE_SECRET", googleSandboxSecret);
+        set("STOREFRONT_GOOGLE_AUTO_ACKNOWLEDGE", googleAutoAck);
+        set("STOREFRONT_GOOGLE_AUTO_CONSUME", googleAutoConsume);
         set("STOREFRONT_APPLE_SHARED_SECRET", appleSharedSecret);
         set("STOREFRONT_APPLE_BUNDLE_ID", appleBundleId);
         set("STOREFRONT_APPLE_SECRET", appleSandboxSecret);

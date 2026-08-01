@@ -185,6 +185,8 @@ Job snapshots (`phase`, bytes, cancel) are written to Redis so other nodes can p
 | `game.storefront.google.package-name` | `STOREFRONT_GOOGLE_PACKAGE_NAME` |
 | `game.storefront.google.access-token` | `STOREFRONT_GOOGLE_ACCESS_TOKEN` |
 | `game.storefront.google.service-account-json` | `STOREFRONT_GOOGLE_SERVICE_ACCOUNT_JSON` (path to SA key; auto-mints Publisher API tokens) |
+| `game.storefront.google.auto-acknowledge` | `STOREFRONT_GOOGLE_AUTO_ACKNOWLEDGE` (default true) |
+| `game.storefront.google.auto-consume` | `STOREFRONT_GOOGLE_AUTO_CONSUME` (default false) |
 | `game.storefront.apple.shared-secret` | `STOREFRONT_APPLE_SHARED_SECRET` |
 | `game.storefront.apple.bundle-id` | `STOREFRONT_APPLE_BUNDLE_ID` |
 | `game.storefront.steam.publisher-key` / `app-id` | `STOREFRONT_STEAM_*` |

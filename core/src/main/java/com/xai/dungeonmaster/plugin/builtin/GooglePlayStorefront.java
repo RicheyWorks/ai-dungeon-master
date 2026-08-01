@@ -135,11 +135,93 @@ public final class GooglePlayStorefront implements StorefrontIntegration {
             if (res.statusCode() != 200) return false;
             String body = res.body() == null ? "" : res.body();
             Optional<String> state = jsonNumberOrString(body, "purchaseState");
-            return state.isEmpty() || "0".equals(state.get());
+            boolean purchased = state.isEmpty() || "0".equals(state.get());
+            if (purchased) {
+                // Best-effort settle during verify (also run again in afterGrant).
+                settleLivePurchase(pkg, productId, purchaseToken, body);
+            }
+            return purchased;
         } catch (Exception e) {
             System.err.println("[google_play] verify failed: " + e.getMessage());
             return false;
         }
+    }
+
+    @Override
+    public void afterGrant(String productId, String receipt) {
+        if (!isLive() || receipt == null || !receipt.trim().startsWith("{")) return;
+        String json = receipt.trim();
+        Optional<String> token = jsonString(json, "purchaseToken");
+        Optional<String> pkg = jsonString(json, "packageName");
+        Optional<String> pid = jsonString(json, "productId");
+        if (token.isEmpty()) return;
+        String usePkg = pkg.filter(p -> !p.isBlank()).orElse(packageName.get());
+        String usePid = pid.filter(p -> !p.isBlank()).orElse(productId == null ? "" : productId);
+        if (usePkg.isBlank() || usePid.isBlank()) return;
+        settleLivePurchase(usePkg, usePid, token.get(), null);
+    }
+
+    /**
+     * Acknowledge (and optionally consume) a live Play purchase via the
+     * Android Publisher API so the token cannot be re-granted forever and
+     * consumables return to the store catalog.
+     */
+    private void settleLivePurchase(String pkg, String productId, String purchaseToken, String getBody) {
+        if (!autoAcknowledge()) return;
+        try {
+            boolean alreadyAcked = getBody != null
+                    && ("1".equals(jsonNumberOrString(getBody, "acknowledgementState").orElse("0")));
+            if (!alreadyAcked) {
+                postEmpty(publisherUrl(pkg, productId, purchaseToken, "acknowledge"));
+            }
+            if (autoConsume()) {
+                postEmpty(publisherUrl(pkg, productId, purchaseToken, "consume"));
+            }
+        } catch (Exception e) {
+            System.err.println("[google_play] settle failed: " + e.getMessage());
+        }
+    }
+
+    private String publisherUrl(String pkg, String productId, String purchaseToken, String action) {
+        return "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/"
+                + enc(pkg)
+                + "/purchases/products/"
+                + enc(productId)
+                + "/tokens/"
+                + enc(purchaseToken)
+                + ":"
+                + action;
+    }
+
+    private void postEmpty(String url) throws Exception {
+        String bearer = resolveAccessToken();
+        if (bearer.isBlank()) return;
+        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(10))
+                .header("Authorization", "Bearer " + bearer)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                .build();
+        HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+        if (res.statusCode() >= 300) {
+            System.err.println("[google_play] " + url + " → HTTP " + res.statusCode()
+                    + " " + (res.body() == null ? "" : res.body()));
+        }
+    }
+
+    private static boolean autoAcknowledge() {
+        String v = env("STOREFRONT_GOOGLE_AUTO_ACKNOWLEDGE", "true");
+        return truthy(v);
+    }
+
+    private static boolean autoConsume() {
+        return truthy(env("STOREFRONT_GOOGLE_AUTO_CONSUME", "false"));
+    }
+
+    private static boolean truthy(String v) {
+        if (v == null) return false;
+        String t = v.trim().toLowerCase(Locale.ROOT);
+        return t.equals("1") || t.equals("true") || t.equals("yes") || t.equals("on");
     }
 
     @Override
