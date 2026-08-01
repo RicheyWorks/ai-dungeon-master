@@ -1,0 +1,86 @@
+package com.xai.dungeonmaster.auth;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockFilterChain;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class RateLimitFilterTest {
+
+    @Test
+    void allowsUnderLimitThen429() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(true, 3, 100, 100, 100);
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/session");
+        req.setRemoteAddr("10.0.0.5");
+
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            filter.doFilter(req, res, new MockFilterChain());
+            assertEquals(200, res.getStatus(), "request " + (i + 1));
+            assertNotNull(res.getHeader("X-RateLimit-Limit"));
+        }
+
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(req, blocked, new MockFilterChain());
+        assertEquals(429, blocked.getStatus());
+        assertEquals("0", blocked.getHeader("X-RateLimit-Remaining"));
+        assertNotNull(blocked.getHeader("Retry-After"));
+        assertTrue(blocked.getContentAsString().contains("Rate limit exceeded"));
+    }
+
+    @Test
+    void differentIpsHaveSeparateBuckets() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(true, 1, 100, 100, 100);
+
+        MockHttpServletRequest a = new MockHttpServletRequest("POST", "/v2/session");
+        a.setRemoteAddr("1.1.1.1");
+        MockHttpServletResponse ra = new MockHttpServletResponse();
+        filter.doFilter(a, ra, new MockFilterChain());
+        assertEquals(200, ra.getStatus());
+
+        MockHttpServletRequest b = new MockHttpServletRequest("POST", "/v2/session");
+        b.setRemoteAddr("2.2.2.2");
+        MockHttpServletResponse rb = new MockHttpServletResponse();
+        filter.doFilter(b, rb, new MockFilterChain());
+        assertEquals(200, rb.getStatus());
+
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(a, blocked, new MockFilterChain());
+        assertEquals(429, blocked.getStatus());
+    }
+
+    @Test
+    void usesXForwardedFor() {
+        MockHttpServletRequest req = new MockHttpServletRequest();
+        req.addHeader("X-Forwarded-For", "203.0.113.9, 10.0.0.1");
+        req.setRemoteAddr("10.0.0.1");
+        assertEquals("203.0.113.9", RateLimitFilter.clientIp(req));
+    }
+
+    @Test
+    void disabledSkips() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(false, 1, 1, 1, 1);
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/session");
+        // shouldNotFilter → OncePerRequestFilter won't call doFilterInternal;
+        // call doFilter which respects shouldNotFilter
+        for (int i = 0; i < 5; i++) {
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            filter.doFilter(req, res, new MockFilterChain());
+            assertEquals(200, res.getStatus());
+        }
+    }
+
+    @Test
+    void metricsPathLimited() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(true, 100, 2, 100, 100);
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/metrics");
+        req.setRemoteAddr("9.9.9.9");
+        filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+        filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(req, blocked, new MockFilterChain());
+        assertEquals(429, blocked.getStatus());
+    }
+}
