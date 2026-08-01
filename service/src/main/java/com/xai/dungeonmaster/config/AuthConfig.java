@@ -40,10 +40,15 @@ public class AuthConfig {
             @Value("${game.auth.session.store:memory}") String sessionKind,
             @Value("${game.auth.entitlement.store:memory}") String entitlementKind,
             @Value("${game.rate-limit.store:memory}") String rateLimitStore,
+            @Value("${game.marketplace.jobs.store:memory}") String marketplaceJobsStore,
             @Value("${game.auth.redis.url:redis://127.0.0.1:6379}") String redisUrl) {
-        if (needsRedis(sessionKind) || needsRedis(entitlementKind) || needsRedis(rateLimitStore)) {
+        if (needsRedis(sessionKind)
+                || needsRedis(entitlementKind)
+                || needsRedis(rateLimitStore)
+                || needsRedis(marketplaceJobsStore)) {
             System.out.println("[auth] redis ops: " + redisUrl
-                    + (needsRedis(rateLimitStore) ? " (rate-limit)" : ""));
+                    + (needsRedis(rateLimitStore) ? " (rate-limit)" : "")
+                    + (needsRedis(marketplaceJobsStore) ? " (marketplace-jobs)" : ""));
             return new JedisRedisOps(redisUrl);
         }
         return noopRedis();
