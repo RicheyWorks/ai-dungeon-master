@@ -28,7 +28,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import com.xai.dungeonmaster.dto.MarketplaceInstallJob;
 
 /**
  * Content-pack marketplace: local filesystem discovery plus optional remote
@@ -79,6 +88,12 @@ public class MarketplaceService {
     private final HttpClient http;
 
     private final AtomicReference<CachedRemote> remoteCache = new AtomicReference<>();
+    private final ConcurrentHashMap<String, JobState> jobs = new ConcurrentHashMap<>();
+    private final ExecutorService installPool = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "marketplace-install");
+        t.setDaemon(true);
+        return t;
+    });
 
     public MarketplaceService(
             @Value("${game.content.packs.dir:content-packs}") String contentPacksDir,
@@ -182,7 +197,7 @@ public class MarketplaceService {
             return InstallResult.already(listing.id());
         }
         if ("remote".equalsIgnoreCase(listing.source())) {
-            return installRemote(listing);
+            return installRemote(listing, null);
         }
         Path dir = Paths.get(listing.sourcePath());
         ContentPack pack = ResourceLoader.loadAndRegisterPack(dir);
@@ -193,7 +208,116 @@ public class MarketplaceService {
         return InstallResult.installed(pack.id());
     }
 
-    private InstallResult installRemote(MarketplaceListing listing) {
+    /**
+     * Start a background install. Returns a snapshot of the new job (phase {@code QUEUED}).
+     * Poll {@link #job(String)}; cancel via {@link #cancelJob(String)}.
+     */
+    public MarketplaceInstallJob startInstallAsync(String id) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("Missing pack id");
+        }
+        MarketplaceListing listing = get(id.trim()).orElse(null);
+        if (listing == null) {
+            throw new IllegalArgumentException("Unknown marketplace pack: " + id.trim());
+        }
+        String jobId = UUID.randomUUID().toString();
+        JobState state = new JobState(jobId, listing.id());
+        jobs.put(jobId, state);
+        Future<?> future = installPool.submit(() -> runJob(state, listing));
+        state.future = future;
+        pruneJobs();
+        return state.snapshot();
+    }
+
+    public Optional<MarketplaceInstallJob> job(String jobId) {
+        if (jobId == null || jobId.isBlank()) return Optional.empty();
+        JobState s = jobs.get(jobId);
+        return s == null ? Optional.empty() : Optional.of(s.snapshot());
+    }
+
+    /** Request cancel; returns false if unknown job. Terminal jobs are no-ops that return true. */
+    public boolean cancelJob(String jobId) {
+        JobState s = jobs.get(jobId);
+        if (s == null) return false;
+        s.cancelRequested.set(true);
+        Future<?> f = s.future;
+        if (f != null) f.cancel(true);
+        if (!s.terminal()) {
+            s.phase.set("CANCELLED");
+            s.message.set("Cancel requested");
+        }
+        return true;
+    }
+
+    private void runJob(JobState state, MarketplaceListing listing) {
+        try {
+            if (state.cancelRequested.get()) {
+                state.phase.set("CANCELLED");
+                state.message.set("Cancelled");
+                return;
+            }
+            if (ContentRegistry.isKnown(listing.id())) {
+                state.phase.set("DONE");
+                state.message.set("Already installed: " + listing.id());
+                state.bytesRead.set(0);
+                return;
+            }
+            if ("remote".equalsIgnoreCase(listing.source())) {
+                InstallResult r = installRemote(listing, state);
+                applyResult(state, r);
+            } else {
+                state.phase.set("INSTALLING");
+                state.message.set("Registering local pack");
+                Path dir = Paths.get(listing.sourcePath());
+                if (state.cancelRequested.get()) {
+                    state.phase.set("CANCELLED");
+                    state.message.set("Cancelled");
+                    return;
+                }
+                ContentPack pack = ResourceLoader.loadAndRegisterPack(dir);
+                if (pack == null) {
+                    state.phase.set("FAILED");
+                    state.error.set("Failed to load pack at " + dir);
+                    state.message.set(state.error.get());
+                    return;
+                }
+                ContentRegistry.setEnabled(pack.id(), true);
+                state.phase.set("DONE");
+                state.message.set("Installed " + pack.id());
+                state.bytesTotal.set(Math.max(1, state.bytesTotal.get()));
+                state.bytesRead.set(state.bytesTotal.get());
+            }
+        } catch (Exception e) {
+            if (state.cancelRequested.get() || Thread.currentThread().isInterrupted()) {
+                state.phase.set("CANCELLED");
+                state.message.set("Cancelled");
+            } else {
+                state.phase.set("FAILED");
+                state.error.set(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                state.message.set(state.error.get());
+            }
+        }
+    }
+
+    private static void applyResult(JobState state, InstallResult r) {
+        if (state.cancelRequested.get() && !"DONE".equals(state.phase.get())) {
+            state.phase.set("CANCELLED");
+            state.message.set("Cancelled");
+            return;
+        }
+        if (r.ok()) {
+            state.phase.set("DONE");
+            state.message.set(r.message());
+            if (state.bytesTotal.get() <= 0) state.bytesTotal.set(1);
+            state.bytesRead.set(state.bytesTotal.get());
+        } else {
+            state.phase.set("FAILED");
+            state.error.set(r.message());
+            state.message.set(r.message());
+        }
+    }
+
+    private InstallResult installRemote(MarketplaceListing listing, JobState job) {
         if (listing.downloadUrl() == null || listing.downloadUrl().isBlank()) {
             return InstallResult.fail("Remote pack missing downloadUrl: " + listing.id());
         }
@@ -202,14 +326,29 @@ public class MarketplaceService {
             return InstallResult.fail("Checksum required for remote pack: " + listing.id());
         }
         try {
-            byte[] zip = downloadBytes(listing.downloadUrl());
+            if (job != null) {
+                job.phase.set("DOWNLOADING");
+                job.message.set("Downloading " + listing.downloadUrl());
+            }
+            byte[] zip = downloadBytes(listing.downloadUrl(), job);
+            if (job != null && job.cancelRequested.get()) {
+                return InstallResult.fail("Cancelled");
+            }
             if (expected != null) {
+                if (job != null) {
+                    job.phase.set("VERIFYING");
+                    job.message.set("Verifying SHA-256");
+                }
                 if (!MarketplaceIntegrity.sha256Matches(zip, expected)) {
                     return InstallResult.fail(
                             "SHA-256 mismatch for " + listing.id()
                                     + " (expected " + expected
                                     + ", got " + MarketplaceIntegrity.sha256Hex(zip) + ")");
                 }
+            }
+            if (job != null) {
+                job.phase.set("INSTALLING");
+                job.message.set("Extracting pack");
             }
             PackUploadService.InstalledPack installed = uploads.install(zip, false);
             ContentRegistry.setEnabled(installed.pack().id(), true);
@@ -219,9 +358,18 @@ public class MarketplaceService {
                 return InstallResult.already(listing.id());
             }
             return InstallResult.fail(e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return InstallResult.fail("Cancelled");
         } catch (Exception e) {
             return InstallResult.fail("Download failed: " + e.getMessage());
         }
+    }
+
+    private void pruneJobs() {
+        if (jobs.size() < 200) return;
+        long cutoff = System.currentTimeMillis() - 3_600_000L;
+        jobs.entrySet().removeIf(e -> e.getValue().terminal() && e.getValue().updatedAtMs < cutoff);
     }
 
     private List<MarketplaceListing> mergedListings() {
@@ -364,16 +512,34 @@ public class MarketplaceService {
     }
 
     private byte[] downloadBytes(String url) throws Exception {
+        return downloadBytes(url, null);
+    }
+
+    private byte[] downloadBytes(String url, JobState job) throws Exception {
         if (url.startsWith("file:")) {
-            return Files.readAllBytes(Path.of(URI.create(url)));
+            byte[] data = Files.readAllBytes(Path.of(URI.create(url)));
+            if (job != null) {
+                job.bytesTotal.set(data.length);
+                job.bytesRead.set(data.length);
+                job.updatedAtMs = System.currentTimeMillis();
+            }
+            return data;
         }
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             Path p = Paths.get(url);
-            if (Files.isRegularFile(p)) return Files.readAllBytes(p);
+            if (Files.isRegularFile(p)) {
+                byte[] data = Files.readAllBytes(p);
+                if (job != null) {
+                    job.bytesTotal.set(data.length);
+                    job.bytesRead.set(data.length);
+                    job.updatedAtMs = System.currentTimeMillis();
+                }
+                return data;
+            }
             throw new IllegalArgumentException("Unsupported download URL: " + url);
         }
         HttpRequest req = HttpRequest.newBuilder(URI.create(url))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(120))
                 .GET()
                 .header("Accept", "application/json, application/zip, */*")
                 .build();
@@ -381,8 +547,34 @@ public class MarketplaceService {
         if (res.statusCode() < 200 || res.statusCode() >= 300) {
             throw new IOException("HTTP " + res.statusCode() + " for " + url);
         }
-        try (InputStream in = res.body()) {
-            return in.readAllBytes();
+        long total = res.headers().firstValueAsLong("Content-Length").orElse(-1L);
+        if (job != null && total > 0) {
+            job.bytesTotal.set(total);
+        }
+        try (InputStream in = res.body();
+             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream(
+                     total > 0 && total < Integer.MAX_VALUE ? (int) total : 8192)) {
+            byte[] buf = new byte[16 * 1024];
+            int n;
+            long read = 0;
+            while ((n = in.read(buf)) >= 0) {
+                if (job != null && job.cancelRequested.get()) {
+                    throw new InterruptedException("Cancelled");
+                }
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException("Cancelled");
+                }
+                out.write(buf, 0, n);
+                read += n;
+                if (job != null) {
+                    job.bytesRead.set(read);
+                    job.updatedAtMs = System.currentTimeMillis();
+                }
+            }
+            if (job != null && job.bytesTotal.get() <= 0) {
+                job.bytesTotal.set(read);
+            }
+            return out.toByteArray();
         }
     }
 
@@ -421,6 +613,41 @@ public class MarketplaceService {
     private record RemoteSnapshot(boolean ok, String error, List<MarketplaceListing> packs) {
         static RemoteSnapshot empty() {
             return new RemoteSnapshot(true, null, List.of());
+        }
+    }
+
+    private static final class JobState {
+        final String jobId;
+        final String packId;
+        final AtomicReference<String> phase = new AtomicReference<>("QUEUED");
+        final AtomicLong bytesRead = new AtomicLong(0);
+        final AtomicLong bytesTotal = new AtomicLong(0);
+        final AtomicReference<String> message = new AtomicReference<>("Queued");
+        final AtomicReference<String> error = new AtomicReference<>(null);
+        final AtomicBoolean cancelRequested = new AtomicBoolean(false);
+        volatile Future<?> future;
+        volatile long updatedAtMs = System.currentTimeMillis();
+
+        JobState(String jobId, String packId) {
+            this.jobId = jobId;
+            this.packId = packId;
+        }
+
+        boolean terminal() {
+            String p = phase.get();
+            return "DONE".equals(p) || "FAILED".equals(p) || "CANCELLED".equals(p);
+        }
+
+        MarketplaceInstallJob snapshot() {
+            return MarketplaceInstallJob.of(
+                    jobId,
+                    packId,
+                    phase.get(),
+                    bytesRead.get(),
+                    bytesTotal.get(),
+                    message.get(),
+                    cancelRequested.get(),
+                    error.get());
         }
     }
 

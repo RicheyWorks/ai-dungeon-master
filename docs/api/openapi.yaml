@@ -364,22 +364,63 @@ paths:
           description: Pack detail.
         '404':
           description: Unknown pack.
+
+  /v2/marketplace/jobs/{jobId}:
+    get:
+      tags: [v2]
+      operationId: getMarketplaceInstallJobV2
+      summary: Poll async marketplace install progress.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Install job snapshot.
+        '404':
+          description: Unknown job.
+    delete:
+      tags: [v2]
+      operationId: cancelMarketplaceInstallJobV2
+      summary: Cancel an async marketplace install.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Job cancelled or already terminal.
+        '404':
+          description: Unknown job.
   /v2/marketplace/{id}/install:
     post:
       tags: [v2]
       operationId: installMarketplacePackV2
       summary: Install a marketplace pack into the live catalog.
+      description: |
+        Sync by default. Pass `async=true` for background download with progress
+        (`GET /v2/marketplace/jobs/{jobId}`).
       parameters:
         - $ref: '#/components/parameters/XRequestId'
         - name: id
           in: path
           required: true
           schema: { type: string }
+        - name: async
+          in: query
+          schema: { type: boolean, default: false }
+          description: When true, returns 202 + job id for progress polling.
       responses:
         '201':
           description: Newly installed.
         '200':
           description: Already installed.
+        '202':
+          description: Async install job accepted.
         '404':
           description: Unknown pack.
   /v2/entitlements:

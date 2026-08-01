@@ -158,3 +158,13 @@ Cache: `game.marketplace.remote-cache-seconds` (default 300).
 
 Each remote pack may include `sha256` (hex). Downloads are verified before install.
 Sign index files with `scripts/sign-marketplace-index.sh` (header form preferred).
+
+### Async marketplace install
+
+```http
+POST /v2/marketplace/{id}/install?async=true   → 202 { jobId, phase, percent, … }
+GET  /v2/marketplace/jobs/{jobId}              → progress (DOWNLOADING/VERIFYING/INSTALLING/DONE)
+DELETE /v2/marketplace/jobs/{jobId}            → cancel
+```
+
+Phases: `QUEUED` → `DOWNLOADING` → `VERIFYING` → `INSTALLING` → `DONE` | `FAILED` | `CANCELLED`.
