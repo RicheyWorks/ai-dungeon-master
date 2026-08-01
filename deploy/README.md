@@ -94,14 +94,16 @@ docker compose --env-file deploy/.env \
 Apps boot with `game.production=true` and refuse insecure defaults
 (`ProductionSecurityGuard`). Full checklist: [`docs/PRODUCTION.md`](../docs/PRODUCTION.md).
 
-## Metrics (Prometheus)
+## Metrics (Prometheus + Grafana)
 
 ```bash
 docker compose -f deploy/docker-compose.yml \
                -f deploy/docker-compose.metrics.yml \
                up --build -d
-# Prometheus UI → http://localhost:9090
+# Prometheus → http://localhost:9090
+# Grafana    → http://localhost:3000  (admin/admin)
 ```
 
-Scrapes `app1` + `app2` at `/metrics` (not the sticky proxy). Details:
-[`prometheus/README.md`](prometheus/README.md).
+Scrapes `app1` + `app2` at `/metrics`. Dashboard auto-loads under
+*AI Dungeon Master*. Details: [`prometheus/README.md`](prometheus/README.md).
+

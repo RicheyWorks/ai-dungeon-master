@@ -1,11 +1,12 @@
-# Optional metrics overlay: Prometheus scrapes app1/app2 /metrics.
+# Optional metrics overlay: Prometheus scrapes app1/app2 /metrics + Grafana UI.
 #
 #   docker compose -f deploy/docker-compose.yml \
 #                  -f deploy/docker-compose.metrics.yml \
 #                  up --build -d
 #
-# UI: http://localhost:9090
-# Targets: Status → Targets (dm-engines / app1 + app2)
+# Prometheus: http://localhost:9090  (Status → Targets → dm-engines)
+# Grafana:    http://localhost:3000  (admin / admin — change on first login)
+# Dashboard:  AI Dungeon Master → AI Dungeon Master — engines
 #
 # Combine with prod overlay if desired:
 #   docker compose --env-file deploy/.env \
@@ -32,8 +33,26 @@ services:
         condition: service_healthy
       app2:
         condition: service_healthy
-    # Stay on the compose network so app1/app2 hostnames resolve
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
     restart: unless-stopped
 
 volumes:
   prometheus_data:
+  grafana_data:

@@ -108,5 +108,6 @@ Sample stack overlay:
 docker compose -f deploy/docker-compose.yml \
                -f deploy/docker-compose.metrics.yml \
                up -d
-# UI: http://localhost:9090  (see deploy/prometheus/README.md)
+# Prometheus: http://localhost:9090
+# Grafana:    http://localhost:3000  (admin/admin; see deploy/prometheus/README.md)
 ```
