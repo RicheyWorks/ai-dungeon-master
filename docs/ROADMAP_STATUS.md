@@ -114,6 +114,7 @@ by reputation via optional `factionId` on pack data) and WorldMap wiring
 ## Remaining backlog
 
 - Networked multi-node session/entitlement store: **Redis** (`store=redis`) and **JDBC/Postgres** (`store=jdbc`) — see `docs/MULTI_NODE.md`.
+- Sample multi-node deploy: `deploy/docker-compose.yml` (2 apps + Postgres/Redis + sticky nginx).
 
 
 - Native client apps (Android Compose polish; iOS SwiftUI; Steam/Tauri) on the generated SDKs.

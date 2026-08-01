@@ -288,6 +288,15 @@ live keyed-provider smoke tests and multi-node session storage.
 
 
 
+### Multi-node Docker
+
+```bash
+docker compose -f deploy/docker-compose.yml up --build
+# → http://localhost:8080/app/   (2 app nodes + Postgres + sticky nginx)
+```
+
+See [`deploy/README.md`](deploy/README.md) and [`docs/MULTI_NODE.md`](docs/MULTI_NODE.md).
+
 ### Desktop
 
 ```bash
