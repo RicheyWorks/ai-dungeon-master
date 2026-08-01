@@ -1,0 +1,65 @@
+# Recording/alert rules evaluated by Prometheus (loaded via prometheus.yml).
+groups:
+  - name: dm-engine-health
+    rules:
+      - alert: DmEngineDown
+        expr: up{job="dm-engines"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ai-dungeon-master
+        annotations:
+          summary: "Engine target {{ $labels.instance }} is down"
+          description: >
+            Prometheus cannot scrape {{ $labels.instance }} (job dm-engines)
+            for more than 1 minute.
+
+      - alert: DmEngineNotReady
+        expr: dm_ready == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: ai-dungeon-master
+        annotations:
+          summary: "Engine {{ $labels.instance }} not ready"
+          description: >
+            dm_ready is 0 on {{ $labels.instance }} for 2m — a configured
+            auth backend (jdbc/redis/file) is failing its probe.
+
+      - alert: DmAuthDependencyDown
+        expr: dm_dependency_up == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: ai-dungeon-master
+        annotations:
+          summary: "Auth dependency {{ $labels.name }} down on {{ $labels.instance }}"
+          description: >
+            dm_dependency_up{name="{{ $labels.name }}"} is 0 for 2 minutes.
+
+      - alert: DmHighEngineCount
+        expr: dm_engines_active > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-dungeon-master
+        annotations:
+          summary: "High engine count on {{ $labels.instance }}"
+          description: >
+            dm_engines_active is {{ $value }} (soft cap is typically 100).
+            Eviction pressure may be near.
+
+      - alert: DmHeapNearMax
+        expr: |
+          (
+            jvm_memory_bytes{area="heap",id="used"}
+            /
+            clamp_min(jvm_memory_bytes{area="heap",id="max"}, 1)
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-dungeon-master
+        annotations:
+          summary: "Heap >90% on {{ $labels.instance }}"
+          description: "JVM heap used/max is {{ $value | humanizePercentage }} for 5m."
