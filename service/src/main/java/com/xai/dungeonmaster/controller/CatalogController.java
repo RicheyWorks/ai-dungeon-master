@@ -1,5 +1,7 @@
 package com.xai.dungeonmaster.controller;
 
+import com.xai.dungeonmaster.auth.JwtAuthFilter;
+import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.dto.CatalogPayload;
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.dto.ErrorPayload;
@@ -16,6 +18,9 @@ import com.xai.dungeonmaster.plugin.LootTableRegistry;
 import com.xai.dungeonmaster.plugin.QuestScriptRegistry;
 import com.xai.dungeonmaster.plugin.SpellEffectRegistry;
 import com.xai.dungeonmaster.plugin.StorefrontRegistry;
+import com.xai.dungeonmaster.service.PackEntitlementGate;
+import com.xai.dungeonmaster.service.PackUploadService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,44 +35,44 @@ import java.util.List;
  *
  * GET  /v2/catalog                     — full catalog envelope
  * POST /v2/catalog/packs               — upload + install a content-pack zip (multipart "file")
- * POST /v2/catalog/packs/{id}/enable   — enable a content pack, returns the updated catalog
+ * POST /v2/catalog/packs/{id}/enable   — enable a content pack (entitlement-gated when required)
  * POST /v2/catalog/packs/{id}/disable  — disable a content pack, returns the updated catalog
- *
- * Sourced from the process-wide registries, so it reflects live state.
  */
 @RestController
 @RequestMapping("/v2/catalog")
 @CrossOrigin(origins = "*")
 public class CatalogController {
 
-    private final com.xai.dungeonmaster.service.PackUploadService uploads;
+    private final PackUploadService uploads;
+    private final PackEntitlementGate packGate;
 
-    public CatalogController(com.xai.dungeonmaster.service.PackUploadService uploads) {
+    public CatalogController(PackUploadService uploads, PackEntitlementGate packGate) {
         this.uploads = uploads;
+        this.packGate = packGate;
     }
 
     @GetMapping
     public Envelope<CatalogPayload> catalog(
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        return Envelope.of("catalog", buildPayload(), requestId);
+        return Envelope.of("catalog", buildPayload(session == null ? null : session.id()), requestId);
     }
 
-    /**
-     * Upload and install a content-pack zip at runtime (roadmap Phase 5).
-     * Returns the refreshed catalog: 201 for a new pack, 200 when replacing,
-     * 400 for invalid zips, 409 for a duplicate id without {@code replace}.
-     */
     @PostMapping(value = "/packs", consumes = "multipart/form-data")
     public ResponseEntity<Envelope<?>> uploadPack(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             @RequestParam(value = "replace", defaultValue = "false") boolean replace,
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         try {
-            com.xai.dungeonmaster.service.PackUploadService.InstalledPack installed =
-                    uploads.install(file.getBytes(), replace);
+            PackUploadService.InstalledPack installed = uploads.install(file.getBytes(), replace);
+            // Gated packs stay disabled until the session owns the SKU and enables them.
+            if (packGate.isGated(installed.pack().id())) {
+                ContentRegistry.setEnabled(installed.pack().id(), false);
+            }
             return ResponseEntity.status(installed.replaced() ? 200 : 201)
-                    .body(Envelope.of("catalog", buildPayload(), requestId));
-        } catch (com.xai.dungeonmaster.service.PackUploadService.PackUploadException e) {
+                    .body(Envelope.of("catalog", buildPayload(session == null ? null : session.id()), requestId));
+        } catch (PackUploadService.PackUploadException e) {
             return ResponseEntity.status(e.isConflict() ? 409 : 400)
                     .body(Envelope.of("error", new ErrorPayload(e.getMessage()), requestId));
         } catch (java.io.IOException e) {
@@ -79,36 +84,58 @@ public class CatalogController {
     @PostMapping("/packs/{id}/enable")
     public ResponseEntity<Envelope<?>> enablePack(
             @PathVariable("id") String id,
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        return toggle(id, true, requestId);
+        return toggle(id, true, session, requestId);
     }
 
     @PostMapping("/packs/{id}/disable")
     public ResponseEntity<Envelope<?>> disablePack(
             @PathVariable("id") String id,
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        return toggle(id, false, requestId);
+        return toggle(id, false, session, requestId);
     }
 
-    private ResponseEntity<Envelope<?>> toggle(String id, boolean enabled, String requestId) {
+    private ResponseEntity<Envelope<?>> toggle(
+            String id, boolean enabled, SessionService.Session session, String requestId) {
         if (!ContentRegistry.isKnown(id)) {
             return ResponseEntity.status(404).body(
                     Envelope.of("error", new ErrorPayload("Unknown content pack: " + id), requestId));
         }
+        if (enabled) {
+            String deny = packGate.denyReason(session == null ? null : session.id(), id);
+            if (deny != null) {
+                HttpStatus code = deny.startsWith("Authentication")
+                        ? HttpStatus.UNAUTHORIZED
+                        : HttpStatus.PAYMENT_REQUIRED;
+                return ResponseEntity.status(code).body(
+                        Envelope.of("error", new ErrorPayload(deny), requestId));
+            }
+        }
         ContentRegistry.setEnabled(id, enabled);
-        return ResponseEntity.ok(Envelope.of("catalog", buildPayload(), requestId));
+        return ResponseEntity.ok(Envelope.of(
+                "catalog", buildPayload(session == null ? null : session.id()), requestId));
     }
 
-    private CatalogPayload buildPayload() {
+    private CatalogPayload buildPayload(String sessionId) {
         List<PackInfo> packs = new ArrayList<>();
         for (ContentPack pack : ContentRegistry.packs().values()) {
+            List<String> required = pack.requiredProductIds() == null
+                    ? List.of()
+                    : pack.requiredProductIds();
+            boolean locked = packGate.gatesEnabled()
+                    && !required.isEmpty()
+                    && !packGate.isEntitled(sessionId, pack.id());
             packs.add(new PackInfo(
                     pack.id(),
                     pack.displayName(),
                     pack.version(),
                     pack.monsters().size(),
                     pack.items().size(),
-                    ContentRegistry.isEnabled(pack.id())));
+                    ContentRegistry.isEnabled(pack.id()),
+                    required,
+                    locked));
         }
         packs.sort((a, b) -> a.id().compareToIgnoreCase(b.id()));
 

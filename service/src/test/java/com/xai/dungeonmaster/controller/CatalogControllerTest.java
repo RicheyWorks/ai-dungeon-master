@@ -30,7 +30,9 @@ class CatalogControllerTest {
         ContentRegistry.clearForTests();
         ContentRegistry.register(new DefaultContentPack()); // "builtin"
         mvc = standaloneSetup(new CatalogController(
-                new com.xai.dungeonmaster.service.PackUploadService(packsDir.toString()))).build();
+                new com.xai.dungeonmaster.service.PackUploadService(packsDir.toString()),
+                new com.xai.dungeonmaster.service.PackEntitlementGate(
+                        new com.xai.dungeonmaster.entitlement.EntitlementService()))).build();
     }
 
     @AfterEach

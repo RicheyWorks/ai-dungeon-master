@@ -181,6 +181,19 @@ public final class ResourceLoader {
      * the load, exactly as during the startup scan. Returns the pack, or
      * null if the directory isn't a valid pack.
      */
+    public static int registerAllContentPacks(Path root) {
+        ContentRegistry.register(new DefaultContentPack());
+        java.util.List<ContentPack> found = scanContentPacks(root);
+        for (ContentPack pack : found) {
+            ContentRegistry.register(pack);
+            // SKU-gated packs stay disabled until a session enables them.
+            if (pack.requiredProductIds() != null && !pack.requiredProductIds().isEmpty()) {
+                ContentRegistry.setEnabled(pack.id(), false);
+            }
+        }
+        return found.size();
+    }
+
     public static ContentPack loadAndRegisterPack(Path dir) {
         if (dir == null || !Files.isDirectory(dir)) return null;
         Path manifest = dir.resolve("pack.yaml");
@@ -190,26 +203,17 @@ public final class ResourceLoader {
         }
         try {
             ContentPack pack = loadOnePack(dir, manifest);
-            if (pack != null) ContentRegistry.register(pack);
+            if (pack != null) {
+                ContentRegistry.register(pack);
+                if (pack.requiredProductIds() != null && !pack.requiredProductIds().isEmpty()) {
+                    ContentRegistry.setEnabled(pack.id(), false);
+                }
+            }
             return pack;
         } catch (Exception e) {
             System.err.println("Failed to load content pack at " + dir + ": " + e.getMessage());
             return null;
         }
-    }
-
-    /**
-     * Convenience: register the bundled pack + every external pack found
-     * under {@code root}. Returns the number of external packs loaded
-     * (the bundled pack is not counted).
-     */
-    public static int registerAllContentPacks(Path root) {
-        ContentRegistry.register(new DefaultContentPack());
-        java.util.List<ContentPack> found = scanContentPacks(root);
-        for (ContentPack pack : found) {
-            ContentRegistry.register(pack);
-        }
-        return found.size();
     }
 
     private static ContentPack loadOnePack(Path dir, Path manifest) throws IOException {
@@ -350,6 +354,12 @@ public final class ResourceLoader {
         public String version;
         public String minEngineVersion;
         public String description;
+        /** Single SKU required to enable (convenience for YAML). */
+        public String requiredProductId;
+        /** Multiple SKUs; combined with {@link #requiredProductId} if both set. */
+        public java.util.List<String> requiredProductIds;
+        /** When true, all listed SKUs must be owned (default: any one). */
+        public boolean requireAllProducts;
     }
 
     /** ContentPack backed by a pre-loaded set of maps. */
@@ -360,6 +370,8 @@ public final class ResourceLoader {
         private final Map<String, String> strings;
         private final Map<String, com.xai.dungeonmaster.Npc> npcs;
         private final Map<String, com.xai.dungeonmaster.Faction> factions;
+        private final java.util.List<String> requiredProductIds;
+        private final boolean requireAllProducts;
 
         FilesystemContentPack(PackManifest meta,
                               Map<String, Item> items,
@@ -373,6 +385,22 @@ public final class ResourceLoader {
             this.strings = strings;
             this.npcs = npcs;
             this.factions = factions;
+            this.requiredProductIds = normalizeRequired(meta);
+            this.requireAllProducts = meta != null && meta.requireAllProducts;
+        }
+
+        private static java.util.List<String> normalizeRequired(PackManifest meta) {
+            if (meta == null) return java.util.List.of();
+            java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
+            if (meta.requiredProductId != null && !meta.requiredProductId.isBlank()) {
+                ids.add(meta.requiredProductId.trim());
+            }
+            if (meta.requiredProductIds != null) {
+                for (String id : meta.requiredProductIds) {
+                    if (id != null && !id.isBlank()) ids.add(id.trim());
+                }
+            }
+            return java.util.List.copyOf(ids);
         }
 
         @Override public String id() { return meta.id; }
@@ -384,5 +412,7 @@ public final class ResourceLoader {
         @Override public Map<String, String> strings() { return Collections.unmodifiableMap(strings); }
         @Override public Map<String, com.xai.dungeonmaster.Npc> npcs() { return Collections.unmodifiableMap(npcs); }
         @Override public Map<String, com.xai.dungeonmaster.Faction> factions() { return Collections.unmodifiableMap(factions); }
+        @Override public java.util.List<String> requiredProductIds() { return requiredProductIds; }
+        @Override public boolean requireAllProducts() { return requireAllProducts; }
     }
 }
