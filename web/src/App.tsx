@@ -714,6 +714,12 @@ function ModsTab(props: {
                   {pack.downloadUrl}
                 </div>
               )}
+              {pack.sha256 && (
+                <div className="muted" title={pack.sha256}>
+                  sha256 {pack.sha256.slice(0, 12)}…{pack.sha256.slice(-8)}
+                  {pack.source === "remote" ? " · verified on install" : ""}
+                </div>
+              )}
             </div>
             {!pack.installed ? (
               <button

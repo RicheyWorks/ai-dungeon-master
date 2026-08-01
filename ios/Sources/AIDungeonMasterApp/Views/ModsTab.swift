@@ -132,6 +132,13 @@ struct ModsTab: View {
                             .foregroundStyle(.tint)
                             .lineLimit(2)
                     }
+                    if let sha = pack.sha256, !sha.isEmpty {
+                        Text("sha256 \(Self.shortSha(sha))"
+                             + (pack.source == "remote" ? " · verified on install" : ""))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
                 Spacer()
                 if pack.installed == true {
@@ -153,6 +160,12 @@ struct ModsTab: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private static func shortSha(_ sha: String) -> String {
+        let s = sha.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard s.count > 24 else { return s }
+        return String(s.prefix(12)) + "…" + String(s.suffix(8))
     }
 
     private var uploadCard: some View {

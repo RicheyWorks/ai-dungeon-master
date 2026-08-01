@@ -159,6 +159,14 @@ fun ModsScreen(
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                             }
+                            pack.sha256?.takeIf { it.isNotBlank() }?.let { sha ->
+                                Text(
+                                    "sha256 ${shortSha(sha)}" +
+                                        if (pack.source == "remote") " · verified on install" else "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                         if (pack.installed != true) {
                             Button(
@@ -244,7 +252,7 @@ private fun PackRow(
     busy: Boolean,
     onToggle: (String, Boolean) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(Modifier = Modifier.fillMaxWidth()) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -268,4 +276,10 @@ private fun PackRow(
             )
         }
     }
+}
+
+private fun shortSha(sha: String): String {
+    val s = sha.trim()
+    if (s.length <= 24) return s
+    return s.take(12) + "…" + s.takeLast(8)
 }
