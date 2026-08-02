@@ -40,6 +40,16 @@ public final class JdbcSchema {
             )
             """;
 
+    /** Per-session content-pack enable overrides. */
+    public static final String SESSION_PACKS = """
+            CREATE TABLE IF NOT EXISTS dm_session_packs (
+              session_id  VARCHAR(64)  NOT NULL,
+              pack_id     VARCHAR(128) NOT NULL,
+              enabled     INT          NOT NULL,
+              PRIMARY KEY (session_id, pack_id)
+            )
+            """;
+
     private JdbcSchema() {}
 
     public static void ensure(DataSource ds) {
@@ -47,6 +57,7 @@ public final class JdbcSchema {
             st.execute(SESSIONS);
             st.execute(ENTITLEMENTS);
             st.execute(RECEIPTS);
+            st.execute(SESSION_PACKS);
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to ensure JDBC auth schema", e);
         }

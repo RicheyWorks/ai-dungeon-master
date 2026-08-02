@@ -46,16 +46,19 @@ public class AuthConfig {
             @Value("${game.rate-limit.store:memory}") String rateLimitStore,
             @Value("${game.marketplace.jobs.store:memory}") String marketplaceJobsStore,
             @Value("${game.auth.receipt-ledger.store:memory}") String receiptLedgerStore,
+            @Value("${game.content.session-packs.store:memory}") String sessionPacksStore,
             @Value("${game.auth.redis.url:redis://127.0.0.1:6379}") String redisUrl) {
         if (needsRedis(sessionKind)
                 || needsRedis(entitlementKind)
                 || needsRedis(rateLimitStore)
                 || needsRedis(marketplaceJobsStore)
-                || needsRedis(receiptLedgerStore)) {
+                || needsRedis(receiptLedgerStore)
+                || needsRedis(sessionPacksStore)) {
             System.out.println("[auth] redis ops: " + redisUrl
                     + (needsRedis(rateLimitStore) ? " (rate-limit)" : "")
                     + (needsRedis(marketplaceJobsStore) ? " (marketplace-jobs)" : "")
-                    + (needsRedis(receiptLedgerStore) ? " (receipt-ledger)" : ""));
+                    + (needsRedis(receiptLedgerStore) ? " (receipt-ledger)" : "")
+                    + (needsRedis(sessionPacksStore) ? " (session-packs)" : ""));
             return new JedisRedisOps(redisUrl);
         }
         return noopRedis();
@@ -70,16 +73,20 @@ public class AuthConfig {
             @Value("${game.auth.session.store:memory}") String sessionKind,
             @Value("${game.auth.entitlement.store:memory}") String entitlementKind,
             @Value("${game.auth.receipt-ledger.store:memory}") String receiptLedgerStore,
+            @Value("${game.content.session-packs.store:memory}") String sessionPacksStore,
             @Value("${game.auth.jdbc.url:}") String url,
             @Value("${game.auth.jdbc.username:}") String username,
             @Value("${game.auth.jdbc.password:}") String password,
             @Value("${game.auth.jdbc.driver:}") String driver) {
-        if (!(needsJdbc(sessionKind) || needsJdbc(entitlementKind) || needsJdbc(receiptLedgerStore))) {
+        if (!(needsJdbc(sessionKind)
+                || needsJdbc(entitlementKind)
+                || needsJdbc(receiptLedgerStore)
+                || needsJdbc(sessionPacksStore))) {
             return new com.xai.dungeonmaster.store.UnusedDataSource();
         }
         if (url == null || url.isBlank()) {
             throw new IllegalStateException(
-                    "game.auth.jdbc.url is required when session/entitlement/receipt-ledger store is jdbc");
+                    "game.auth.jdbc.url is required when session/entitlement/receipt-ledger/session-packs store is jdbc");
         }
         HikariConfig cfg = new HikariConfig();
         cfg.setJdbcUrl(url);
