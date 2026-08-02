@@ -62,6 +62,7 @@ public class ProductionSecurityGuard implements ApplicationRunner {
     private final String sessionStore;
     private final String entitlementStore;
     private final String receiptLedgerStore;
+    private final String sessionPacksStore;
     private final String jdbcPassword;
 
     public ProductionSecurityGuard(
@@ -72,6 +73,7 @@ public class ProductionSecurityGuard implements ApplicationRunner {
             @Value("${game.auth.session.store:memory}") String sessionStore,
             @Value("${game.auth.entitlement.store:memory}") String entitlementStore,
             @Value("${game.auth.receipt-ledger.store:memory}") String receiptLedgerStore,
+            @Value("${game.content.session-packs.store:memory}") String sessionPacksStore,
             @Value("${game.auth.jdbc.password:}") String jdbcPassword) {
         this.env = env;
         this.productionFlag = productionFlag;
@@ -80,6 +82,7 @@ public class ProductionSecurityGuard implements ApplicationRunner {
         this.sessionStore = sessionStore == null ? "memory" : sessionStore;
         this.entitlementStore = entitlementStore == null ? "memory" : entitlementStore;
         this.receiptLedgerStore = receiptLedgerStore == null ? "memory" : receiptLedgerStore;
+        this.sessionPacksStore = sessionPacksStore == null ? "memory" : sessionPacksStore;
         this.jdbcPassword = jdbcPassword == null ? "" : jdbcPassword;
     }
 
@@ -135,8 +138,12 @@ public class ProductionSecurityGuard implements ApplicationRunner {
         if ("memory".equalsIgnoreCase(receiptLedgerStore)) {
             problems.add("game.auth.receipt-ledger.store=memory is not multi-node safe; use jdbc or redis");
         }
+        if ("memory".equalsIgnoreCase(sessionPacksStore)) {
+            problems.add("game.content.session-packs.store=memory is not multi-node safe; use jdbc or redis");
+        }
 
-        if (needsJdbc(sessionStore) || needsJdbc(entitlementStore) || needsJdbc(receiptLedgerStore)) {
+        if (needsJdbc(sessionStore) || needsJdbc(entitlementStore) || needsJdbc(receiptLedgerStore)
+                || needsJdbc(sessionPacksStore)) {
             if (INSECURE_DB_PASSWORDS.contains(jdbcPassword)
                     || INSECURE_DB_PASSWORDS.contains(jdbcPassword.toLowerCase(Locale.ROOT))) {
                 problems.add("game.auth.jdbc.password is missing or is a known insecure default");

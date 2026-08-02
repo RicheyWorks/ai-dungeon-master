@@ -25,7 +25,7 @@ class ProductionSecurityGuardTest {
         ProductionSecurityGuard g = new ProductionSecurityGuard(
                 env, false, true,
                 "a-strong-production-jwt-secret-32+",
-                "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default");
+                "jdbc", "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default");
         assertTrue(g.isProductionMode());
     }
 
@@ -59,6 +59,7 @@ class ProductionSecurityGuardTest {
         assertTrue(problems.stream().anyMatch(p -> p.contains("session.store")), problems.toString());
         assertTrue(problems.stream().anyMatch(p -> p.contains("entitlement.store")), problems.toString());
         assertTrue(problems.stream().anyMatch(p -> p.contains("receipt-ledger.store")), problems.toString());
+        assertTrue(problems.stream().anyMatch(p -> p.contains("session-packs.store")), problems.toString());
     }
 
     @Test
@@ -102,6 +103,7 @@ class ProductionSecurityGuardTest {
                 sessionStore,
                 entitlementStore,
                 receiptLedgerStore,
+                receiptLedgerStore, // session-packs: same multi-node backend as receipts in tests
                 jdbcPassword);
     }
 }

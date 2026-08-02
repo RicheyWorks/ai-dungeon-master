@@ -262,3 +262,13 @@ With `game.content.session-scoped-enable=true` (default):
 - `SessionContentFilter` installs a ThreadLocal enabled-pack set for the request so loot/encounters only use that session's packs
 
 Set `false` to restore legacy process-wide toggles (single-player / single-tenant).
+
+### Session pack store backends
+
+| Property | Default | Prod |
+|---|---|---|
+| `game.content.session-packs.store` | `memory` | `redis` (or `jdbc`) |
+
+- **redis** — hash `{prefix}:session-packs:{sessionId}`
+- **jdbc** — table `dm_session_packs` (auto-created)
+
