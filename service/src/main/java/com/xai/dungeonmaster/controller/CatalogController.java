@@ -41,7 +41,6 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/v2/catalog")
-@CrossOrigin(origins = "*")
 public class CatalogController {
 
     private final PackUploadService uploads;

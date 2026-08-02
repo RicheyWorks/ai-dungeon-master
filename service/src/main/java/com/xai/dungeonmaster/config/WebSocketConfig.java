@@ -1,6 +1,7 @@
 package com.xai.dungeonmaster.config;
 
 import com.xai.dungeonmaster.auth.StompAuthChannelInterceptor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -31,9 +32,13 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final StompAuthChannelInterceptor stompAuth;
+    private final String[] allowedOriginPatterns;
 
-    public WebSocketConfig(StompAuthChannelInterceptor stompAuth) {
+    public WebSocketConfig(
+            StompAuthChannelInterceptor stompAuth,
+            @Value("${game.cors.allowed-origins:*}") String allowedOrigins) {
         this.stompAuth = stompAuth;
+        this.allowedOriginPatterns = CorsConfig.originPatterns(allowedOrigins);
     }
 
     @Override
@@ -46,12 +51,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // SockJS for browsers that need the fallback transports.
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")   // tighten in production
+                .setAllowedOriginPatterns(allowedOriginPatterns)
                 .withSockJS();
 
         // Native WebSocket for Android (OkHttp) and other non-SockJS clients.
         registry.addEndpoint("/ws-stomp")
-                .setAllowedOriginPatterns("*");
+                .setAllowedOriginPatterns(allowedOriginPatterns);
     }
 
     @Override

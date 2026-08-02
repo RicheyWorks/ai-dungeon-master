@@ -26,7 +26,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/v2/session")
-@CrossOrigin(origins = "*")
 public class SessionController {
 
     private final SessionService sessions;

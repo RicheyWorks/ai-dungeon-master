@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/v2")
-@CrossOrigin(origins = "*")   // tighten in production
+// tighten in production
 public class GameV2Controller {
 
     private static final int RECENT_HISTORY_LIMIT = 30;

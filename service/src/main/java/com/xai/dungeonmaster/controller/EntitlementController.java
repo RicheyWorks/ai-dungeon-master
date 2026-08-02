@@ -30,7 +30,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/v2/entitlements")
-@CrossOrigin(origins = "*")
 public class EntitlementController {
 
     private final EntitlementService entitlements;
