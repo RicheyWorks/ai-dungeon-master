@@ -141,6 +141,8 @@ See `deploy/alertmanager/alertmanager.receivers.yml` and `templates/dm.tmpl`.
 | `game.rate-limit.verify-per-minute` | 60 | 40 |
 | `game.rate-limit.store` | `memory` | `redis` (shared across nodes) |
 
+Limits are bound once via `RateLimitProperties`. Set `game.rate-limit.trust-forwarded-headers=true` **only** behind a trusted reverse proxy (otherwise clients can spoof `X-Forwarded-For` and bypass IP buckets).
+
 Limits are bound once via `RateLimitProperties` (`game.rate-limit.*`) and shared by the HTTP filter + STOMP guards.
 
 Covered paths: `POST /v2/session`, `DELETE /v2/session`, `/v2/admin/**`, `POST /v2/marketplace/{id}/install`, `POST /v2/catalog/packs`, `POST /v2/narrate` (+ STOMP `/app/narrate` per session), `POST /v2/action` (+ STOMP `/app/action` per session), `POST /v2/save|/load|/reset`, `GET /metrics`, `POST /v2/entitlements/verify`.

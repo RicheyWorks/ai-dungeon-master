@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 public class RateLimitProperties {
 
     private final boolean enabled;
+    private final boolean trustForwardedHeaders;
     private final int sessionPerMinute;
     private final int logoutPerMinute;
     private final int adminPerMinute;
@@ -24,6 +25,7 @@ public class RateLimitProperties {
 
     public RateLimitProperties(
             @Value("${game.rate-limit.enabled:true}") boolean enabled,
+            @Value("${game.rate-limit.trust-forwarded-headers:false}") boolean trustForwardedHeaders,
             @Value("${game.rate-limit.session-per-minute:30}") int sessionPerMinute,
             @Value("${game.rate-limit.logout-per-minute:20}") int logoutPerMinute,
             @Value("${game.rate-limit.admin-per-minute:30}") int adminPerMinute,
@@ -35,6 +37,7 @@ public class RateLimitProperties {
             @Value("${game.rate-limit.verify-per-minute:60}") int verifyPerMinute,
             @Value("${game.rate-limit.default-per-minute:120}") int defaultPerMinute) {
         this.enabled = enabled;
+        this.trustForwardedHeaders = trustForwardedHeaders;
         this.sessionPerMinute = atLeastOne(sessionPerMinute);
         this.logoutPerMinute = atLeastOne(logoutPerMinute);
         this.adminPerMinute = atLeastOne(adminPerMinute);
@@ -53,6 +56,7 @@ public class RateLimitProperties {
     }
 
     public boolean enabled() { return enabled; }
+    public boolean trustForwardedHeaders() { return trustForwardedHeaders; }
     public int sessionPerMinute() { return sessionPerMinute; }
     public int logoutPerMinute() { return logoutPerMinute; }
     public int adminPerMinute() { return adminPerMinute; }
@@ -70,6 +74,7 @@ public class RateLimitProperties {
 
     public static final class Builder {
         private boolean enabled = true;
+        private boolean trustForwarded = false;
         private int session = 30;
         private int logout = 20;
         private int admin = 30;
@@ -82,6 +87,7 @@ public class RateLimitProperties {
         private int defaultLimit = 120;
 
         public Builder enabled(boolean v) { this.enabled = v; return this; }
+        public Builder trustForwardedHeaders(boolean v) { this.trustForwarded = v; return this; }
         public Builder sessionPerMinute(int v) { this.session = v; return this; }
         public Builder logoutPerMinute(int v) { this.logout = v; return this; }
         public Builder adminPerMinute(int v) { this.admin = v; return this; }
@@ -110,7 +116,7 @@ public class RateLimitProperties {
 
         public RateLimitProperties build() {
             return new RateLimitProperties(
-                    enabled, session, logout, admin, install, narrate, action, save,
+                    enabled, trustForwarded, session, logout, admin, install, narrate, action, save,
                     metrics, verify, defaultLimit);
         }
     }
