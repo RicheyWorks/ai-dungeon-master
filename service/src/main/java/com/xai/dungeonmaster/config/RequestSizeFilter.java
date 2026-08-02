@@ -30,7 +30,7 @@ public class RequestSizeFilter extends OncePerRequestFilter {
     public RequestSizeFilter(
             @Value("${game.http.max-request-bytes:1048576}") long maxBytes,
             @Value("${game.http.max-request-enabled:true}") boolean enabled) {
-        this.maxBytes = Math.max(1024L, maxBytes);
+        this.maxBytes = Math.max(256L, maxBytes);
         this.enabled = enabled;
     }
 

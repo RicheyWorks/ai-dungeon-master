@@ -11,7 +11,7 @@ class RequestSizeFilterTest {
 
     @Test
     void rejectsOversizedContentLength() throws Exception {
-        RequestSizeFilter filter = new RequestSizeFilter(100, true);
+        RequestSizeFilter filter = new RequestSizeFilter(300, true);
         MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/narrate");
         req.setContentType("application/json");
         req.setContent(new byte[0]);
@@ -37,7 +37,7 @@ class RequestSizeFilterTest {
 
     @Test
     void skipsMultipart() throws Exception {
-        RequestSizeFilter filter = new RequestSizeFilter(10, true);
+        RequestSizeFilter filter = new RequestSizeFilter(256, true);
         MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/catalog/packs");
         req.setContentType("multipart/form-data; boundary=x");
         req.setContent(new byte[1000]);
