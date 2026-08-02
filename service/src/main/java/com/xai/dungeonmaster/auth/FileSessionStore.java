@@ -74,6 +74,16 @@ public final class FileSessionStore implements SessionStore {
         return all().size();
     }
 
+    @Override
+    public void delete(String id) {
+        if (id == null) return;
+        file.update(list -> {
+            Map<String, Persisted> byId = toMap(list);
+            byId.remove(id);
+            return new ArrayList<>(byId.values());
+        });
+    }
+
     private static Map<String, Persisted> toMap(List<Persisted> list) {
         Map<String, Persisted> map = new LinkedHashMap<>();
         if (list == null) return map;

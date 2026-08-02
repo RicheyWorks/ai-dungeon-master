@@ -32,9 +32,18 @@ public final class MemorySessionPackStore implements SessionPackStore {
         }
         if (enabled == null) {
             ConcurrentHashMap<String, Boolean> m = bySession.get(sessionId);
-            if (m != null) m.remove(packId);
+            if (m != null) {
+                m.remove(packId);
+                if (m.isEmpty()) bySession.remove(sessionId, m);
+            }
             return;
         }
         bySession.computeIfAbsent(sessionId, k -> new ConcurrentHashMap<>()).put(packId, enabled);
+    }
+
+    @Override
+    public void clear(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return;
+        bySession.remove(sessionId);
     }
 }

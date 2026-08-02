@@ -104,6 +104,19 @@ public final class JdbcSessionPackStore implements SessionPackStore {
         }
     }
 
+    @Override
+    public void clear(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return;
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "DELETE FROM dm_session_packs WHERE session_id = ?")) {
+            ps.setString(1, sessionId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException("JdbcSessionPackStore.clear failed", e);
+        }
+    }
+
     private static boolean isPostgres(Connection c) throws SQLException {
         String name = c.getMetaData().getDatabaseProductName();
         return name != null && name.toLowerCase().contains("postgres");

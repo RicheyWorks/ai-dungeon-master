@@ -36,4 +36,9 @@ public final class InMemorySessionStore implements SessionStore {
     public int size() {
         return sessions.size();
     }
+
+    @Override
+    public void delete(String id) {
+        if (id != null) sessions.remove(id);
+    }
 }

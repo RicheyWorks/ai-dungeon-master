@@ -24,4 +24,9 @@ public interface SessionStore {
     default int size() {
         return all().size();
     }
+
+    /** Remove a session by id (no-op if unknown). */
+    default void delete(String id) {
+        // optional
+    }
 }

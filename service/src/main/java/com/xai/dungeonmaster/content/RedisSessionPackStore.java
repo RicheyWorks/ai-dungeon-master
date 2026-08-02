@@ -66,6 +66,12 @@ public final class RedisSessionPackStore implements SessionPackStore {
         redis.hset(k, fields);
     }
 
+    @Override
+    public void clear(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return;
+        redis.del(key(sessionId));
+    }
+
     private String key(String sessionId) {
         return prefix + ":session-packs:" + sessionId;
     }

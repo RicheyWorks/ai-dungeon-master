@@ -66,4 +66,10 @@ public class SessionPackService {
         }
         return Set.copyOf(out);
     }
+
+    /** Drop all pack overrides for a session (call when the session expires). */
+    public void clearSession(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return;
+        store.clear(sessionId);
+    }
 }

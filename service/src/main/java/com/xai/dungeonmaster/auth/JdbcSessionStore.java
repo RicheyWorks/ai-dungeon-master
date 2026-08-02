@@ -101,6 +101,18 @@ public final class JdbcSessionStore implements SessionStore {
         }
     }
 
+    @Override
+    public void delete(String id) {
+        if (id == null || id.isBlank()) return;
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement("DELETE FROM dm_sessions WHERE id = ?")) {
+            ps.setString(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException("JdbcSessionStore.delete failed", e);
+        }
+    }
+
     private static void bind(PreparedStatement ps, SessionService.Session session) throws SQLException {
         ps.setString(1, session.id());
         ps.setString(2, session.displayName() == null ? "Guest" : session.displayName());
