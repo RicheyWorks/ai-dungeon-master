@@ -18,6 +18,7 @@ class SecurityHeadersFilterTest {
         assertEquals("DENY", res.getHeader("X-Frame-Options"));
         assertEquals("no-referrer", res.getHeader("Referrer-Policy"));
         assertNotNull(res.getHeader("Content-Security-Policy"));
+        assertEquals("same-origin", res.getHeader("Cross-Origin-Resource-Policy"));
         assertNull(res.getHeader("Strict-Transport-Security"));
     }
 

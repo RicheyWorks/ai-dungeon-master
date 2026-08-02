@@ -30,6 +30,7 @@ need GAME_AUTH_JWT_SECRET
 need GAME_AUTH_JDBC_PASSWORD
 need GAME_ADMIN_TOKEN
 need GAME_CORS_ALLOWED_ORIGINS
+need GAME_METRICS_SCRAPE_TOKEN
 
 if [[ -n "${GAME_AUTH_JWT_SECRET:-}" && ${#GAME_AUTH_JWT_SECRET} -lt 32 ]]; then
   echo "FAIL: GAME_AUTH_JWT_SECRET must be ≥ 32 chars"
@@ -37,6 +38,10 @@ if [[ -n "${GAME_AUTH_JWT_SECRET:-}" && ${#GAME_AUTH_JWT_SECRET} -lt 32 ]]; then
 fi
 if [[ -n "${GAME_ADMIN_TOKEN:-}" && ${#GAME_ADMIN_TOKEN} -lt 24 ]]; then
   echo "FAIL: GAME_ADMIN_TOKEN must be ≥ 24 chars"
+  fail=1
+fi
+if [[ -n "${GAME_METRICS_SCRAPE_TOKEN:-}" && ${#GAME_METRICS_SCRAPE_TOKEN} -lt 16 ]]; then
+  echo "FAIL: GAME_METRICS_SCRAPE_TOKEN must be ≥ 16 chars"
   fail=1
 fi
 if [[ "${GAME_CORS_ALLOWED_ORIGINS:-}" == "*" ]] || [[ "${GAME_CORS_ALLOWED_ORIGINS:-}" == *'*'* ]]; then

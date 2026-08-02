@@ -90,4 +90,64 @@ class StompAuthChannelInterceptorTest {
                 () -> strict.preSend(msg, null));
     }
 
+    @Test
+    void subscribeOwnTopicAllowed() {
+        SessionService.Issued issued = sessions.createSession("A");
+        StompAuthChannelInterceptor strict = new StompAuthChannelInterceptor(jwt, sessions, true);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put(StompAuthChannelInterceptor.SESSION_ID_ATTR, issued.session().id());
+        accessor.setSessionAttributes(attrs);
+        accessor.setDestination("/topic/narrative/" + issued.session().id());
+        accessor.setLeaveMutable(true);
+        Message<?> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        assertDoesNotThrow(() -> strict.preSend(msg, null));
+    }
+
+    @Test
+    void subscribeOtherSessionDenied() {
+        SessionService.Issued a = sessions.createSession("A");
+        SessionService.Issued b = sessions.createSession("B");
+        StompAuthChannelInterceptor strict = new StompAuthChannelInterceptor(jwt, sessions, true);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put(StompAuthChannelInterceptor.SESSION_ID_ATTR, a.session().id());
+        accessor.setSessionAttributes(attrs);
+        accessor.setDestination("/topic/narrative/" + b.session().id());
+        accessor.setLeaveMutable(true);
+        Message<?> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        assertThrows(org.springframework.messaging.MessageDeliveryException.class,
+                () -> strict.preSend(msg, null));
+    }
+
+    @Test
+    void authRequiredRejectsSharedNarrativeTopic() {
+        SessionService.Issued issued = sessions.createSession("A");
+        StompAuthChannelInterceptor strict = new StompAuthChannelInterceptor(jwt, sessions, true);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put(StompAuthChannelInterceptor.SESSION_ID_ATTR, issued.session().id());
+        accessor.setSessionAttributes(attrs);
+        accessor.setDestination("/topic/narrative");
+        accessor.setLeaveMutable(true);
+        Message<?> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        assertThrows(org.springframework.messaging.MessageDeliveryException.class,
+                () -> strict.preSend(msg, null));
+    }
+
+    @Test
+    void sendUnknownDestinationDeniedWhenAuthOn() {
+        SessionService.Issued issued = sessions.createSession("A");
+        StompAuthChannelInterceptor strict = new StompAuthChannelInterceptor(jwt, sessions, true);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put(StompAuthChannelInterceptor.SESSION_ID_ATTR, issued.session().id());
+        accessor.setSessionAttributes(attrs);
+        accessor.setDestination("/app/hack");
+        accessor.setLeaveMutable(true);
+        Message<?> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        assertThrows(org.springframework.messaging.MessageDeliveryException.class,
+                () -> strict.preSend(msg, null));
+    }
+
 }

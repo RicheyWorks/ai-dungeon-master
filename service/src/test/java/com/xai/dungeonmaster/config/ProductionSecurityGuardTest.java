@@ -14,7 +14,6 @@ class ProductionSecurityGuardTest {
     void skipsWhenNotProduction() {
         ProductionSecurityGuard g = guard(false, false, "", "memory", "memory", "memory", "");
         assertFalse(g.isProductionMode());
-        // run must not throw
         g.run(null);
     }
 
@@ -22,7 +21,7 @@ class ProductionSecurityGuardTest {
     void prodProfileActivates() {
         MockEnvironment env = new MockEnvironment();
         env.setActiveProfiles("prod");
-        ProductionSecurityGuard g = new ProductionSecurityGuard(
+        ProductionSecurityGuard g = hardened(
                 env, false, true,
                 "a-strong-production-jwt-secret-32+",
                 "jdbc", "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default",
@@ -101,22 +100,9 @@ class ProductionSecurityGuardTest {
         }
     }
 
-    private static ProductionSecurityGuard guard(
-            boolean production,
-            boolean auth,
-            String jwt,
-            String sessionStore,
-            String entitlementStore,
-            String receiptLedgerStore,
-            String jdbcPassword) {
-        return guard(production, auth, jwt, sessionStore, entitlementStore, receiptLedgerStore,
-                jdbcPassword, "https://play.example.com");
-    }
-
-
     @Test
     void rejectsWeakAdminTokenAndMemoryRateLimit() {
-        ProductionSecurityGuard g = new ProductionSecurityGuard(
+        ProductionSecurityGuard g = hardened(
                 new StandardEnvironment(),
                 true, true,
                 "a-strong-production-jwt-secret-32chars!!",
@@ -129,6 +115,71 @@ class ProductionSecurityGuardTest {
         assertTrue(problems.stream().anyMatch(p -> p.contains("rate-limit.store")), problems.toString());
     }
 
+    @Test
+    void rejectsLenientPluginPolicyAndOpenMetrics() {
+        ProductionSecurityGuard g = new ProductionSecurityGuard(
+                new StandardEnvironment(),
+                true, true,
+                "a-strong-production-jwt-secret-32chars!!",
+                "jdbc", "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default",
+                "https://play.example.com",
+                "prod-admin-token-strong-enough!!",
+                "redis",
+                "LENIENT",
+                true,
+                "",
+                "",
+                "",
+                true,
+                false);
+        System.setProperty("STOREFRONT_STEAM_PUBLISHER_KEY", "not-empty");
+        try {
+            List<String> problems = g.validate();
+            assertTrue(problems.stream().anyMatch(p -> p.contains("signature.policy")), problems.toString());
+            assertTrue(problems.stream().anyMatch(p -> p.contains("metrics.scrape-token")), problems.toString());
+        } finally {
+            System.clearProperty("STOREFRONT_STEAM_PUBLISHER_KEY");
+        }
+    }
+
+    @Test
+    void rejectsRemoteMarketplaceWithoutHmac() {
+        ProductionSecurityGuard g = new ProductionSecurityGuard(
+                new StandardEnvironment(),
+                true, true,
+                "a-strong-production-jwt-secret-32chars!!",
+                "jdbc", "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default",
+                "https://play.example.com",
+                "prod-admin-token-strong-enough!!",
+                "redis",
+                "REQUIRED",
+                true,
+                "metrics-scrape-token-16+",
+                "https://cdn.example.com/index.json",
+                "",
+                true,
+                false);
+        System.setProperty("STOREFRONT_STEAM_PUBLISHER_KEY", "not-empty");
+        try {
+            List<String> problems = g.validate();
+            assertTrue(problems.stream().anyMatch(p -> p.contains("remote-hmac-secret")), problems.toString());
+        } finally {
+            System.clearProperty("STOREFRONT_STEAM_PUBLISHER_KEY");
+        }
+    }
+
+    private static ProductionSecurityGuard guard(
+            boolean production,
+            boolean auth,
+            String jwt,
+            String sessionStore,
+            String entitlementStore,
+            String receiptLedgerStore,
+            String jdbcPassword) {
+        return guard(production, auth, jwt, sessionStore, entitlementStore, receiptLedgerStore,
+                jdbcPassword, "https://play.example.com");
+    }
+
     private static ProductionSecurityGuard guard(
             boolean production,
             boolean auth,
@@ -138,7 +189,7 @@ class ProductionSecurityGuardTest {
             String receiptLedgerStore,
             String jdbcPassword,
             String corsOrigins) {
-        return new ProductionSecurityGuard(
+        return hardened(
                 new StandardEnvironment(),
                 production,
                 auth,
@@ -146,10 +197,45 @@ class ProductionSecurityGuardTest {
                 sessionStore,
                 entitlementStore,
                 receiptLedgerStore,
-                receiptLedgerStore, // session-packs: same multi-node backend as receipts in tests
+                receiptLedgerStore,
                 jdbcPassword,
                 corsOrigins,
                 "prod-admin-token-strong-enough!!",
                 "redis");
+    }
+
+    private static ProductionSecurityGuard hardened(
+            org.springframework.core.env.Environment env,
+            boolean production,
+            boolean auth,
+            String jwt,
+            String sessionStore,
+            String entitlementStore,
+            String receiptLedgerStore,
+            String sessionPacksStore,
+            String jdbcPassword,
+            String corsOrigins,
+            String adminToken,
+            String rateLimitStore) {
+        return new ProductionSecurityGuard(
+                env,
+                production,
+                auth,
+                jwt,
+                sessionStore,
+                entitlementStore,
+                receiptLedgerStore,
+                sessionPacksStore,
+                jdbcPassword,
+                corsOrigins,
+                adminToken,
+                rateLimitStore,
+                "REQUIRED",
+                true,
+                "metrics-scrape-token-16chars+",
+                "",
+                "",
+                true,
+                false);
     }
 }

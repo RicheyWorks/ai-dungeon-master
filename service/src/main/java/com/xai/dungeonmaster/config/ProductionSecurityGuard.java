@@ -67,6 +67,13 @@ public class ProductionSecurityGuard implements ApplicationRunner {
     private final String corsAllowedOrigins;
     private final String adminToken;
     private final String rateLimitStore;
+    private final String pluginSignaturePolicy;
+    private final boolean pluginSandboxEnabled;
+    private final String metricsScrapeToken;
+    private final String marketplaceRemoteUrl;
+    private final String marketplaceHmacSecret;
+    private final boolean marketplaceRequireChecksums;
+    private final boolean legacyApiEnabled;
 
     public ProductionSecurityGuard(
             Environment env,
@@ -80,7 +87,14 @@ public class ProductionSecurityGuard implements ApplicationRunner {
             @Value("${game.auth.jdbc.password:}") String jdbcPassword,
             @Value("${game.cors.allowed-origins:*}") String corsAllowedOrigins,
             @Value("${game.admin.token:}") String adminToken,
-            @Value("${game.rate-limit.store:memory}") String rateLimitStore) {
+            @Value("${game.rate-limit.store:memory}") String rateLimitStore,
+            @Value("${game.plugins.signature.policy:LENIENT}") String pluginSignaturePolicy,
+            @Value("${game.plugins.sandbox.enabled:true}") boolean pluginSandboxEnabled,
+            @Value("${game.metrics.scrape-token:}") String metricsScrapeToken,
+            @Value("${game.marketplace.remote-url:}") String marketplaceRemoteUrl,
+            @Value("${game.marketplace.remote-hmac-secret:}") String marketplaceHmacSecret,
+            @Value("${game.marketplace.require-checksums:false}") boolean marketplaceRequireChecksums,
+            @Value("${game.legacy.api.enabled:true}") boolean legacyApiEnabled) {
         this.env = env;
         this.productionFlag = productionFlag;
         this.authEnabled = authEnabled;
@@ -93,6 +107,13 @@ public class ProductionSecurityGuard implements ApplicationRunner {
         this.corsAllowedOrigins = corsAllowedOrigins == null ? "" : corsAllowedOrigins.trim();
         this.adminToken = adminToken == null ? "" : adminToken.trim();
         this.rateLimitStore = rateLimitStore == null ? "memory" : rateLimitStore.trim();
+        this.pluginSignaturePolicy = pluginSignaturePolicy == null ? "LENIENT" : pluginSignaturePolicy.trim();
+        this.pluginSandboxEnabled = pluginSandboxEnabled;
+        this.metricsScrapeToken = metricsScrapeToken == null ? "" : metricsScrapeToken.trim();
+        this.marketplaceRemoteUrl = marketplaceRemoteUrl == null ? "" : marketplaceRemoteUrl.trim();
+        this.marketplaceHmacSecret = marketplaceHmacSecret == null ? "" : marketplaceHmacSecret.trim();
+        this.marketplaceRequireChecksums = marketplaceRequireChecksums;
+        this.legacyApiEnabled = legacyApiEnabled;
     }
 
     /** True when production mode is active (explicit flag or {@code prod} profile). */
@@ -173,6 +194,29 @@ public class ProductionSecurityGuard implements ApplicationRunner {
 
         if ("memory".equalsIgnoreCase(rateLimitStore)) {
             problems.add("game.rate-limit.store=memory is not multi-node safe; use redis");
+        }
+
+        String sigPolicy = pluginSignaturePolicy.toUpperCase(Locale.ROOT);
+        if (!"REQUIRED".equals(sigPolicy)) {
+            problems.add("game.plugins.signature.policy must be REQUIRED in production (got "
+                    + pluginSignaturePolicy + ")");
+        }
+        if (!pluginSandboxEnabled) {
+            problems.add("game.plugins.sandbox.enabled must be true in production");
+        }
+        if (metricsScrapeToken.isBlank() || metricsScrapeToken.length() < 16) {
+            problems.add("game.metrics.scrape-token must be set (>= 16 chars) so /metrics is not public");
+        }
+        if (legacyApiEnabled) {
+            problems.add("game.legacy.api.enabled must be false in production");
+        }
+        if (!marketplaceRemoteUrl.isBlank()) {
+            if (!marketplaceRequireChecksums) {
+                problems.add("game.marketplace.require-checksums must be true when remote-url is set");
+            }
+            if (marketplaceHmacSecret.isBlank() || marketplaceHmacSecret.length() < 16) {
+                problems.add("game.marketplace.remote-hmac-secret must be set when remote-url is configured");
+            }
         }
 
         // Storefront sandbox secrets — only fail if still default AND no live credentials.

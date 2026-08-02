@@ -91,4 +91,22 @@ class MetricsControllerTest {
         org.junit.jupiter.api.Assertions.assertTrue(body.contains("bucket=\"session\""));
         org.junit.jupiter.api.Assertions.assertTrue(body.contains("dm_rate_limit_allowed_total"));
     }
+
+    @Test
+    void requiresScrapeTokenWhenConfigured() throws Exception {
+        SessionService sessions = new SessionService(new JwtService("metrics-test-secret-abcdefghij", 3600));
+        DungeonMasterEngine engine = new DungeonMasterEngine(4, 4, new String[]{"Kael"}, new String[]{"Warrior"});
+        GameInstanceService instances = GameInstanceService.singleton(engine);
+        AuthDependencyProbe probe = new AuthDependencyProbe(
+                new UnusedDataSource(), new MemoryRedisOps(), "memory", "memory");
+        MockMvc locked = standaloneSetup(new MetricsController(
+                sessions, instances, probe, new RateLimitMetrics(), "scrape-secret-token")).build();
+        locked.perform(get("/metrics"))
+                .andExpect(status().isUnauthorized());
+        locked.perform(get("/metrics").header("X-Metrics-Token", "scrape-secret-token"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("dm_up 1")));
+        locked.perform(get("/metrics").header("Authorization", "Bearer scrape-secret-token"))
+                .andExpect(status().isOk());
+    }
 }

@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
  *   <li>{@code /v2/admin/**} — admin token brute-force protection</li>
  *   <li>{@code POST /v2/marketplace/{id}/install} — marketplace pack install</li>
  *   <li>{@code POST /v2/catalog/packs} — direct pack zip upload</li>
+ *   <li>{@code POST /v2/catalog/packs/{id}/enable|disable} — pack toggles</li>
  *   <li>{@code POST /v2/narrate} — LLM narration (HTTP; STOMP uses {@link NarrationRateGuard})</li>
  *   <li>{@code POST /v2/action} — player actions (HTTP; STOMP uses {@link ActionRateGuard})</li>
  *   <li>{@code POST /v2/save|/load|/reset} — persistence / adventure restart</li>
@@ -43,6 +44,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final Pattern MARKETPLACE_INSTALL =
             Pattern.compile("^/v2/marketplace/[^/]+/install$");
+    private static final Pattern CATALOG_PACK_TOGGLE =
+            Pattern.compile("^/v2/catalog/packs/[^/]+/(enable|disable)$");
 
     private final RateLimitProperties props;
     private final RateLimitStore store;
@@ -121,7 +124,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return new Limit("admin", props.adminPerMinute());
         }
         if ("POST".equals(method) && (MARKETPLACE_INSTALL.matcher(path).matches()
-                || path.equals("/v2/catalog/packs"))) {
+                || path.equals("/v2/catalog/packs")
+                || CATALOG_PACK_TOGGLE.matcher(path).matches())) {
             return new Limit("install", props.installPerMinute());
         }
         if ("POST".equals(method) && path.equals("/v2/narrate")) {

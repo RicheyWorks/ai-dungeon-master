@@ -111,7 +111,7 @@ public class MarketplaceService {
                 jobStore,
                 HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(5))
-                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .followRedirects(HttpClient.Redirect.NEVER)
                         .build(),
                 maxDownloadBytes);
     }
@@ -125,7 +125,7 @@ public class MarketplaceService {
         this(root, remoteUrl, cacheSeconds, false, "", uploads, new MemoryMarketplaceJobStore(),
                 HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(5))
-                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .followRedirects(HttpClient.Redirect.NEVER)
                         .build());
     }
 
@@ -141,7 +141,7 @@ public class MarketplaceService {
                 new MemoryMarketplaceJobStore(),
                 HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(5))
-                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .followRedirects(HttpClient.Redirect.NEVER)
                         .build());
     }
 
@@ -157,7 +157,7 @@ public class MarketplaceService {
         this(root, remoteUrl, cacheSeconds, requireChecksums, hmacSecret, uploads, jobStore,
                 HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(5))
-                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .followRedirects(HttpClient.Redirect.NEVER)
                         .build());
     }
 
@@ -634,6 +634,7 @@ public class MarketplaceService {
             }
             throw new IllegalArgumentException("Unsupported index URL: " + url);
         }
+        MarketplaceUrlPolicy.assertSafeRemoteUrl(url);
         HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(30))
                 .GET()
@@ -652,6 +653,20 @@ public class MarketplaceService {
     }
 
     private byte[] downloadBytes(String url, JobState job) throws Exception {
+        if (url == null || url.isBlank()) {
+            throw new IllegalArgumentException("Download URL is empty");
+        }
+        // Local absolute/relative filesystem paths (dev fixtures) stay allowed;
+        // remote index pack URLs must pass the SSRF policy.
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            MarketplaceUrlPolicy.assertSafeRemoteUrl(url);
+        } else if (url.startsWith("file:")) {
+            // file: only for packs under content root
+            Path p = Path.of(URI.create(url)).toAbsolutePath().normalize();
+            if (!p.startsWith(root)) {
+                throw new IllegalArgumentException("file: URL outside content packs dir");
+            }
+        }
         if (url.startsWith("file:")) {
             Path p = Path.of(URI.create(url));
             long size = Files.size(p);
