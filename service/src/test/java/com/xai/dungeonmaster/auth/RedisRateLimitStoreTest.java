@@ -24,7 +24,7 @@ class RedisRateLimitStoreTest {
     void filterUsesInjectedStore() throws Exception {
         MemoryRedisOps redis = new MemoryRedisOps();
         RateLimitStore store = new RedisRateLimitStore(redis, "t");
-        RateLimitFilter filter = new RateLimitFilter(store, new RateLimitMetrics(), true, 2, 20, 30, 15, 20, 60, 100, 100, 100);
+        RateLimitFilter filter = new RateLimitFilter(store, new RateLimitMetrics(), true, 2, 20, 30, 15, 20, 60, 30, 100, 100, 100);
 
         org.springframework.mock.web.MockHttpServletRequest req =
                 new org.springframework.mock.web.MockHttpServletRequest("POST", "/v2/session");
