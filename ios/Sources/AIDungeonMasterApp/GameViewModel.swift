@@ -440,7 +440,16 @@ public final class GameViewModel: ObservableObject {
                 let envelope = try await V2API.verifyReceiptV2(verifyReceiptRequest: req)
                 self.entitlements = envelope.payload
                 if envelope.payload.granted == true {
-                    self.info = "Granted \(envelope.payload.productId ?? productId)"
+                    let packs = envelope.payload.enabledPacks ?? []
+                    if packs.isEmpty {
+                        self.info = "Granted \(envelope.payload.productId ?? productId)"
+                    } else {
+                        self.info = "Granted \(envelope.payload.productId ?? productId); enabled packs: \(packs.joined(separator: ", "))"
+                        // Refresh catalog so Mods reflects auto-enabled packs.
+                        if let cat = try? await V2API.getCatalogV2() {
+                            self.catalog = cat.payload
+                        }
+                    }
                 } else {
                     self.info = "Not granted: \(envelope.payload.reason ?? "")"
                 }

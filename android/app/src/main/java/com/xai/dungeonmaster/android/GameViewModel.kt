@@ -481,9 +481,25 @@ class GameViewModel(
                 ),
             )
             val p = envelope.payload
+            val packs = p.enabledPacks.orEmpty()
+            val infoMsg = when {
+                p.granted != true -> "Not granted: ${p.reason}"
+                packs.isNotEmpty() -> "Granted ${p.productId}; enabled packs: ${packs.joinToString(", ")}"
+                else -> "Granted ${p.productId}"
+            }
+            val catalog = if (p.granted == true && packs.isNotEmpty()) {
+                try {
+                    api().getCatalogV2().payload
+                } catch (_: Exception) {
+                    withSession.catalog
+                }
+            } else {
+                withSession.catalog
+            }
             withSession.copy(
                 entitlements = p,
-                info = if (p.granted == true) "Granted ${p.productId}" else "Not granted: ${p.reason}",
+                catalog = catalog,
+                info = infoMsg,
                 error = null,
             )
         } catch (e: ClientException) {
@@ -513,13 +529,26 @@ class GameViewModel(
                 ),
             )
             val p = envelope.payload
+            val packs = p.enabledPacks.orEmpty()
+            val infoMsg = when {
+                p.granted != true -> "Sandbox purchase failed: ${p.reason}"
+                packs.isNotEmpty() ->
+                    "Sandbox ${minted.storefront} granted ${p.productId}; enabled packs: ${packs.joinToString(", ")}"
+                else -> "Sandbox ${minted.storefront} granted: ${p.productId}"
+            }
+            val catalog = if (p.granted == true && packs.isNotEmpty()) {
+                try {
+                    api().getCatalogV2().payload
+                } catch (_: Exception) {
+                    withSession.catalog
+                }
+            } else {
+                withSession.catalog
+            }
             withSession.copy(
                 entitlements = p,
-                info = if (p.granted == true) {
-                    "Sandbox ${minted.storefront} granted: ${p.productId}"
-                } else {
-                    "Sandbox purchase failed: ${p.reason}"
-                },
+                catalog = catalog,
+                info = infoMsg,
                 error = null,
             )
         } catch (e: ClientException) {
