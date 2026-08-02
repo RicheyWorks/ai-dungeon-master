@@ -16,6 +16,8 @@ public final class GameViewModel: ObservableObject {
     @Published public var marketplace: MarketplacePayload?
     @Published public var marketQuery: String = ""
     @Published public var installJob: MarketplaceInstallJob?
+    @Published public var unlockSku: String? = nil
+    @Published public var unlockHint: String? = nil
     @Published public var entitlements: EntitlementPayload?
     @Published public var readiness: ReadinessResponse?
     @Published public var health: HealthPayload?
@@ -402,6 +404,22 @@ public final class GameViewModel: ObservableObject {
         }
     }
 
+    public func requestUnlock(sku: String, packLabel: String?) {
+        unlockSku = sku
+        if let packLabel, !packLabel.isEmpty {
+            unlockHint = "Unlock \"\(packLabel)\" with \(sku)"
+        } else {
+            unlockHint = "Unlock with \(sku)"
+        }
+        info = "Store ready — buy \(sku) to unlock."
+        loadEntitlements()
+    }
+
+    public func clearUnlockHint() {
+        unlockSku = nil
+        unlockHint = nil
+    }
+
     public func loadEntitlements() {
         run {
             try await self.ensureSession()
@@ -438,6 +456,7 @@ public final class GameViewModel: ObservableObject {
     public func sandboxPurchase(productId: String, storefront: String = DevReceipts.storefrontDev) {
         let minted = DevReceipts.mint(storefront: storefront, productId: productId)
         verifyReceipt(productId: minted.productId, receipt: minted.receipt, storefront: minted.storefront)
+        clearUnlockHint()
     }
 
     public func devPurchase(productId: String) {

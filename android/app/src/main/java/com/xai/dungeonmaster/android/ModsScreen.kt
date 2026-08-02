@@ -49,6 +49,7 @@ fun ModsScreen(
     onCancelInstall: () -> Unit,
     onToggle: (id: String, enable: Boolean) -> Unit,
     onUpload: (file: File, replace: Boolean) -> Unit,
+    onBuyToUnlock: (sku: String, packLabel: String?) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
     var replace by remember { mutableStateOf(false) }
@@ -269,7 +270,7 @@ fun ModsScreen(
             }
         }
         items(livePacks, key = { it.id ?: it.displayName ?: it.hashCode().toString() }) { pack ->
-            PackRow(pack = pack, busy = busy, onToggle = onToggle)
+            PackRow(pack = pack, busy = busy, onToggle = onToggle, onBuyToUnlock = onBuyToUnlock)
         }
         catalog?.narration?.let { narration ->
             item {
@@ -294,6 +295,7 @@ private fun PackRow(
     pack: PackInfo,
     busy: Boolean,
     onToggle: (String, Boolean) -> Unit,
+    onBuyToUnlock: (sku: String, packLabel: String?) -> Unit,
 ) {
     val locked = pack.locked == true
     val required = pack.requiredProductIds.orEmpty()
@@ -329,14 +331,24 @@ private fun PackRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(
-                checked = pack.enabled == true,
-                onCheckedChange = { enable ->
-                    pack.id?.let { onToggle(it, enable) }
-                },
-                // Allow turning off even when locked; blocking only apply-on when locked.
-                enabled = !busy && pack.id != null && !(locked && pack.enabled != true),
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                Switch(
+                    checked = pack.enabled == true,
+                    onCheckedChange = { enable ->
+                        pack.id?.let { onToggle(it, enable) }
+                    },
+                    // Allow turning off even when locked; blocking only apply-on when locked.
+                    enabled = !busy && pack.id != null && !(locked && pack.enabled != true),
+                )
+                if (locked && required.isNotEmpty()) {
+                    Button(
+                        onClick = {
+                            onBuyToUnlock(required.first(), pack.displayName ?: pack.id)
+                        },
+                        enabled = !busy,
+                    ) { Text("Buy to unlock") }
+                }
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ModsTab: View {
     @ObservedObject var model: GameViewModel
+    @Binding var tab: Int
     @State private var replace = false
     @State private var showImporter = false
 
@@ -239,19 +240,29 @@ struct ModsTab: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Toggle(
-                "",
-                isOn: Binding(
-                    get: { pack.enabled ?? false },
-                    set: { enabled in
-                        if let id = pack.id {
-                            model.togglePack(id: id, enable: enabled)
+            VStack(alignment: .trailing, spacing: 6) {
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { pack.enabled ?? false },
+                        set: { enabled in
+                            if let id = pack.id {
+                                model.togglePack(id: id, enable: enabled)
+                            }
                         }
-                    }
+                    )
                 )
-            )
-            .labelsHidden()
-            .disabled(model.busy || pack.id == nil || (locked && !(pack.enabled ?? false)))
+                .labelsHidden()
+                .disabled(model.busy || pack.id == nil || (locked && !(pack.enabled ?? false)))
+                if locked, let sku = required.first {
+                    Button("Buy to unlock") {
+                        model.requestUnlock(sku: sku, packLabel: pack.displayName ?? pack.id)
+                        tab = 2
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.busy)
+                }
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
