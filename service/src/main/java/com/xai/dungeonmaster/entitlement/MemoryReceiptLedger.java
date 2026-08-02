@@ -24,7 +24,7 @@ public final class MemoryReceiptLedger implements ReceiptLedger {
     }
 
     @Override
-    public List<RedeemRecord> listRecent(int limit) {
+    public List<RedeemRecord> listRecentUnfiltered(int limit) {
         int n = Math.max(1, Math.min(limit, 500));
         List<RedeemRecord> all = new ArrayList<>(byFp.values());
         all.sort(Comparator.comparingLong(RedeemRecord::redeemedAtEpochMs).reversed());

@@ -245,9 +245,12 @@ Set `game.auth.receipt-ledger.store=jdbc` with the same `game.auth.jdbc.*` pool 
 | `game.admin.token` | empty (disabled) | Shared secret for ops routes |
 
 ```http
-GET /v2/admin/receipts?limit=50
+GET /v2/admin/receipts?limit=50&productId=sku_gold&storefront=dev&sessionId=…&since=…&until=…
 X-Admin-Token: <game.admin.token>
 ```
+
+Optional filters: `productId`, `storefront`, `sessionId`, `since` / `until` (epoch ms).
+
 
 Returns fingerprint + sessionId + productId + storefront + redeemedAt (never raw receipts).
 Disabled with 404 when token is blank. JWT is not required (`/v2/admin/**` is public to session auth).

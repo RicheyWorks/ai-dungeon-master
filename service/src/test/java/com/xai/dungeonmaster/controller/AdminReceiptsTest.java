@@ -65,4 +65,30 @@ class AdminReceiptsTest {
                 .andExpect(jsonPath("$.payload.receipts[0].productId").value("sku_gold"))
                 .andExpect(jsonPath("$.payload.receipts[0].fingerprint").isString());
     }
+
+    @Test
+    void filtersByProductIdAndSince() throws Exception {
+        EntitlementService svc = new EntitlementService(
+                new com.xai.dungeonmaster.entitlement.InMemoryEntitlementStore(), ledger, true);
+        assert svc.verifyAndGrant("alice", "dev", "sku_gold",
+                new DevStorefront().signReceipt("sku_gold")).granted();
+        assert svc.verifyAndGrant("bob", "dev", "sku_pass",
+                new DevStorefront().signReceipt("sku_pass")).granted();
+
+        mvc.perform(get("/v2/admin/receipts")
+                        .param("productId", "sku_gold")
+                        .header("X-Admin-Token", "ops-secret"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.count").value(1))
+                .andExpect(jsonPath("$.payload.productId").value("sku_gold"))
+                .andExpect(jsonPath("$.payload.receipts[0].productId").value("sku_gold"));
+
+        long future = System.currentTimeMillis() + 60_000L;
+        mvc.perform(get("/v2/admin/receipts")
+                        .param("since", Long.toString(future))
+                        .header("X-Admin-Token", "ops-secret"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.count").value(0));
+    }
+
 }

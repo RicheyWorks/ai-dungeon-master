@@ -40,12 +40,19 @@ public class AdminController {
     /**
      * List recent redeemed purchase receipts (fingerprints only — never raw receipts).
      *
-     * <pre>GET /v2/admin/receipts?limit=50
+     * <pre>GET /v2/admin/receipts?limit=50&productId=sku&storefront=dev&sessionId=…&since=…&until=…
      * Header: X-Admin-Token: <game.admin.token></pre>
+     *
+     * {@code since}/{@code until} accept epoch milliseconds.
      */
     @GetMapping("/receipts")
     public ResponseEntity<Envelope<?>> listReceipts(
             @RequestParam(value = "limit", defaultValue = "50") int limit,
+            @RequestParam(value = "productId", required = false) String productId,
+            @RequestParam(value = "storefront", required = false) String storefront,
+            @RequestParam(value = "sessionId", required = false) String sessionId,
+            @RequestParam(value = "since", required = false) Long since,
+            @RequestParam(value = "until", required = false) Long until,
             @RequestHeader(value = "X-Admin-Token", required = false) String token,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
 
@@ -58,8 +65,9 @@ public class AdminController {
                     Envelope.of("error", new ErrorPayload("Invalid or missing X-Admin-Token."), requestId));
         }
 
-        int n = Math.max(1, Math.min(limit, 500));
-        List<ReceiptLedger.RedeemRecord> rows = ledger.listRecent(n);
+        ReceiptLedger.ReceiptQuery query = new ReceiptLedger.ReceiptQuery(
+                limit, productId, storefront, sessionId, since, until);
+        List<ReceiptLedger.RedeemRecord> rows = ledger.list(query);
         List<Map<String, Object>> items = new ArrayList<>(rows.size());
         for (ReceiptLedger.RedeemRecord r : rows) {
             Map<String, Object> row = new LinkedHashMap<>();
@@ -72,7 +80,12 @@ public class AdminController {
         }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("count", items.size());
-        payload.put("limit", n);
+        payload.put("limit", query.limit());
+        if (productId != null && !productId.isBlank()) payload.put("productId", productId.trim());
+        if (storefront != null && !storefront.isBlank()) payload.put("storefront", storefront.trim());
+        if (sessionId != null && !sessionId.isBlank()) payload.put("sessionId", sessionId.trim());
+        if (since != null) payload.put("since", since);
+        if (until != null) payload.put("until", until);
         payload.put("receipts", items);
         return ResponseEntity.ok(Envelope.of("admin.receipts", payload, requestId));
     }

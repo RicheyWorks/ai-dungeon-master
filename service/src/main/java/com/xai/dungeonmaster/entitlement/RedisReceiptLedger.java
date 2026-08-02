@@ -69,7 +69,7 @@ public final class RedisReceiptLedger implements ReceiptLedger {
     }
 
     @Override
-    public List<RedeemRecord> listRecent(int limit) {
+    public List<RedeemRecord> listRecentUnfiltered(int limit) {
         int n = Math.max(1, Math.min(limit, 500));
         Set<String> fps;
         try {

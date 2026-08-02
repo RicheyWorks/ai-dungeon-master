@@ -100,20 +100,56 @@ public final class JdbcReceiptLedger implements ReceiptLedger {
     }
 
     @Override
-    public List<RedeemRecord> listRecent(int limit) {
-        int n = Math.max(1, Math.min(limit, 500));
-        long cutoff = System.currentTimeMillis() - ttlMs;
+    public List<RedeemRecord> listRecentUnfiltered(int limit) {
+        return query(ReceiptQuery.ofLimit(limit));
+    }
+
+    @Override
+    public List<RedeemRecord> list(ReceiptQuery query) {
+        return query(query == null ? ReceiptQuery.ofLimit(50) : query);
+    }
+
+    private List<RedeemRecord> query(ReceiptQuery q) {
+        long ttlCutoff = System.currentTimeMillis() - ttlMs;
+        long since = q.sinceEpochMs() == null ? ttlCutoff : Math.max(ttlCutoff, q.sinceEpochMs());
+        long until = q.untilEpochMs() == null ? Long.MAX_VALUE : q.untilEpochMs();
+
+        StringBuilder sql = new StringBuilder("""
+                SELECT fingerprint, session_id, product_id, storefront, redeemed_at_ms
+                FROM dm_receipts
+                WHERE redeemed_at_ms >= ? AND redeemed_at_ms <= ?
+                """);
+        List<Object> params = new ArrayList<>();
+        params.add(since);
+        params.add(until);
+        if (q.productId() != null) {
+            sql.append(" AND product_id = ?");
+            params.add(q.productId());
+        }
+        if (q.storefront() != null) {
+            sql.append(" AND LOWER(storefront) = LOWER(?)");
+            params.add(q.storefront());
+        }
+        if (q.sessionId() != null) {
+            sql.append(" AND session_id = ?");
+            params.add(q.sessionId());
+        }
+        sql.append(" ORDER BY redeemed_at_ms DESC LIMIT ?");
+        params.add(q.limit());
+
         List<RedeemRecord> out = new ArrayList<>();
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement("""
-                     SELECT fingerprint, session_id, product_id, storefront, redeemed_at_ms
-                     FROM dm_receipts
-                     WHERE redeemed_at_ms >= ?
-                     ORDER BY redeemed_at_ms DESC
-                     LIMIT ?
-                     """)) {
-            ps.setLong(1, cutoff);
-            ps.setInt(2, n);
+             PreparedStatement ps = c.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                Object p = params.get(i);
+                if (p instanceof Long l) {
+                    ps.setLong(i + 1, l);
+                } else if (p instanceof Integer n) {
+                    ps.setInt(i + 1, n);
+                } else {
+                    ps.setString(i + 1, String.valueOf(p));
+                }
+            }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     out.add(new RedeemRecord(
@@ -125,7 +161,7 @@ public final class JdbcReceiptLedger implements ReceiptLedger {
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("JdbcReceiptLedger.listRecent failed", e);
+            throw new IllegalStateException("JdbcReceiptLedger.list failed", e);
         }
         return List.copyOf(out);
     }
