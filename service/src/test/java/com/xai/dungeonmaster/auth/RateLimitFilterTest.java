@@ -219,4 +219,29 @@ class RateLimitFilterTest {
         assertEquals("10.0.0.1", RateLimitFilter.clientIp(req, false));
     }
 
+
+    @Test
+    void defaultBucketCoversOtherV2Paths() throws Exception {
+        RateLimitFilter filter = filter(RateLimitProperties.builder().defaultPerMinute(2));
+        for (int i = 0; i < 2; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("GET", "/v2/status");
+            req.setRemoteAddr("198.51.100.55");
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            filter.doFilter(req, res, new MockFilterChain());
+            assertEquals(200, res.getStatus());
+        }
+        MockHttpServletRequest blockedReq = new MockHttpServletRequest("GET", "/v2/catalog");
+        blockedReq.setRemoteAddr("198.51.100.55");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(blockedReq, blocked, new MockFilterChain());
+        assertEquals(429, blocked.getStatus());
+
+        // health exempt
+        MockHttpServletRequest health = new MockHttpServletRequest("GET", "/v2/health");
+        health.setRemoteAddr("198.51.100.55");
+        MockHttpServletResponse hr = new MockHttpServletResponse();
+        filter.doFilter(health, hr, new MockFilterChain());
+        assertEquals(200, hr.getStatus());
+    }
+
 }
