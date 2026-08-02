@@ -87,6 +87,7 @@ public class MarketplaceService {
     private final PackUploadService uploads;
     private final HttpClient http;
     private final MarketplaceJobStore jobStore;
+    private final long maxDownloadBytes;
 
     private final AtomicReference<CachedRemote> remoteCache = new AtomicReference<>();
     private final ConcurrentHashMap<String, JobState> jobs = new ConcurrentHashMap<>();
@@ -102,6 +103,7 @@ public class MarketplaceService {
             @Value("${game.marketplace.remote-cache-seconds:300}") long cacheSeconds,
             @Value("${game.marketplace.require-checksums:false}") boolean requireChecksums,
             @Value("${game.marketplace.remote-hmac-secret:}") String hmacSecret,
+            @Value("${game.marketplace.max-download-bytes:12582912}") long maxDownloadBytes,
             PackUploadService uploads,
             MarketplaceJobStore jobStore) {
         this(Paths.get(contentPacksDir), remoteUrl, cacheSeconds, requireChecksums, hmacSecret, uploads,
@@ -109,7 +111,8 @@ public class MarketplaceService {
                 HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(5))
                         .followRedirects(HttpClient.Redirect.NORMAL)
-                        .build());
+                        .build(),
+                maxDownloadBytes);
     }
 
     /** Visible for tests. */
@@ -166,6 +169,20 @@ public class MarketplaceService {
             PackUploadService uploads,
             MarketplaceJobStore jobStore,
             HttpClient http) {
+        this(root, remoteUrl, cacheSeconds, requireChecksums, hmacSecret, uploads, jobStore, http,
+                12L * 1024 * 1024);
+    }
+
+    MarketplaceService(
+            Path root,
+            String remoteUrl,
+            long cacheSeconds,
+            boolean requireChecksums,
+            String hmacSecret,
+            PackUploadService uploads,
+            MarketplaceJobStore jobStore,
+            HttpClient http,
+            long maxDownloadBytes) {
         this.root = root.toAbsolutePath().normalize();
         this.remoteUrl = remoteUrl == null ? "" : remoteUrl.trim();
         this.cacheTtlMs = Math.max(0L, cacheSeconds) * 1000L;
@@ -173,6 +190,7 @@ public class MarketplaceService {
         this.hmacSecret = hmacSecret == null ? "" : hmacSecret.trim();
         this.uploads = uploads;
         this.jobStore = jobStore == null ? new MemoryMarketplaceJobStore() : jobStore;
+        this.maxDownloadBytes = Math.max(1024L, maxDownloadBytes);
         this.http = http;
     }
 
@@ -634,7 +652,12 @@ public class MarketplaceService {
 
     private byte[] downloadBytes(String url, JobState job) throws Exception {
         if (url.startsWith("file:")) {
-            byte[] data = Files.readAllBytes(Path.of(URI.create(url)));
+            Path p = Path.of(URI.create(url));
+            long size = Files.size(p);
+            if (size > maxDownloadBytes) {
+                throw new IOException("Local pack file exceeds max " + maxDownloadBytes + " bytes: " + url);
+            }
+            byte[] data = Files.readAllBytes(p);
             if (job != null) {
                 job.bytesTotal.set(data.length);
                 job.bytesRead.set(data.length);
@@ -645,6 +668,10 @@ public class MarketplaceService {
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             Path p = Paths.get(url);
             if (Files.isRegularFile(p)) {
+                long size = Files.size(p);
+                if (size > maxDownloadBytes) {
+                    throw new IOException("Local pack file exceeds max " + maxDownloadBytes + " bytes: " + url);
+                }
                 byte[] data = Files.readAllBytes(p);
                 if (job != null) {
                     job.bytesTotal.set(data.length);
@@ -665,6 +692,10 @@ public class MarketplaceService {
             throw new IOException("HTTP " + res.statusCode() + " for " + url);
         }
         long total = res.headers().firstValueAsLong("Content-Length").orElse(-1L);
+        if (total > maxDownloadBytes) {
+            throw new IOException("Marketplace Content-Length " + total
+                    + " exceeds max " + maxDownloadBytes + " bytes for " + url);
+        }
         if (job != null && total > 0) {
             job.bytesTotal.set(total);
         }
@@ -683,6 +714,10 @@ public class MarketplaceService {
                 }
                 out.write(buf, 0, n);
                 read += n;
+                if (read > maxDownloadBytes) {
+                    throw new IOException("Marketplace download exceeds max "
+                            + maxDownloadBytes + " bytes for " + url);
+                }
                 if (job != null) {
                     job.bytesRead.set(read);
                     job.updatedAtMs = System.currentTimeMillis();
