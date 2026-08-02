@@ -25,7 +25,7 @@ open class HealthAPI {
     /**
      Liveness probe — process is accepting HTTP.
      - GET /health
-     - Always returns 200 while the JVM is up. Does **not** check JDBC/Redis. Use `/health/ready` for dependency-aware readiness. 
+     - Always returns 200 while the JVM is up. Does **not** check JDBC/Redis. Use `/health/ready` for dependency-aware readiness. Always lean (no recon fields). 
      - returns: RequestBuilder<LivenessResponse> 
      */
     open class func getLivenessWithRequestBuilder() -> RequestBuilder<LivenessResponse> {
@@ -47,22 +47,65 @@ open class HealthAPI {
     }
 
     /**
+     Prometheus text exposition for scrapers.
+     
+     - parameter xMetricsToken: (header) Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     - parameter authorization: (header) Bearer scrape token (alternative to X-Metrics-Token). (optional)
+     - returns: String
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func getPrometheusMetrics(xMetricsToken: String? = nil, authorization: String? = nil) async throws -> String {
+        return try await getPrometheusMetricsWithRequestBuilder(xMetricsToken: xMetricsToken, authorization: authorization).execute().body
+    }
+
+    /**
+     Prometheus text exposition for scrapers.
+     - GET /metrics
+     - Plaintext metrics (`text/plain`). When `game.metrics.scrape-token` is set (required in production), scrapers must send `X-Metrics-Token` or `Authorization: Bearer <token>`. Prefer private-network scrape. 
+     - parameter xMetricsToken: (header) Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     - parameter authorization: (header) Bearer scrape token (alternative to X-Metrics-Token). (optional)
+     - returns: RequestBuilder<String> 
+     */
+    open class func getPrometheusMetricsWithRequestBuilder(xMetricsToken: String? = nil, authorization: String? = nil) -> RequestBuilder<String> {
+        let localVariablePath = "/metrics"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Metrics-Token": xMetricsToken?.encodeToJSON(),
+            "Authorization": authorization?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<String>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Readiness probe — configured auth backends reachable.
      
+     - parameter xMetricsToken: (header) Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     - parameter xAdminToken: (header) Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      - returns: ReadinessResponse
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func getReadiness() async throws -> ReadinessResponse {
-        return try await getReadinessWithRequestBuilder().execute().body
+    open class func getReadiness(xMetricsToken: String? = nil, xAdminToken: String? = nil) async throws -> ReadinessResponse {
+        return try await getReadinessWithRequestBuilder(xMetricsToken: xMetricsToken, xAdminToken: xAdminToken).execute().body
     }
 
     /**
      Readiness probe — configured auth backends reachable.
      - GET /health/ready
-     - Probes JDBC, Redis, and/or file stores only when selected via `game.auth.*.store`. Returns **503** when a required dependency is DOWN. 
+     - Probes JDBC, Redis, and/or file stores only when selected via `game.auth.*.store`. Returns **503** when a required dependency is DOWN. Public responses are lean (`status` + `probe`). Session/engine counts and the dependency map require `X-Metrics-Token` or `X-Admin-Token`. 
+     - parameter xMetricsToken: (header) Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     - parameter xAdminToken: (header) Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      - returns: RequestBuilder<ReadinessResponse> 
      */
-    open class func getReadinessWithRequestBuilder() -> RequestBuilder<ReadinessResponse> {
+    open class func getReadinessWithRequestBuilder(xMetricsToken: String? = nil, xAdminToken: String? = nil) -> RequestBuilder<ReadinessResponse> {
         let localVariablePath = "/health/ready"
         let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
         let localVariableParameters: [String: Any]? = nil
@@ -70,7 +113,8 @@ open class HealthAPI {
         let localVariableUrlComponents = URLComponents(string: localVariableURLString)
 
         let localVariableNillableHeaders: [String: Any?] = [
-            :
+            "X-Metrics-Token": xMetricsToken?.encodeToJSON(),
+            "X-Admin-Token": xAdminToken?.encodeToJSON(),
         ]
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
@@ -83,19 +127,23 @@ open class HealthAPI {
     /**
      Alias for `/health/ready`.
      
+     - parameter xMetricsToken: (header) Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     - parameter xAdminToken: (header) Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      - returns: ReadinessResponse
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func getReadinessAlias() async throws -> ReadinessResponse {
-        return try await getReadinessAliasWithRequestBuilder().execute().body
+    open class func getReadinessAlias(xMetricsToken: String? = nil, xAdminToken: String? = nil) async throws -> ReadinessResponse {
+        return try await getReadinessAliasWithRequestBuilder(xMetricsToken: xMetricsToken, xAdminToken: xAdminToken).execute().body
     }
 
     /**
      Alias for `/health/ready`.
      - GET /ready
+     - parameter xMetricsToken: (header) Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     - parameter xAdminToken: (header) Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      - returns: RequestBuilder<ReadinessResponse> 
      */
-    open class func getReadinessAliasWithRequestBuilder() -> RequestBuilder<ReadinessResponse> {
+    open class func getReadinessAliasWithRequestBuilder(xMetricsToken: String? = nil, xAdminToken: String? = nil) -> RequestBuilder<ReadinessResponse> {
         let localVariablePath = "/ready"
         let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
         let localVariableParameters: [String: Any]? = nil
@@ -103,7 +151,8 @@ open class HealthAPI {
         let localVariableUrlComponents = URLComponents(string: localVariableURLString)
 
         let localVariableNillableHeaders: [String: Any?] = [
-            :
+            "X-Metrics-Token": xMetricsToken?.encodeToJSON(),
+            "X-Admin-Token": xAdminToken?.encodeToJSON(),
         ]
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)

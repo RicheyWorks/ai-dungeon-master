@@ -180,7 +180,7 @@ OpenAPI: [`docs/api/openapi.yaml`](api/openapi.yaml) (`HealthApi` + `getHealthV2
 
 ## Prometheus metrics
 
-`GET /metrics` — Prometheus text exposition (public). Useful scrapes:
+`GET /metrics` — Prometheus text exposition (token-gated when configured). Useful scrapes:
 
 | Metric | Meaning |
 |---|---|

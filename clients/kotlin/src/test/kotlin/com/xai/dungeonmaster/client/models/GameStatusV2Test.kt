@@ -20,6 +20,7 @@ import io.kotlintest.specs.ShouldSpec
 
 import com.xai.dungeonmaster.client.models.GameStatusV2
 import com.xai.dungeonmaster.client.models.MemberState
+import com.xai.dungeonmaster.client.models.QuestInfo
 
 class GameStatusV2Test : ShouldSpec() {
     init {
@@ -54,6 +55,30 @@ class GameStatusV2Test : ShouldSpec() {
         should("test recentHistory") {
             // uncomment below to test the property
             //modelInstance.recentHistory shouldBe ("TODO")
+        }
+
+        // to test the property `quest`
+        should("test quest") {
+            // uncomment below to test the property
+            //modelInstance.quest shouldBe ("TODO")
+        }
+
+        // to test the property `recentEvents` - Compact story-memory facts from the engine's Chronicle (newest last), e.g. \"Quest completed: The Weeping Tree\". Bounded server-side.
+        should("test recentEvents") {
+            // uncomment below to test the property
+            //modelInstance.recentEvents shouldBe ("TODO")
+        }
+
+        // to test the property `location` - Current party location from the engine WorldMap.
+        should("test location") {
+            // uncomment below to test the property
+            //modelInstance.location shouldBe ("TODO")
+        }
+
+        // to test the property `discoveredRifts` - Named rifts the party has discovered (starting set + completed quests).
+        should("test discoveredRifts") {
+            // uncomment below to test the property
+            //modelInstance.discoveredRifts shouldBe ("TODO")
         }
 
     }

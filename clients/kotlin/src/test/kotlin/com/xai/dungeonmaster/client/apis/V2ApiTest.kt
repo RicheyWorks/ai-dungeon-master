@@ -21,17 +21,51 @@ import io.kotlintest.specs.ShouldSpec
 import com.xai.dungeonmaster.client.apis.V2Api
 import com.xai.dungeonmaster.client.models.ActionRequest
 import com.xai.dungeonmaster.client.models.CatalogEnvelope
+import com.xai.dungeonmaster.client.models.DeleteSessionV2200Response
 import com.xai.dungeonmaster.client.models.EntitlementEnvelope
 import com.xai.dungeonmaster.client.models.ErrorEnvelope
+import com.xai.dungeonmaster.client.models.GameSaveEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
+import com.xai.dungeonmaster.client.models.HealthEnvelope
+import com.xai.dungeonmaster.client.models.MarketplaceEnvelope
+import com.xai.dungeonmaster.client.models.MarketplaceInstallJobEnvelope
+import com.xai.dungeonmaster.client.models.MarketplacePackEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
 import com.xai.dungeonmaster.client.models.NarrativeEnvelope
+import com.xai.dungeonmaster.client.models.SessionEnvelope
+import com.xai.dungeonmaster.client.models.SessionRequest
 import com.xai.dungeonmaster.client.models.VerifyReceiptRequest
 
 class V2ApiTest : ShouldSpec() {
     init {
         // uncomment below to create an instance of V2Api
         //val apiInstance = V2Api()
+
+        // to test cancelMarketplaceInstallJobV2
+        should("test cancelMarketplaceInstallJobV2") {
+            // uncomment below to test cancelMarketplaceInstallJobV2
+            //val jobId : kotlin.String = jobId_example // kotlin.String | 
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : MarketplaceInstallJobEnvelope = apiInstance.cancelMarketplaceInstallJobV2(jobId, xRequestId)
+            //result shouldBe ("TODO")
+        }
+
+        // to test createSessionV2
+        should("test createSessionV2") {
+            // uncomment below to test createSessionV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val sessionRequest : SessionRequest =  // SessionRequest | 
+            //val result : SessionEnvelope = apiInstance.createSessionV2(xRequestId, sessionRequest)
+            //result shouldBe ("TODO")
+        }
+
+        // to test deleteSessionV2
+        should("test deleteSessionV2") {
+            // uncomment below to test deleteSessionV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : DeleteSessionV2200Response = apiInstance.deleteSessionV2(xRequestId)
+            //result shouldBe ("TODO")
+        }
 
         // to test disablePackV2
         should("test disablePackV2") {
@@ -59,6 +93,42 @@ class V2ApiTest : ShouldSpec() {
             //result shouldBe ("TODO")
         }
 
+        // to test getHealthV2
+        should("test getHealthV2") {
+            // uncomment below to test getHealthV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val xMetricsToken : kotlin.String = xMetricsToken_example // kotlin.String | Metrics scrape token (`game.metrics.scrape-token`). Alternative to `Authorization: Bearer <token>`. Unlocks readiness/v2 health detail fields. 
+            //val xAdminToken : kotlin.String = xAdminToken_example // kotlin.String | Ops shared secret (`game.admin.token`). During rotation, `game.admin.token.previous` is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail. 
+            //val result : HealthEnvelope = apiInstance.getHealthV2(xRequestId, xMetricsToken, xAdminToken)
+            //result shouldBe ("TODO")
+        }
+
+        // to test getMarketplaceInstallJobV2
+        should("test getMarketplaceInstallJobV2") {
+            // uncomment below to test getMarketplaceInstallJobV2
+            //val jobId : kotlin.String = jobId_example // kotlin.String | 
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : MarketplaceInstallJobEnvelope = apiInstance.getMarketplaceInstallJobV2(jobId, xRequestId)
+            //result shouldBe ("TODO")
+        }
+
+        // to test getMarketplacePackV2
+        should("test getMarketplacePackV2") {
+            // uncomment below to test getMarketplacePackV2
+            //val id : kotlin.String = id_example // kotlin.String | 
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : MarketplacePackEnvelope = apiInstance.getMarketplacePackV2(id, xRequestId)
+            //result shouldBe ("TODO")
+        }
+
+        // to test getSessionMeV2
+        should("test getSessionMeV2") {
+            // uncomment below to test getSessionMeV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : SessionEnvelope = apiInstance.getSessionMeV2(xRequestId)
+            //result shouldBe ("TODO")
+        }
+
         // to test getStatusV2
         should("test getStatusV2") {
             // uncomment below to test getStatusV2
@@ -67,11 +137,43 @@ class V2ApiTest : ShouldSpec() {
             //result shouldBe ("TODO")
         }
 
+        // to test installMarketplacePackV2
+        should("test installMarketplacePackV2") {
+            // uncomment below to test installMarketplacePackV2
+            //val id : kotlin.String = id_example // kotlin.String | 
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val async : kotlin.Boolean = true // kotlin.Boolean | When true, returns 202 + job id for progress polling.
+            //apiInstance.installMarketplacePackV2(id, xRequestId, async)
+        }
+
         // to test listEntitlementsV2
         should("test listEntitlementsV2") {
             // uncomment below to test listEntitlementsV2
             //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
             //val result : EntitlementEnvelope = apiInstance.listEntitlementsV2(xRequestId)
+            //result shouldBe ("TODO")
+        }
+
+        // to test listMarketplaceV2
+        should("test listMarketplaceV2") {
+            // uncomment below to test listMarketplaceV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val q : kotlin.String = q_example // kotlin.String | Filter by id, name, or description
+            //val result : MarketplaceEnvelope = apiInstance.listMarketplaceV2(xRequestId, q)
+            //result shouldBe ("TODO")
+        }
+
+        // to test listStorefrontsV2
+        should("test listStorefrontsV2") {
+            // uncomment below to test listStorefrontsV2
+            //apiInstance.listStorefrontsV2()
+        }
+
+        // to test loadGameV2
+        should("test loadGameV2") {
+            // uncomment below to test loadGameV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : GameStatusEnvelope = apiInstance.loadGameV2(xRequestId)
             //result shouldBe ("TODO")
         }
 
@@ -84,12 +186,39 @@ class V2ApiTest : ShouldSpec() {
             //result shouldBe ("TODO")
         }
 
+        // to test resetGameV2
+        should("test resetGameV2") {
+            // uncomment below to test resetGameV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : GameStatusEnvelope = apiInstance.resetGameV2(xRequestId)
+            //result shouldBe ("TODO")
+        }
+
+        // to test saveGameV2
+        should("test saveGameV2") {
+            // uncomment below to test saveGameV2
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val result : GameSaveEnvelope = apiInstance.saveGameV2(xRequestId)
+            //result shouldBe ("TODO")
+        }
+
         // to test submitActionV2
         should("test submitActionV2") {
             // uncomment below to test submitActionV2
             //val actionRequest : ActionRequest =  // ActionRequest | 
             //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
             //val result : GameStatusEnvelope = apiInstance.submitActionV2(actionRequest, xRequestId)
+            //result shouldBe ("TODO")
+        }
+
+        // to test uploadPackV2
+        should("test uploadPackV2") {
+            // uncomment below to test uploadPackV2
+            //val file : java.io.File = BINARY_DATA_HERE // java.io.File | Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
+            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
+            //val xAdminToken : kotlin.String = xAdminToken_example // kotlin.String | Ops shared secret (`game.admin.token`). During rotation, `game.admin.token.previous` is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail. 
+            //val replace : kotlin.Boolean = true // kotlin.Boolean | Overwrite an already-installed pack with the same id.
+            //val result : CatalogEnvelope = apiInstance.uploadPackV2(file, xRequestId, xAdminToken, replace)
             //result shouldBe ("TODO")
         }
 

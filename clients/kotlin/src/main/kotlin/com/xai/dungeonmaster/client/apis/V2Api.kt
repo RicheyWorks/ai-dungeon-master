@@ -21,12 +21,15 @@ import okhttp3.HttpUrl
 
 import com.xai.dungeonmaster.client.models.ActionRequest
 import com.xai.dungeonmaster.client.models.CatalogEnvelope
+import com.xai.dungeonmaster.client.models.DeleteSessionV2200Response
 import com.xai.dungeonmaster.client.models.EntitlementEnvelope
 import com.xai.dungeonmaster.client.models.ErrorEnvelope
 import com.xai.dungeonmaster.client.models.GameSaveEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
 import com.xai.dungeonmaster.client.models.HealthEnvelope
-import com.xai.dungeonmaster.client.models.LogoutEnvelope
+import com.xai.dungeonmaster.client.models.MarketplaceEnvelope
+import com.xai.dungeonmaster.client.models.MarketplaceInstallJobEnvelope
+import com.xai.dungeonmaster.client.models.MarketplacePackEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
 import com.xai.dungeonmaster.client.models.NarrativeEnvelope
 import com.xai.dungeonmaster.client.models.SessionEnvelope
@@ -55,6 +58,81 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         val defaultBasePath: String by lazy {
             System.getProperties().getProperty(ApiClient.baseUrlKey, "http://localhost:8080")
         }
+    }
+
+    /**
+     * Cancel an async marketplace install.
+     * Same ownership ACL as poll — only the owning session may cancel. 
+     * @param jobId 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return MarketplaceInstallJobEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun cancelMarketplaceInstallJobV2(jobId: kotlin.String, xRequestId: kotlin.String? = null) : MarketplaceInstallJobEnvelope {
+        val localVarResponse = cancelMarketplaceInstallJobV2WithHttpInfo(jobId = jobId, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as MarketplaceInstallJobEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Cancel an async marketplace install.
+     * Same ownership ACL as poll — only the owning session may cancel. 
+     * @param jobId 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<MarketplaceInstallJobEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun cancelMarketplaceInstallJobV2WithHttpInfo(jobId: kotlin.String, xRequestId: kotlin.String?) : ApiResponse<MarketplaceInstallJobEnvelope?> {
+        val localVariableConfig = cancelMarketplaceInstallJobV2RequestConfig(jobId = jobId, xRequestId = xRequestId)
+
+        return request<Unit, MarketplaceInstallJobEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation cancelMarketplaceInstallJobV2
+     *
+     * @param jobId 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun cancelMarketplaceInstallJobV2RequestConfig(jobId: kotlin.String, xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.DELETE,
+            path = "/v2/marketplace/jobs/{jobId}".replace("{"+"jobId"+"}", encodeURIComponent(jobId.toString())),
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
     }
 
     /**
@@ -135,14 +213,22 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
 
     /**
      * Explicit logout — drop session, pack prefs, and live engine.
-     * @param xRequestId Optional correlation id
+     * Requires a valid Bearer token. Clears session identity, session-scoped pack overrides, and the live game engine. Clients should discard the token afterward. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return DeleteSessionV2200Response
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
-    fun deleteSessionV2(xRequestId: kotlin.String? = null) : LogoutEnvelope {
+    fun deleteSessionV2(xRequestId: kotlin.String? = null) : DeleteSessionV2200Response {
         val localVarResponse = deleteSessionV2WithHttpInfo(xRequestId = xRequestId)
+
         return when (localVarResponse.responseType) {
-            ResponseType.Success -> (localVarResponse as Success<*>).data as LogoutEnvelope
+            ResponseType.Success -> (localVarResponse as Success<*>).data as DeleteSessionV2200Response
             ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
             ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
             ResponseType.ClientError -> {
@@ -156,24 +242,44 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         }
     }
 
+    /**
+     * Explicit logout — drop session, pack prefs, and live engine.
+     * Requires a valid Bearer token. Clears session identity, session-scoped pack overrides, and the live game engine. Clients should discard the token afterward. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<DeleteSessionV2200Response?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class)
-    fun deleteSessionV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<LogoutEnvelope?> {
+    fun deleteSessionV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<DeleteSessionV2200Response?> {
         val localVariableConfig = deleteSessionV2RequestConfig(xRequestId = xRequestId)
-        return request<Unit, LogoutEnvelope>(localVariableConfig)
+
+        return request<Unit, DeleteSessionV2200Response>(
+            localVariableConfig
+        )
     }
 
+    /**
+     * To obtain the request config of the operation deleteSessionV2
+     *
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
     fun deleteSessionV2RequestConfig(xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
         val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
         xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
         localVariableHeaders["Accept"] = "application/json"
+
         return RequestConfig(
             method = RequestMethod.DELETE,
             path = "/v2/session",
-            query = mutableMapOf(),
+            query = localVariableQuery,
             headers = localVariableHeaders,
-            requiresAuthentication = true,
-            body = null
+            requiresAuthentication = false,
+            body = localVariableBody
         )
     }
 
@@ -400,9 +506,11 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
     }
 
     /**
-     * Health metrics envelope (public, no auth).
-     * Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as &#x60;/health/ready&#x60;. Excluded from JWT enforcement. 
+     * Health envelope (lean public; detail with ops token).
+     * Versioned envelope. Unauthenticated callers get &#x60;status&#x60;, &#x60;uptimeSeconds&#x60;, and &#x60;detail: false&#x60;. With &#x60;X-Metrics-Token&#x60; or &#x60;X-Admin-Token&#x60;, includes sessions, engines, dependencies, memory, and &#x60;detail: true&#x60;. Excluded from JWT enforcement. 
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @return HealthEnvelope
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
@@ -412,8 +520,8 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
-    fun getHealthV2(xRequestId: kotlin.String? = null) : HealthEnvelope {
-        val localVarResponse = getHealthV2WithHttpInfo(xRequestId = xRequestId)
+    fun getHealthV2(xRequestId: kotlin.String? = null, xMetricsToken: kotlin.String? = null, xAdminToken: kotlin.String? = null) : HealthEnvelope {
+        val localVarResponse = getHealthV2WithHttpInfo(xRequestId = xRequestId, xMetricsToken = xMetricsToken, xAdminToken = xAdminToken)
 
         return when (localVarResponse.responseType) {
             ResponseType.Success -> (localVarResponse as Success<*>).data as HealthEnvelope
@@ -431,17 +539,19 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
     }
 
     /**
-     * Health metrics envelope (public, no auth).
-     * Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as &#x60;/health/ready&#x60;. Excluded from JWT enforcement. 
+     * Health envelope (lean public; detail with ops token).
+     * Versioned envelope. Unauthenticated callers get &#x60;status&#x60;, &#x60;uptimeSeconds&#x60;, and &#x60;detail: false&#x60;. With &#x60;X-Metrics-Token&#x60; or &#x60;X-Admin-Token&#x60;, includes sessions, engines, dependencies, memory, and &#x60;detail: true&#x60;. Excluded from JWT enforcement. 
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @return ApiResponse<HealthEnvelope?>
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class)
-    fun getHealthV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<HealthEnvelope?> {
-        val localVariableConfig = getHealthV2RequestConfig(xRequestId = xRequestId)
+    fun getHealthV2WithHttpInfo(xRequestId: kotlin.String?, xMetricsToken: kotlin.String?, xAdminToken: kotlin.String?) : ApiResponse<HealthEnvelope?> {
+        val localVariableConfig = getHealthV2RequestConfig(xRequestId = xRequestId, xMetricsToken = xMetricsToken, xAdminToken = xAdminToken)
 
         return request<Unit, HealthEnvelope>(
             localVariableConfig
@@ -452,9 +562,88 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
      * To obtain the request config of the operation getHealthV2
      *
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @return RequestConfig
      */
-    fun getHealthV2RequestConfig(xRequestId: kotlin.String?) : RequestConfig<Unit> {
+    fun getHealthV2RequestConfig(xRequestId: kotlin.String?, xMetricsToken: kotlin.String?, xAdminToken: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        xMetricsToken?.apply { localVariableHeaders["X-Metrics-Token"] = this.toString() }
+        xAdminToken?.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/health",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Poll async marketplace install progress.
+     * Jobs are bound to the session that started them (&#x60;POST …/install?async&#x3D;true&#x60;). Other sessions receive **403**. Legacy rows with no owner remain open. 
+     * @param jobId 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return MarketplaceInstallJobEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun getMarketplaceInstallJobV2(jobId: kotlin.String, xRequestId: kotlin.String? = null) : MarketplaceInstallJobEnvelope {
+        val localVarResponse = getMarketplaceInstallJobV2WithHttpInfo(jobId = jobId, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as MarketplaceInstallJobEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Poll async marketplace install progress.
+     * Jobs are bound to the session that started them (&#x60;POST …/install?async&#x3D;true&#x60;). Other sessions receive **403**. Legacy rows with no owner remain open. 
+     * @param jobId 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<MarketplaceInstallJobEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun getMarketplaceInstallJobV2WithHttpInfo(jobId: kotlin.String, xRequestId: kotlin.String?) : ApiResponse<MarketplaceInstallJobEnvelope?> {
+        val localVariableConfig = getMarketplaceInstallJobV2RequestConfig(jobId = jobId, xRequestId = xRequestId)
+
+        return request<Unit, MarketplaceInstallJobEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation getMarketplaceInstallJobV2
+     *
+     * @param jobId 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun getMarketplaceInstallJobV2RequestConfig(jobId: kotlin.String, xRequestId: kotlin.String?) : RequestConfig<Unit> {
         val localVariableBody = null
         val localVariableQuery: MultiValueMap = mutableMapOf()
         val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
@@ -463,7 +652,82 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
 
         return RequestConfig(
             method = RequestMethod.GET,
-            path = "/v2/health",
+            path = "/v2/marketplace/jobs/{jobId}".replace("{"+"jobId"+"}", encodeURIComponent(jobId.toString())),
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Marketplace pack detail.
+     * 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return MarketplacePackEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun getMarketplacePackV2(id: kotlin.String, xRequestId: kotlin.String? = null) : MarketplacePackEnvelope {
+        val localVarResponse = getMarketplacePackV2WithHttpInfo(id = id, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as MarketplacePackEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Marketplace pack detail.
+     * 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<MarketplacePackEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun getMarketplacePackV2WithHttpInfo(id: kotlin.String, xRequestId: kotlin.String?) : ApiResponse<MarketplacePackEnvelope?> {
+        val localVariableConfig = getMarketplacePackV2RequestConfig(id = id, xRequestId = xRequestId)
+
+        return request<Unit, MarketplacePackEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation getMarketplacePackV2
+     *
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun getMarketplacePackV2RequestConfig(id: kotlin.String, xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/marketplace/{id}".replace("{"+"id"+"}", encodeURIComponent(id.toString())),
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,
@@ -616,6 +880,87 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
     }
 
     /**
+     * Install a marketplace pack into the live catalog.
+     * Sync by default. Pass &#x60;async&#x3D;true&#x60; for background download with progress (&#x60;GET /v2/marketplace/jobs/{jobId}&#x60;). Async jobs bind to the caller session for poll/cancel ACL. 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param async When true, returns 202 + job id for progress polling. (optional, default to false)
+     * @return void
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun installMarketplacePackV2(id: kotlin.String, xRequestId: kotlin.String? = null, async: kotlin.Boolean? = false) : Unit {
+        val localVarResponse = installMarketplacePackV2WithHttpInfo(id = id, xRequestId = xRequestId, async = async)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> Unit
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Install a marketplace pack into the live catalog.
+     * Sync by default. Pass &#x60;async&#x3D;true&#x60; for background download with progress (&#x60;GET /v2/marketplace/jobs/{jobId}&#x60;). Async jobs bind to the caller session for poll/cancel ACL. 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param async When true, returns 202 + job id for progress polling. (optional, default to false)
+     * @return ApiResponse<Unit?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Throws(IllegalStateException::class, IOException::class)
+    fun installMarketplacePackV2WithHttpInfo(id: kotlin.String, xRequestId: kotlin.String?, async: kotlin.Boolean?) : ApiResponse<Unit?> {
+        val localVariableConfig = installMarketplacePackV2RequestConfig(id = id, xRequestId = xRequestId, async = async)
+
+        return request<Unit, Unit>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation installMarketplacePackV2
+     *
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param async When true, returns 202 + job id for progress polling. (optional, default to false)
+     * @return RequestConfig
+     */
+    fun installMarketplacePackV2RequestConfig(id: kotlin.String, xRequestId: kotlin.String?, async: kotlin.Boolean?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
+            .apply {
+                if (async != null) {
+                    put("async", listOf(async.toString()))
+                }
+            }
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.POST,
+            path = "/v2/marketplace/{id}/install".replace("{"+"id"+"}", encodeURIComponent(id.toString())),
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
      * List the caller&#39;s owned products.
      * 
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
@@ -680,6 +1025,151 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         return RequestConfig(
             method = RequestMethod.GET,
             path = "/v2/entitlements",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * List local marketplace content packs.
+     * Discovers local packs under &#x60;game.content.packs.dir&#x60; plus optional remote index (&#x60;game.marketplace.remote-url&#x60;) with install/enabled status from the live catalog. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param q Filter by id, name, or description (optional)
+     * @return MarketplaceEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun listMarketplaceV2(xRequestId: kotlin.String? = null, q: kotlin.String? = null) : MarketplaceEnvelope {
+        val localVarResponse = listMarketplaceV2WithHttpInfo(xRequestId = xRequestId, q = q)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as MarketplaceEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * List local marketplace content packs.
+     * Discovers local packs under &#x60;game.content.packs.dir&#x60; plus optional remote index (&#x60;game.marketplace.remote-url&#x60;) with install/enabled status from the live catalog. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param q Filter by id, name, or description (optional)
+     * @return ApiResponse<MarketplaceEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun listMarketplaceV2WithHttpInfo(xRequestId: kotlin.String?, q: kotlin.String?) : ApiResponse<MarketplaceEnvelope?> {
+        val localVariableConfig = listMarketplaceV2RequestConfig(xRequestId = xRequestId, q = q)
+
+        return request<Unit, MarketplaceEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation listMarketplaceV2
+     *
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param q Filter by id, name, or description (optional)
+     * @return RequestConfig
+     */
+    fun listMarketplaceV2RequestConfig(xRequestId: kotlin.String?, q: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
+            .apply {
+                if (q != null) {
+                    put("q", listOf(q.toString()))
+                }
+            }
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/marketplace",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * List registered storefronts and live/sandbox mode.
+     * 
+     * @return void
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun listStorefrontsV2() : Unit {
+        val localVarResponse = listStorefrontsV2WithHttpInfo()
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> Unit
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * List registered storefronts and live/sandbox mode.
+     * 
+     * @return ApiResponse<Unit?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Throws(IllegalStateException::class, IOException::class)
+    fun listStorefrontsV2WithHttpInfo() : ApiResponse<Unit?> {
+        val localVariableConfig = listStorefrontsV2RequestConfig()
+
+        return request<Unit, Unit>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation listStorefrontsV2
+     *
+     * @return RequestConfig
+     */
+    fun listStorefrontsV2RequestConfig() : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/entitlements/storefronts",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,
@@ -1057,9 +1547,10 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
 
     /**
      * Upload and install a content-pack zip at runtime; returns the updated catalog.
-     * 
+     * Multipart zip install. In production, &#x60;game.catalog.upload.require-admin&#x3D;true&#x60; so callers must send &#x60;X-Admin-Token&#x60; (current or previous during rotation). When &#x60;game.catalog.upload.enabled&#x3D;false&#x60;, always **403**. 
      * @param file Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @param replace Overwrite an already-installed pack with the same id. (optional, default to false)
      * @return CatalogEnvelope
      * @throws IllegalStateException If the request is not correctly configured
@@ -1070,8 +1561,8 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
-    fun uploadPackV2(file: java.io.File, xRequestId: kotlin.String? = null, replace: kotlin.Boolean? = false) : CatalogEnvelope {
-        val localVarResponse = uploadPackV2WithHttpInfo(file = file, xRequestId = xRequestId, replace = replace)
+    fun uploadPackV2(file: java.io.File, xRequestId: kotlin.String? = null, xAdminToken: kotlin.String? = null, replace: kotlin.Boolean? = false) : CatalogEnvelope {
+        val localVarResponse = uploadPackV2WithHttpInfo(file = file, xRequestId = xRequestId, xAdminToken = xAdminToken, replace = replace)
 
         return when (localVarResponse.responseType) {
             ResponseType.Success -> (localVarResponse as Success<*>).data as CatalogEnvelope
@@ -1090,9 +1581,10 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
 
     /**
      * Upload and install a content-pack zip at runtime; returns the updated catalog.
-     * 
+     * Multipart zip install. In production, &#x60;game.catalog.upload.require-admin&#x3D;true&#x60; so callers must send &#x60;X-Admin-Token&#x60; (current or previous during rotation). When &#x60;game.catalog.upload.enabled&#x3D;false&#x60;, always **403**. 
      * @param file Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @param replace Overwrite an already-installed pack with the same id. (optional, default to false)
      * @return ApiResponse<CatalogEnvelope?>
      * @throws IllegalStateException If the request is not correctly configured
@@ -1100,8 +1592,8 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class)
-    fun uploadPackV2WithHttpInfo(file: java.io.File, xRequestId: kotlin.String?, replace: kotlin.Boolean?) : ApiResponse<CatalogEnvelope?> {
-        val localVariableConfig = uploadPackV2RequestConfig(file = file, xRequestId = xRequestId, replace = replace)
+    fun uploadPackV2WithHttpInfo(file: java.io.File, xRequestId: kotlin.String?, xAdminToken: kotlin.String?, replace: kotlin.Boolean?) : ApiResponse<CatalogEnvelope?> {
+        val localVariableConfig = uploadPackV2RequestConfig(file = file, xRequestId = xRequestId, xAdminToken = xAdminToken, replace = replace)
 
         return request<Map<String, PartConfig<*>>, CatalogEnvelope>(
             localVariableConfig
@@ -1113,10 +1605,11 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
      *
      * @param file Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @param replace Overwrite an already-installed pack with the same id. (optional, default to false)
      * @return RequestConfig
      */
-    fun uploadPackV2RequestConfig(file: java.io.File, xRequestId: kotlin.String?, replace: kotlin.Boolean?) : RequestConfig<Map<String, PartConfig<*>>> {
+    fun uploadPackV2RequestConfig(file: java.io.File, xRequestId: kotlin.String?, xAdminToken: kotlin.String?, replace: kotlin.Boolean?) : RequestConfig<Map<String, PartConfig<*>>> {
         val localVariableBody = mapOf(
             "file" to PartConfig(body = file, headers = mutableMapOf()),)
         val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
@@ -1127,6 +1620,7 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
             }
         val localVariableHeaders: MutableMap<String, String> = mutableMapOf("Content-Type" to "multipart/form-data")
         xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        xAdminToken?.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
         localVariableHeaders["Accept"] = "application/json"
 
         return RequestConfig(

@@ -21,8 +21,11 @@ public struct ReadinessResponse: Codable, JSONEncodable, Hashable {
     }
     public var status: Status
     public var probe: Probe
+    /** Present only with metrics/admin token. */
     public var sessions: Int?
+    /** Present only with metrics/admin token. */
     public var engines: Int?
+    /** Present only with metrics/admin token. */
     public var dependencies: [String: DependencyCheck]?
 
     public init(status: Status, probe: Probe, sessions: Int? = nil, engines: Int? = nil, dependencies: [String: DependencyCheck]? = nil) {

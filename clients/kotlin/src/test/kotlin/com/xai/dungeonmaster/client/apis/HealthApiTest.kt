@@ -19,7 +19,6 @@ import io.kotlintest.shouldBe
 import io.kotlintest.specs.ShouldSpec
 
 import com.xai.dungeonmaster.client.apis.HealthApi
-import com.xai.dungeonmaster.client.models.HealthEnvelope
 import com.xai.dungeonmaster.client.models.LivenessResponse
 import com.xai.dungeonmaster.client.models.ReadinessResponse
 
@@ -28,14 +27,6 @@ class HealthApiTest : ShouldSpec() {
         // uncomment below to create an instance of HealthApi
         //val apiInstance = HealthApi()
 
-        // to test getHealthV2
-        should("test getHealthV2") {
-            // uncomment below to test getHealthV2
-            //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
-            //val result : HealthEnvelope = apiInstance.getHealthV2(xRequestId)
-            //result shouldBe ("TODO")
-        }
-
         // to test getLiveness
         should("test getLiveness") {
             // uncomment below to test getLiveness
@@ -43,17 +34,30 @@ class HealthApiTest : ShouldSpec() {
             //result shouldBe ("TODO")
         }
 
+        // to test getPrometheusMetrics
+        should("test getPrometheusMetrics") {
+            // uncomment below to test getPrometheusMetrics
+            //val xMetricsToken : kotlin.String = xMetricsToken_example // kotlin.String | Metrics scrape token (`game.metrics.scrape-token`). Alternative to `Authorization: Bearer <token>`. Unlocks readiness/v2 health detail fields. 
+            //val authorization : kotlin.String = authorization_example // kotlin.String | Bearer scrape token (alternative to X-Metrics-Token).
+            //val result : kotlin.String = apiInstance.getPrometheusMetrics(xMetricsToken, authorization)
+            //result shouldBe ("TODO")
+        }
+
         // to test getReadiness
         should("test getReadiness") {
             // uncomment below to test getReadiness
-            //val result : ReadinessResponse = apiInstance.getReadiness()
+            //val xMetricsToken : kotlin.String = xMetricsToken_example // kotlin.String | Metrics scrape token (`game.metrics.scrape-token`). Alternative to `Authorization: Bearer <token>`. Unlocks readiness/v2 health detail fields. 
+            //val xAdminToken : kotlin.String = xAdminToken_example // kotlin.String | Ops shared secret (`game.admin.token`). During rotation, `game.admin.token.previous` is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail. 
+            //val result : ReadinessResponse = apiInstance.getReadiness(xMetricsToken, xAdminToken)
             //result shouldBe ("TODO")
         }
 
         // to test getReadinessAlias
         should("test getReadinessAlias") {
             // uncomment below to test getReadinessAlias
-            //val result : ReadinessResponse = apiInstance.getReadinessAlias()
+            //val xMetricsToken : kotlin.String = xMetricsToken_example // kotlin.String | Metrics scrape token (`game.metrics.scrape-token`). Alternative to `Authorization: Bearer <token>`. Unlocks readiness/v2 health detail fields. 
+            //val xAdminToken : kotlin.String = xAdminToken_example // kotlin.String | Ops shared secret (`game.admin.token`). During rotation, `game.admin.token.previous` is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail. 
+            //val result : ReadinessResponse = apiInstance.getReadinessAlias(xMetricsToken, xAdminToken)
             //result shouldBe ("TODO")
         }
 

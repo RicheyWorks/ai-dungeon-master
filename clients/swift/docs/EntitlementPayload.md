@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **storefront** | **String** |  | [optional] 
 **reason** | **String** |  | [optional] 
 **owned** | **[String]** |  | [optional] 
+**enabledPacks** | **[String]** | Content packs auto-enabled because required SKUs are now owned. | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

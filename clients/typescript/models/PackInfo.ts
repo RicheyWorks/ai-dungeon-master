@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * AI Dungeon Master API
- * HTTP API for the AI Dungeon Master engine.  The **v2** API (`/v2/_*`) wraps every response in a typed, versioned `Envelope` — `{ type, version, payload, requestId }` — so native clients get a stable, self-describing contract. The legacy `/api/game/_*` endpoints remain for existing clients and are documented under the `legacy` tag.  Public **health** probes (`/health`, `/health/ready`, `/v2/health`) need no auth. 
+ * HTTP API for the AI Dungeon Master engine.  The **v2** API (`/v2/_*`) wraps every response in a typed, versioned `Envelope` — `{ type, version, payload, requestId }` — so native clients get a stable, self-describing contract. The legacy `/api/game/_*` endpoints remain for existing clients and are documented under the `legacy` tag.  Public **health** probes (`/health`, `/health/ready`, `/v2/health`) need no auth for lean status. Session counts, dependency maps, and memory detail require `X-Metrics-Token` or `X-Admin-Token`. `GET /metrics` requires the scrape token when configured (always in production). 
  *
  * The version of the OpenAPI document: 2.0.0
  * 
@@ -56,13 +56,13 @@ export interface PackInfo {
      */
     enabled?: boolean;
     /**
-     * SKUs required to enable this pack.
+     * Store SKUs required to enable this pack.
      * @type {Array<string>}
      * @memberof PackInfo
      */
     requiredProductIds?: Array<string>;
     /**
-     * True when the pack is entitlement-gated and the session does not own required SKUs.
+     * True when the caller cannot enable the pack (missing entitlement).
      * @type {boolean}
      * @memberof PackInfo
      */
@@ -92,6 +92,8 @@ export function PackInfoFromJSONTyped(json: any, ignoreDiscriminator: boolean): 
         'monsters': json['monsters'] == null ? undefined : json['monsters'],
         'items': json['items'] == null ? undefined : json['items'],
         'enabled': json['enabled'] == null ? undefined : json['enabled'],
+        'requiredProductIds': json['requiredProductIds'] == null ? undefined : json['requiredProductIds'],
+        'locked': json['locked'] == null ? undefined : json['locked'],
     };
 }
 
@@ -107,6 +109,8 @@ export function PackInfoToJSON(value?: PackInfo | null): any {
         'monsters': value['monsters'],
         'items': value['items'],
         'enabled': value['enabled'],
+        'requiredProductIds': value['requiredProductIds'],
+        'locked': value['locked'],
     };
 }
 

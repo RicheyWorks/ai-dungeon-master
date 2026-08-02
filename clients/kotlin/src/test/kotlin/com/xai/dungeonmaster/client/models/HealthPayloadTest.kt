@@ -33,6 +33,12 @@ class HealthPayloadTest : ShouldSpec() {
             //modelInstance.status shouldBe ("TODO")
         }
 
+        // to test the property `detail` - false for unauthenticated lean responses; true when sessions/engines/ dependencies/memory are included. 
+        should("test detail") {
+            // uncomment below to test the property
+            //modelInstance.detail shouldBe ("TODO")
+        }
+
         // to test the property `uptimeSeconds`
         should("test uptimeSeconds") {
             // uncomment below to test the property

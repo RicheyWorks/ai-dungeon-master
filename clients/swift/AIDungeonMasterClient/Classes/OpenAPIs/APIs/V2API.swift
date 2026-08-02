@@ -13,6 +13,47 @@ import AnyCodable
 open class V2API {
 
     /**
+     Cancel an async marketplace install.
+     
+     - parameter jobId: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: MarketplaceInstallJobEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func cancelMarketplaceInstallJobV2(jobId: String, xRequestId: String? = nil) async throws -> MarketplaceInstallJobEnvelope {
+        return try await cancelMarketplaceInstallJobV2WithRequestBuilder(jobId: jobId, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Cancel an async marketplace install.
+     - DELETE /v2/marketplace/jobs/{jobId}
+     - Same ownership ACL as poll — only the owning session may cancel. 
+     - parameter jobId: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<MarketplaceInstallJobEnvelope> 
+     */
+    open class func cancelMarketplaceInstallJobV2WithRequestBuilder(jobId: String, xRequestId: String? = nil) -> RequestBuilder<MarketplaceInstallJobEnvelope> {
+        var localVariablePath = "/v2/marketplace/jobs/{jobId}"
+        let jobIdPreEscape = "\(APIHelper.mapValueToPathItem(jobId))"
+        let jobIdPostEscape = jobIdPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{jobId}", with: jobIdPostEscape, options: .literal, range: nil)
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<MarketplaceInstallJobEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "DELETE", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Mint a guest player session and JWT.
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
@@ -53,29 +94,38 @@ open class V2API {
 
     /**
      Explicit logout — drop session, pack prefs, and live engine.
-     - DELETE /v2/session
-     - returns: LogoutEnvelope
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: DeleteSessionV2200Response
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func deleteSessionV2(xRequestId: String? = nil) async throws -> LogoutEnvelope {
+    open class func deleteSessionV2(xRequestId: String? = nil) async throws -> DeleteSessionV2200Response {
         return try await deleteSessionV2WithRequestBuilder(xRequestId: xRequestId).execute().body
     }
 
     /**
      Explicit logout — drop session, pack prefs, and live engine.
      - DELETE /v2/session
-     - returns: RequestBuilder<LogoutEnvelope>
+     - Requires a valid Bearer token. Clears session identity, session-scoped pack overrides, and the live game engine. Clients should discard the token afterward. 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<DeleteSessionV2200Response> 
      */
-    open class func deleteSessionV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<LogoutEnvelope> {
+    open class func deleteSessionV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<DeleteSessionV2200Response> {
         let localVariablePath = "/v2/session"
         let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
         let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
         let localVariableNillableHeaders: [String: Any?] = [
             "X-Request-Id": xRequestId?.encodeToJSON(),
         ]
+
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
-        let localVariableRequestBuilder: RequestBuilder<LogoutEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
-        return localVariableRequestBuilder.init(method: "DELETE", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: nil, headers: localVariableHeaderParameters, requiresAuthentication: true)
+
+        let localVariableRequestBuilder: RequestBuilder<DeleteSessionV2200Response>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "DELETE", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
 
     /**
@@ -194,25 +244,72 @@ open class V2API {
     }
 
     /**
-     Health metrics envelope (public, no auth).
+     Health envelope (lean public; detail with ops token).
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter xMetricsToken: (header) Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     - parameter xAdminToken: (header) Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      - returns: HealthEnvelope
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func getHealthV2(xRequestId: String? = nil) async throws -> HealthEnvelope {
-        return try await getHealthV2WithRequestBuilder(xRequestId: xRequestId).execute().body
+    open class func getHealthV2(xRequestId: String? = nil, xMetricsToken: String? = nil, xAdminToken: String? = nil) async throws -> HealthEnvelope {
+        return try await getHealthV2WithRequestBuilder(xRequestId: xRequestId, xMetricsToken: xMetricsToken, xAdminToken: xAdminToken).execute().body
     }
 
     /**
-     Health metrics envelope (public, no auth).
+     Health envelope (lean public; detail with ops token).
      - GET /v2/health
-     - Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as `/health/ready`. Excluded from JWT enforcement. 
+     - Versioned envelope. Unauthenticated callers get `status`, `uptimeSeconds`, and `detail: false`. With `X-Metrics-Token` or `X-Admin-Token`, includes sessions, engines, dependencies, memory, and `detail: true`. Excluded from JWT enforcement. 
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter xMetricsToken: (header) Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     - parameter xAdminToken: (header) Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      - returns: RequestBuilder<HealthEnvelope> 
      */
-    open class func getHealthV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<HealthEnvelope> {
+    open class func getHealthV2WithRequestBuilder(xRequestId: String? = nil, xMetricsToken: String? = nil, xAdminToken: String? = nil) -> RequestBuilder<HealthEnvelope> {
         let localVariablePath = "/v2/health"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+            "X-Metrics-Token": xMetricsToken?.encodeToJSON(),
+            "X-Admin-Token": xAdminToken?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<HealthEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Poll async marketplace install progress.
+     
+     - parameter jobId: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: MarketplaceInstallJobEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func getMarketplaceInstallJobV2(jobId: String, xRequestId: String? = nil) async throws -> MarketplaceInstallJobEnvelope {
+        return try await getMarketplaceInstallJobV2WithRequestBuilder(jobId: jobId, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Poll async marketplace install progress.
+     - GET /v2/marketplace/jobs/{jobId}
+     - Jobs are bound to the session that started them (`POST …/install?async=true`). Other sessions receive **403**. Legacy rows with no owner remain open. 
+     - parameter jobId: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<MarketplaceInstallJobEnvelope> 
+     */
+    open class func getMarketplaceInstallJobV2WithRequestBuilder(jobId: String, xRequestId: String? = nil) -> RequestBuilder<MarketplaceInstallJobEnvelope> {
+        var localVariablePath = "/v2/marketplace/jobs/{jobId}"
+        let jobIdPreEscape = "\(APIHelper.mapValueToPathItem(jobId))"
+        let jobIdPostEscape = jobIdPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{jobId}", with: jobIdPostEscape, options: .literal, range: nil)
         let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
         let localVariableParameters: [String: Any]? = nil
 
@@ -224,7 +321,47 @@ open class V2API {
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
-        let localVariableRequestBuilder: RequestBuilder<HealthEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+        let localVariableRequestBuilder: RequestBuilder<MarketplaceInstallJobEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Marketplace pack detail.
+     
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: MarketplacePackEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func getMarketplacePackV2(id: String, xRequestId: String? = nil) async throws -> MarketplacePackEnvelope {
+        return try await getMarketplacePackV2WithRequestBuilder(id: id, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Marketplace pack detail.
+     - GET /v2/marketplace/{id}
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<MarketplacePackEnvelope> 
+     */
+    open class func getMarketplacePackV2WithRequestBuilder(id: String, xRequestId: String? = nil) -> RequestBuilder<MarketplacePackEnvelope> {
+        var localVariablePath = "/v2/marketplace/{id}"
+        let idPreEscape = "\(APIHelper.mapValueToPathItem(id))"
+        let idPostEscape = idPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{id}", with: idPostEscape, options: .literal, range: nil)
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<MarketplacePackEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
@@ -300,6 +437,52 @@ open class V2API {
     }
 
     /**
+     Install a marketplace pack into the live catalog.
+     
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter async: (query) When true, returns 202 + job id for progress polling. (optional, default to false)
+     - returns: Void
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func installMarketplacePackV2(id: String, xRequestId: String? = nil, async: Bool? = nil) async throws {
+        return try await installMarketplacePackV2WithRequestBuilder(id: id, xRequestId: xRequestId, async: async).execute().body
+    }
+
+    /**
+     Install a marketplace pack into the live catalog.
+     - POST /v2/marketplace/{id}/install
+     - Sync by default. Pass `async=true` for background download with progress (`GET /v2/marketplace/jobs/{jobId}`). Async jobs bind to the caller session for poll/cancel ACL. 
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter async: (query) When true, returns 202 + job id for progress polling. (optional, default to false)
+     - returns: RequestBuilder<Void> 
+     */
+    open class func installMarketplacePackV2WithRequestBuilder(id: String, xRequestId: String? = nil, async: Bool? = nil) -> RequestBuilder<Void> {
+        var localVariablePath = "/v2/marketplace/{id}/install"
+        let idPreEscape = "\(APIHelper.mapValueToPathItem(id))"
+        let idPostEscape = idPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{id}", with: idPostEscape, options: .literal, range: nil)
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "async": (wrappedValue: async?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<Void>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getNonDecodableBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      List the caller's owned products.
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
@@ -330,6 +513,80 @@ open class V2API {
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
         let localVariableRequestBuilder: RequestBuilder<EntitlementEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     List local marketplace content packs.
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter q: (query) Filter by id, name, or description (optional)
+     - returns: MarketplaceEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func listMarketplaceV2(xRequestId: String? = nil, q: String? = nil) async throws -> MarketplaceEnvelope {
+        return try await listMarketplaceV2WithRequestBuilder(xRequestId: xRequestId, q: q).execute().body
+    }
+
+    /**
+     List local marketplace content packs.
+     - GET /v2/marketplace
+     - Discovers local packs under `game.content.packs.dir` plus optional remote index (`game.marketplace.remote-url`) with install/enabled status from the live catalog. 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter q: (query) Filter by id, name, or description (optional)
+     - returns: RequestBuilder<MarketplaceEnvelope> 
+     */
+    open class func listMarketplaceV2WithRequestBuilder(xRequestId: String? = nil, q: String? = nil) -> RequestBuilder<MarketplaceEnvelope> {
+        let localVariablePath = "/v2/marketplace"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "q": (wrappedValue: q?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<MarketplaceEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     List registered storefronts and live/sandbox mode.
+     
+     - returns: Void
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func listStorefrontsV2() async throws {
+        return try await listStorefrontsV2WithRequestBuilder().execute().body
+    }
+
+    /**
+     List registered storefronts and live/sandbox mode.
+     - GET /v2/entitlements/storefronts
+     - returns: RequestBuilder<Void> 
+     */
+    open class func listStorefrontsV2WithRequestBuilder() -> RequestBuilder<Void> {
+        let localVariablePath = "/v2/entitlements/storefronts"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            :
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<Void>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getNonDecodableBuilder()
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
@@ -521,23 +778,26 @@ open class V2API {
      
      - parameter file: (form) Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead. 
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter xAdminToken: (header) Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      - parameter replace: (query) Overwrite an already-installed pack with the same id. (optional, default to false)
      - returns: CatalogEnvelope
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func uploadPackV2(file: URL, xRequestId: String? = nil, replace: Bool? = nil) async throws -> CatalogEnvelope {
-        return try await uploadPackV2WithRequestBuilder(file: file, xRequestId: xRequestId, replace: replace).execute().body
+    open class func uploadPackV2(file: URL, xRequestId: String? = nil, xAdminToken: String? = nil, replace: Bool? = nil) async throws -> CatalogEnvelope {
+        return try await uploadPackV2WithRequestBuilder(file: file, xRequestId: xRequestId, xAdminToken: xAdminToken, replace: replace).execute().body
     }
 
     /**
      Upload and install a content-pack zip at runtime; returns the updated catalog.
      - POST /v2/catalog/packs
+     - Multipart zip install. In production, `game.catalog.upload.require-admin=true` so callers must send `X-Admin-Token` (current or previous during rotation). When `game.catalog.upload.enabled=false`, always **403**. 
      - parameter file: (form) Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead. 
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter xAdminToken: (header) Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      - parameter replace: (query) Overwrite an already-installed pack with the same id. (optional, default to false)
      - returns: RequestBuilder<CatalogEnvelope> 
      */
-    open class func uploadPackV2WithRequestBuilder(file: URL, xRequestId: String? = nil, replace: Bool? = nil) -> RequestBuilder<CatalogEnvelope> {
+    open class func uploadPackV2WithRequestBuilder(file: URL, xRequestId: String? = nil, xAdminToken: String? = nil, replace: Bool? = nil) -> RequestBuilder<CatalogEnvelope> {
         let localVariablePath = "/v2/catalog/packs"
         let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
         let localVariableFormParams: [String: Any?] = [
@@ -555,6 +815,7 @@ open class V2API {
         let localVariableNillableHeaders: [String: Any?] = [
             "Content-Type": "multipart/form-data",
             "X-Request-Id": xRequestId?.encodeToJSON(),
+            "X-Admin-Token": xAdminToken?.encodeToJSON(),
         ]
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)

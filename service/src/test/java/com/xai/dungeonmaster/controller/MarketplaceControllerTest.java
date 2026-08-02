@@ -1,5 +1,10 @@
 package com.xai.dungeonmaster.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xai.dungeonmaster.auth.JwtAuthFilter;
+import com.xai.dungeonmaster.auth.JwtService;
+import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.plugin.ContentRegistry;
 import com.xai.dungeonmaster.service.MarketplaceService;
 import com.xai.dungeonmaster.service.PackUploadService;
@@ -8,12 +13,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -22,8 +29,11 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 
 class MarketplaceControllerTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     @TempDir Path tmp;
     private MockMvc mvc;
+    private SessionService sessions;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -42,6 +52,7 @@ class MarketplaceControllerTest {
         PackUploadService uploads = new PackUploadService(packs.toString());
         MarketplaceService svc = new MarketplaceService(packs, "", 0, uploads);
         mvc = standaloneSetup(new MarketplaceController(svc)).build();
+        sessions = new SessionService(new JwtService("mkt-ctrl-test-secret-abcdefghijkl", 3600));
     }
 
     @AfterEach
@@ -76,5 +87,40 @@ class MarketplaceControllerTest {
     void unknownPack404() throws Exception {
         mvc.perform(get("/v2/marketplace/nope"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void asyncInstallJobIsOwnerOnly() throws Exception {
+        SessionService.Session owner = sessions.createSession("Owner").session();
+        SessionService.Session other = sessions.createSession("Other").session();
+
+        MvcResult started = mvc.perform(post("/v2/marketplace/demo-pack/install")
+                        .param("async", "true")
+                        .requestAttr(JwtAuthFilter.SESSION_ATTR, owner))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.type", equalTo("marketplace_install_job")))
+                .andExpect(jsonPath("$.payload.jobId").isNotEmpty())
+                .andReturn();
+
+        JsonNode root = MAPPER.readTree(started.getResponse().getContentAsString());
+        String jobId = root.path("payload").path("jobId").asText();
+
+        mvc.perform(get("/v2/marketplace/jobs/" + jobId)
+                        .requestAttr(JwtAuthFilter.SESSION_ATTR, owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.jobId", equalTo(jobId)));
+
+        mvc.perform(get("/v2/marketplace/jobs/" + jobId)
+                        .requestAttr(JwtAuthFilter.SESSION_ATTR, other))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type", equalTo("error")));
+
+        mvc.perform(delete("/v2/marketplace/jobs/" + jobId)
+                        .requestAttr(JwtAuthFilter.SESSION_ATTR, other))
+                .andExpect(status().isForbidden());
+
+        // unauthenticated also forbidden when job has an owner
+        mvc.perform(get("/v2/marketplace/jobs/" + jobId))
+                .andExpect(status().isForbidden());
     }
 }

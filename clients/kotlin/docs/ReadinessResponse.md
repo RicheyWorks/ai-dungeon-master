@@ -6,9 +6,9 @@
 | ------------ | ------------- | ------------- | ------------- |
 | **status** | [**inline**](#Status) |  |  |
 | **probe** | [**inline**](#Probe) |  |  |
-| **sessions** | **kotlin.Int** |  |  [optional] |
-| **engines** | **kotlin.Int** |  |  [optional] |
-| **dependencies** | [**kotlin.collections.Map&lt;kotlin.String, DependencyCheck&gt;**](DependencyCheck.md) |  |  [optional] |
+| **sessions** | **kotlin.Int** | Present only with metrics/admin token. |  [optional] |
+| **engines** | **kotlin.Int** | Present only with metrics/admin token. |  [optional] |
+| **dependencies** | [**kotlin.collections.Map&lt;kotlin.String, DependencyCheck&gt;**](DependencyCheck.md) | Present only with metrics/admin token. |  [optional] |
 
 
 <a id="Status"></a>

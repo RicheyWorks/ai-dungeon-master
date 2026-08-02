@@ -55,5 +55,11 @@ class EntitlementPayloadTest : ShouldSpec() {
             //modelInstance.owned shouldBe ("TODO")
         }
 
+        // to test the property `enabledPacks` - Content packs auto-enabled because required SKUs are now owned.
+        should("test enabledPacks") {
+            // uncomment below to test the property
+            //modelInstance.enabledPacks shouldBe ("TODO")
+        }
+
     }
 }

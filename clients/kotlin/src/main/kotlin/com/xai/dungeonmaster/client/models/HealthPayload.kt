@@ -25,6 +25,7 @@ import com.squareup.moshi.JsonClass
  * 
  *
  * @param status 
+ * @param detail false for unauthenticated lean responses; true when sessions/engines/ dependencies/memory are included. 
  * @param uptimeSeconds 
  * @param sessions 
  * @param engines 
@@ -37,6 +38,10 @@ data class HealthPayload (
 
     @Json(name = "status")
     val status: HealthPayload.Status,
+
+    /* false for unauthenticated lean responses; true when sessions/engines/ dependencies/memory are included.  */
+    @Json(name = "detail")
+    val detail: kotlin.Boolean,
 
     @Json(name = "uptimeSeconds")
     val uptimeSeconds: kotlin.Long? = null,

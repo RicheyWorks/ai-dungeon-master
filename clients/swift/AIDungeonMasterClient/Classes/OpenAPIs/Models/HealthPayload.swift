@@ -18,14 +18,17 @@ public struct HealthPayload: Codable, JSONEncodable, Hashable {
     }
     public var status: Status
     public var uptimeSeconds: Int64?
+    /** false for unauthenticated lean responses; true when sessions/engines/ dependencies/memory are included.  */
+    public var detail: Bool
     public var sessions: Int?
     public var engines: Int?
     public var dependencies: [String: DependencyCheck]?
     public var memory: HealthPayloadMemory?
 
-    public init(status: Status, uptimeSeconds: Int64? = nil, sessions: Int? = nil, engines: Int? = nil, dependencies: [String: DependencyCheck]? = nil, memory: HealthPayloadMemory? = nil) {
+    public init(status: Status, uptimeSeconds: Int64? = nil, detail: Bool, sessions: Int? = nil, engines: Int? = nil, dependencies: [String: DependencyCheck]? = nil, memory: HealthPayloadMemory? = nil) {
         self.status = status
         self.uptimeSeconds = uptimeSeconds
+        self.detail = detail
         self.sessions = sessions
         self.engines = engines
         self.dependencies = dependencies
@@ -35,6 +38,7 @@ public struct HealthPayload: Codable, JSONEncodable, Hashable {
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case status
         case uptimeSeconds
+        case detail
         case sessions
         case engines
         case dependencies
@@ -47,6 +51,7 @@ public struct HealthPayload: Codable, JSONEncodable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(status, forKey: .status)
         try container.encodeIfPresent(uptimeSeconds, forKey: .uptimeSeconds)
+        try container.encode(detail, forKey: .detail)
         try container.encodeIfPresent(sessions, forKey: .sessions)
         try container.encodeIfPresent(engines, forKey: .engines)
         try container.encodeIfPresent(dependencies, forKey: .dependencies)
