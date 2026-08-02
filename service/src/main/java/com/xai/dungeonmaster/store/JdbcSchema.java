@@ -29,12 +29,24 @@ public final class JdbcSchema {
             )
             """;
 
+    /** One-time purchase receipts (anti-replay). */
+    public static final String RECEIPTS = """
+            CREATE TABLE IF NOT EXISTS dm_receipts (
+              fingerprint     VARCHAR(64)  PRIMARY KEY,
+              session_id      VARCHAR(64)  NOT NULL,
+              product_id      VARCHAR(128) NOT NULL,
+              storefront      VARCHAR(64)  NOT NULL,
+              redeemed_at_ms  BIGINT       NOT NULL
+            )
+            """;
+
     private JdbcSchema() {}
 
     public static void ensure(DataSource ds) {
         try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
             st.execute(SESSIONS);
             st.execute(ENTITLEMENTS);
+            st.execute(RECEIPTS);
         } catch (SQLException e) {
             throw new IllegalStateException("Failed to ensure JDBC auth schema", e);
         }
