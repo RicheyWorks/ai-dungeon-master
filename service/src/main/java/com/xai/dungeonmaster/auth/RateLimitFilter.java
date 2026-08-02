@@ -49,9 +49,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final int metricsPerMinute;
     private final int verifyPerMinute;
     private final RateLimitStore store;
+    private final RateLimitMetrics metrics;
 
     public RateLimitFilter(
             RateLimitStore store,
+            RateLimitMetrics metrics,
             @Value("${game.rate-limit.enabled:true}") boolean enabled,
             @Value("${game.rate-limit.session-per-minute:30}") int sessionPerMinute,
             @Value("${game.rate-limit.logout-per-minute:20}") int logoutPerMinute,
@@ -62,6 +64,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             @Value("${game.rate-limit.verify-per-minute:60}") int verifyPerMinute,
             @Value("${game.rate-limit.default-per-minute:120}") int defaultPerMinute) {
         this.store = store;
+        this.metrics = metrics != null ? metrics : new RateLimitMetrics();
         this.enabled = enabled;
         this.sessionPerMinute = Math.max(1, sessionPerMinute);
         this.logoutPerMinute = Math.max(1, logoutPerMinute);
@@ -80,7 +83,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
      */
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int metricsPerMinute,
                            int verifyPerMinute, int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), enabled, sessionPerMinute, sessionPerMinute,
+        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, sessionPerMinute,
                 sessionPerMinute, sessionPerMinute, sessionPerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
@@ -88,7 +91,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     /** Test helper with distinct logout budget. */
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
                            int metricsPerMinute, int verifyPerMinute, int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), enabled, sessionPerMinute, logoutPerMinute,
+        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
                 sessionPerMinute, sessionPerMinute, sessionPerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
@@ -97,7 +100,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
                            int adminPerMinute, int metricsPerMinute, int verifyPerMinute,
                            int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), enabled, sessionPerMinute, logoutPerMinute,
+        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
                 adminPerMinute, adminPerMinute, adminPerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
@@ -106,7 +109,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
                            int adminPerMinute, int installPerMinute, int metricsPerMinute,
                            int verifyPerMinute, int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), enabled, sessionPerMinute, logoutPerMinute,
+        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
                 adminPerMinute, installPerMinute, installPerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
@@ -115,7 +118,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
                            int adminPerMinute, int installPerMinute, int narratePerMinute,
                            int metricsPerMinute, int verifyPerMinute, int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), enabled, sessionPerMinute, logoutPerMinute,
+        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
                 adminPerMinute, installPerMinute, narratePerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
@@ -139,6 +142,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         RateLimitStore.Result hit = store.hit(key);
         long n = hit.count();
         if (n > limit.maxPerMinute) {
+            metrics.rejected(limit.bucket);
             long retryAfterSec = hit.retryAfterSeconds();
             res.setStatus(429);
             res.setHeader("Retry-After", Long.toString(retryAfterSec));
@@ -151,6 +155,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     + "\"requestId\":\"" + requestId + "\"}");
             return;
         }
+        metrics.allowed(limit.bucket);
         res.setHeader("X-RateLimit-Limit", Integer.toString(limit.maxPerMinute));
         res.setHeader("X-RateLimit-Remaining",
                 Long.toString(Math.max(0, limit.maxPerMinute - n)));

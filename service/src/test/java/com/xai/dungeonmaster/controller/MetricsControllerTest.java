@@ -2,6 +2,7 @@ package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.DungeonMasterEngine;
 import com.xai.dungeonmaster.auth.JwtService;
+import com.xai.dungeonmaster.auth.RateLimitMetrics;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.service.AuthDependencyProbe;
 import com.xai.dungeonmaster.service.GameInstanceService;
@@ -29,7 +30,7 @@ class MetricsControllerTest {
         GameInstanceService instances = GameInstanceService.singleton(engine);
         AuthDependencyProbe probe = new AuthDependencyProbe(
                 new UnusedDataSource(), new MemoryRedisOps(), "memory", "memory");
-        mvc = standaloneSetup(new MetricsController(sessions, instances, probe)).build();
+        mvc = standaloneSetup(new MetricsController(sessions, instances, probe, new RateLimitMetrics())).build();
     }
 
     @Test
@@ -66,10 +67,28 @@ class MetricsControllerTest {
                 },
                 "redis",
                 "redis");
-        MockMvc down = standaloneSetup(new MetricsController(sessions, instances, dead)).build();
+        MockMvc down = standaloneSetup(new MetricsController(sessions, instances, dead, new RateLimitMetrics())).build();
         down.perform(get("/metrics"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("dm_ready 0")))
                 .andExpect(content().string(containsString("dm_dependency_up{name=\"redis\"} 0")));
+    }
+
+    @Test
+    void exposesRateLimitCounters() throws Exception {
+        SessionService sessions = new SessionService(new JwtService("metrics-test-secret-abcdefghij", 3600));
+        DungeonMasterEngine engine = new DungeonMasterEngine(4, 4, new String[]{"Kael"}, new String[]{"Warrior"});
+        GameInstanceService instances = GameInstanceService.singleton(engine);
+        AuthDependencyProbe probe = new AuthDependencyProbe(
+                new UnusedDataSource(), new MemoryRedisOps(), "memory", "memory");
+        RateLimitMetrics rl = new RateLimitMetrics();
+        rl.rejected("session");
+        rl.allowed("session");
+        MockMvc m = standaloneSetup(new MetricsController(sessions, instances, probe, rl)).build();
+        String body = m.perform(get("/metrics")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("dm_rate_limit_rejected_total"));
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("bucket=\"session\""));
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("dm_rate_limit_allowed_total"));
     }
 }
