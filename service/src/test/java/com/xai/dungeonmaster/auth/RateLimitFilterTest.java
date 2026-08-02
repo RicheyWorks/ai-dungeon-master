@@ -83,4 +83,31 @@ class RateLimitFilterTest {
         filter.doFilter(req, blocked, new MockFilterChain());
         assertEquals(429, blocked.getStatus());
     }
+
+    @Test
+    void logoutBucketIndependentOfSession() throws Exception {
+        // session budget 100, logout budget 2
+        RateLimitFilter filter = new RateLimitFilter(true, 100, 2, 100, 100, 100);
+        for (int i = 0; i < 2; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("DELETE", "/v2/session");
+            req.setRemoteAddr("198.51.100.10");
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            filter.doFilter(req, res, new MockFilterChain());
+            assertEquals(200, res.getStatus());
+        }
+        MockHttpServletRequest blockedReq = new MockHttpServletRequest("DELETE", "/v2/session");
+        blockedReq.setRemoteAddr("198.51.100.10");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(blockedReq, blocked, new MockFilterChain());
+        assertEquals(429, blocked.getStatus());
+        assertNotNull(blocked.getHeader("Retry-After"));
+
+        // session mint still allowed for same IP
+        MockHttpServletRequest post = new MockHttpServletRequest("POST", "/v2/session");
+        post.setRemoteAddr("198.51.100.10");
+        MockHttpServletResponse postRes = new MockHttpServletResponse();
+        filter.doFilter(post, postRes, new MockFilterChain());
+        assertEquals(200, postRes.getStatus());
+    }
+
 }
