@@ -251,3 +251,14 @@ X-Admin-Token: <game.admin.token>
 
 Returns fingerprint + sessionId + productId + storefront + redeemedAt (never raw receipts).
 Disabled with 404 when token is blank. JWT is not required (`/v2/admin/**` is public to session auth).
+
+## Session-scoped content packs
+
+With `game.content.session-scoped-enable=true` (default):
+
+- Catalog enable/disable is **per session**
+- Auto-enable on grant writes session overrides only
+- Process-wide `ContentRegistry` defaults stay for free packs; gated packs remain process-disabled
+- `SessionContentFilter` installs a ThreadLocal enabled-pack set for the request so loot/encounters only use that session's packs
+
+Set `false` to restore legacy process-wide toggles (single-player / single-tenant).
