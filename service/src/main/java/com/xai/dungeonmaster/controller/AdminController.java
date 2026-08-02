@@ -1,9 +1,12 @@
 package com.xai.dungeonmaster.controller;
 
+import com.xai.dungeonmaster.auth.AdminAudit;
+import com.xai.dungeonmaster.auth.RateLimitFilter;
+import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.dto.ErrorPayload;
-import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.entitlement.ReceiptLedger;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -63,16 +66,11 @@ public class AdminController {
             @RequestParam(value = "since", required = false) Long since,
             @RequestParam(value = "until", required = false) Long until,
             @RequestHeader(value = "X-Admin-Token", required = false) String token,
-            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
 
-        if (adminToken.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    Envelope.of("error", new ErrorPayload("Admin API disabled (game.admin.token not set)."), requestId));
-        }
-        if (token == null || !constantTimeEquals(adminToken, token.trim())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    Envelope.of("error", new ErrorPayload("Invalid or missing X-Admin-Token."), requestId));
-        }
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId, "/v2/admin/receipts", request);
+        if (denied != null) return denied;
 
         ReceiptLedger.ReceiptQuery query = new ReceiptLedger.ReceiptQuery(
                 limit, productId, storefront, sessionId, since, until);
@@ -96,6 +94,8 @@ public class AdminController {
         if (since != null) payload.put("since", since);
         if (until != null) payload.put("until", until);
         payload.put("receipts", items);
+        AdminAudit.log("ok", "/v2/admin/receipts", RateLimitFilter.clientIp(request, false),
+                requestId, "count=" + items.size() + " token=" + AdminAudit.tokenFingerprint(token));
         return ResponseEntity.ok(Envelope.of("admin.receipts", payload, requestId));
     }
 
@@ -107,8 +107,9 @@ public class AdminController {
     public ResponseEntity<Envelope<?>> listSessionPacks(
             @RequestParam("sessionId") String sessionId,
             @RequestHeader(value = "X-Admin-Token", required = false) String token,
-            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        ResponseEntity<Envelope<?>> denied = authorize(token, requestId);
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId, "/v2/admin/session-packs", request);
         if (denied != null) return denied;
         if (sessionId == null || sessionId.isBlank()) {
             return ResponseEntity.badRequest().body(
@@ -124,15 +125,21 @@ public class AdminController {
         payload.put("enabledPackIds", List.copyOf(sessionPacks.enabledPackIds(sid)));
         payload.put("overrides", sessionPacks.overrides(sid));
         payload.put("sessionScoped", sessionPacks.isSessionScoped());
+        AdminAudit.log("ok", "/v2/admin/session-packs", RateLimitFilter.clientIp(request, false),
+                requestId, "sessionId=" + sid + " token=" + AdminAudit.tokenFingerprint(token));
         return ResponseEntity.ok(Envelope.of("admin.session-packs", payload, requestId));
     }
 
-    private ResponseEntity<Envelope<?>> authorize(String token, String requestId) {
+    private ResponseEntity<Envelope<?>> authorize(
+            String token, String requestId, String path, HttpServletRequest request) {
+        String ip = request == null ? "-" : RateLimitFilter.clientIp(request, false);
         if (adminToken.isEmpty()) {
+            AdminAudit.log("disabled", path, ip, requestId, "token=" + AdminAudit.tokenFingerprint(token));
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     Envelope.of("error", new ErrorPayload("Admin API disabled (game.admin.token not set)."), requestId));
         }
         if (token == null || !constantTimeEquals(adminToken, token.trim())) {
+            AdminAudit.log("unauthorized", path, ip, requestId, "token=" + AdminAudit.tokenFingerprint(token));
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     Envelope.of("error", new ErrorPayload("Invalid or missing X-Admin-Token."), requestId));
         }
@@ -143,9 +150,7 @@ public class AdminController {
         if (expected == null || actual == null) return false;
         byte[] a = expected.getBytes(StandardCharsets.UTF_8);
         byte[] b = actual.getBytes(StandardCharsets.UTF_8);
-        // MessageDigest.isEqual is constant-time for equal-length arrays.
         if (a.length != b.length) {
-            // still compare to avoid leaking length via timing on short paths
             MessageDigest.isEqual(a, a);
             return false;
         }

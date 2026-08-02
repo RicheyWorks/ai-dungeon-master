@@ -147,11 +147,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return null;
     }
 
-    static String clientIp(HttpServletRequest req) {
+    public static String clientIp(HttpServletRequest req) {
         return clientIp(req, true);
     }
 
-    static String clientIp(HttpServletRequest req, boolean trustForwarded) {
+    public static String clientIp(HttpServletRequest req, boolean trustForwarded) {
         if (trustForwarded) {
             String xff = req.getHeader("X-Forwarded-For");
             if (xff != null && !xff.isBlank()) {
