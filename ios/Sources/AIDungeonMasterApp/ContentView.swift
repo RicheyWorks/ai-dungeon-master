@@ -63,6 +63,11 @@ public struct ContentView: View {
                 Button(model.session == nil ? "Start session" : "New session") {
                     model.startSession()
                 }
+                if model.session != nil {
+                    Button("Log out") {
+                        model.logout()
+                    }
+                }
                 .buttonStyle(.bordered)
                 .disabled(model.busy)
             }

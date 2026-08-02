@@ -155,6 +155,25 @@ public final class GameViewModel: ObservableObject {
         }
     }
 
+    /// Explicit logout: server drops identity/packs/engine, then local wipe.
+    public func logout() {
+        run {
+            self.disconnectStomp()
+            if let token = self.session?.token, !token.isEmpty {
+                try? await self.logoutOnServer(token: token)
+            }
+            self.clearBearer()
+            self.store.clearSession()
+            self.session = nil
+            self.status = nil
+            self.catalog = nil
+            self.entitlements = nil
+            self.stompConnected = false
+            self.error = nil
+            self.info = "Logged out"
+        }
+    }
+
     public func act(choiceLabel: String) {
         run {
             try await self.ensureSession()
@@ -505,6 +524,21 @@ public final class GameViewModel: ObservableObject {
     }
 
     // MARK: - Session / auth
+
+    private func logoutOnServer(token: String) async throws {
+        let root = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard let url = URL(string: root + "/v2/session") else {
+            throw URLError(.badURL)
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (_, resp) = try await URLSession.shared.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode), http.statusCode != 401 {
+            throw URLError(.badServerResponse)
+        }
+    }
 
     private func mintSession(displayName: String?) async throws -> SessionInfo {
         applyBasePath()

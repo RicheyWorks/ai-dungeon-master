@@ -216,6 +216,33 @@ class GameViewModel(
         )
     }
 
+    /**
+     * Explicit logout: tell the server to drop identity/packs/engine, then
+     * wipe local session state.
+     */
+    fun logout() = launchCall { current ->
+        disconnectStomp()
+        val token = current.session?.token ?: HttpClients.token()
+        if (!token.isNullOrBlank()) {
+            try {
+                logoutOnServer(current.baseUrl, token)
+            } catch (_: Exception) {
+                // Still clear local state if the server already forgot us.
+            }
+        }
+        HttpClients.clearToken()
+        store.clearSession()
+        current.copy(
+            session = null,
+            status = null,
+            catalog = null,
+            entitlements = null,
+            stompConnected = false,
+            error = null,
+            info = "Logged out",
+        )
+    }
+
     /** Ensure a session exists, then fetch game status. */
     fun refresh() = launchCall { current ->
         val withSession = ensureSession(current)
@@ -587,6 +614,21 @@ class GameViewModel(
         val withSession = ensureSession(current)
         val envelope = api().resetGameV2()
         withSession.copy(status = envelope.payload, info = "New adventure started", error = null)
+    }
+
+    private fun logoutOnServer(baseUrl: String, token: String) {
+        val root = baseUrl.trimEnd('/')
+        val req = Request.Builder()
+            .url("$root/v2/session")
+            .delete()
+            .header("Authorization", "Bearer $token")
+            .header("Accept", "application/json")
+            .build()
+        HttpClients.client().newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful && resp.code != 401) {
+                throw IllegalStateException("Logout failed (${resp.code}): ${resp.body?.string().orEmpty()}")
+            }
+        }
     }
 
     private fun mintSession(displayName: String?): SessionInfo {
