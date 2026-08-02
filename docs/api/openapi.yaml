@@ -33,6 +33,23 @@ paths:
         - in: query
           name: limit
           schema: { type: integer, default: 50, maximum: 500 }
+        - in: query
+          name: productId
+          schema: { type: string }
+        - in: query
+          name: storefront
+          schema: { type: string }
+        - in: query
+          name: sessionId
+          schema: { type: string }
+        - in: query
+          name: since
+          description: Epoch milliseconds (inclusive lower bound)
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: until
+          description: Epoch milliseconds (inclusive upper bound)
+          schema: { type: integer, format: int64 }
         - in: header
           name: X-Admin-Token
           required: true
