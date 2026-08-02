@@ -9,6 +9,8 @@ data class MarketplaceListing(
     val description: String? = null,
     val installed: Boolean? = null,
     val enabled: Boolean? = null,
+    val requiredProductIds: List<String>? = null,
+    val locked: Boolean? = null,
     val sourcePath: String? = null,
     /** `local` or `remote` */
     val source: String? = null,

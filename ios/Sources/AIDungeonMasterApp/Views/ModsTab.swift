@@ -149,6 +149,10 @@ struct ModsTab: View {
                         "v\(pack.version ?? "?") · min \(pack.minEngineVersion ?? "?")"
                             + (pack.installed == true ? " · installed" : "")
                             + (pack.enabled == true ? " · enabled" : "")
+                            + (pack.locked == true ? " · LOCKED" : "")
+                            + ((pack.requiredProductIds?.isEmpty == false)
+                                ? " · requires \((pack.requiredProductIds ?? []).joined(separator: " | "))"
+                                : "")
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -212,11 +216,25 @@ struct ModsTab: View {
     }
 
     private func packRow(_ pack: PackInfo) -> some View {
-        HStack {
+        let locked = pack.locked == true
+        let required = pack.requiredProductIds ?? []
+        return HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(pack.displayName ?? pack.id ?? "?")
-                    .font(.subheadline.bold())
-                Text("v\(pack.version ?? "?") · \(pack.monsters ?? 0) monsters · \(pack.items ?? 0) items")
+                HStack(spacing: 6) {
+                    Text(pack.displayName ?? pack.id ?? "?")
+                        .font(.subheadline.bold())
+                    if locked {
+                        Text("LOCKED")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.red.opacity(0.12), in: Capsule())
+                    }
+                }
+                Text(
+                    buildPackMeta(pack, required: required)
+                )
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -233,10 +251,18 @@ struct ModsTab: View {
                 )
             )
             .labelsHidden()
-            .disabled(model.busy || pack.id == nil)
+            .disabled(model.busy || pack.id == nil || (locked && !(pack.enabled ?? false)))
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func buildPackMeta(_ pack: PackInfo, required: [String]) -> String {
+        var s = "v\(pack.version ?? "?") · \(pack.monsters ?? 0) monsters · \(pack.items ?? 0) items"
+        if !required.isEmpty {
+            s += " · requires \(required.joined(separator: " | "))"
+        }
+        return s
     }
 }

@@ -8,6 +8,8 @@ struct MarketplaceListing: Codable, Identifiable, Hashable {
     let description: String?
     let installed: Bool?
     let enabled: Bool?
+    let requiredProductIds: [String]?
+    let locked: Bool?
     let sourcePath: String?
     /// `local` or `remote`
     let source: String?

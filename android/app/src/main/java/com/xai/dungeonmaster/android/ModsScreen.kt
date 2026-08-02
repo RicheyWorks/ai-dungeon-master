@@ -187,6 +187,10 @@ fun ModsScreen(
                                     append("v${pack.version ?: "?"} · min ${pack.minEngineVersion ?: "?"}")
                                     if (pack.installed == true) append(" · installed")
                                     if (pack.enabled == true) append(" · enabled")
+                                    if (pack.locked == true) append(" · LOCKED")
+                                    pack.requiredProductIds?.takeIf { it.isNotEmpty() }?.let {
+                                        append(" · requires ${it.joinToString(" | ")}")
+                                    }
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -291,6 +295,8 @@ private fun PackRow(
     busy: Boolean,
     onToggle: (String, Boolean) -> Unit,
 ) {
+    val locked = pack.locked == true
+    val required = pack.requiredProductIds.orEmpty()
     Card(Modifier = Modifier.fillMaxWidth()) {
         Row(
             Modifier
@@ -298,10 +304,27 @@ private fun PackRow(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(pack.displayName ?: pack.id ?: "?", style = MaterialTheme.typography.titleSmall)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        pack.displayName ?: pack.id ?: "?",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    if (locked) {
+                        Text(
+                            "  LOCKED",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
                 Text(
-                    "v${pack.version ?: "?"} · ${pack.monsters ?: 0} monsters · ${pack.items ?: 0} items",
+                    buildString {
+                        append("v${pack.version ?: "?"} · ${pack.monsters ?: 0} monsters · ${pack.items ?: 0} items")
+                        if (required.isNotEmpty()) {
+                            append(" · requires ${required.joinToString(" | ")}")
+                        }
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -311,7 +334,8 @@ private fun PackRow(
                 onCheckedChange = { enable ->
                     pack.id?.let { onToggle(it, enable) }
                 },
-                enabled = !busy && pack.id != null,
+                // Allow turning off even when locked; blocking only apply-on when locked.
+                enabled = !busy && pack.id != null && !(locked && pack.enabled != true),
             )
         }
     }
