@@ -9,9 +9,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RateLimitFilterTest {
 
+    private static RateLimitFilter filter(RateLimitProperties.Builder b) {
+        return new RateLimitFilter(b.build());
+    }
+
     @Test
     void allowsUnderLimitThen429() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(true, 3, 100, 100, 100);
+        RateLimitFilter filter = filter(RateLimitProperties.builder().sessionPerMinute(3));
         MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/session");
         req.setRemoteAddr("10.0.0.5");
 
@@ -32,7 +36,7 @@ class RateLimitFilterTest {
 
     @Test
     void differentIpsHaveSeparateBuckets() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(true, 1, 100, 100, 100);
+        RateLimitFilter filter = filter(RateLimitProperties.builder().sessionPerMinute(1));
 
         MockHttpServletRequest a = new MockHttpServletRequest("POST", "/v2/session");
         a.setRemoteAddr("1.1.1.1");
@@ -61,10 +65,8 @@ class RateLimitFilterTest {
 
     @Test
     void disabledSkips() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(false, 1, 1, 1, 1);
+        RateLimitFilter filter = filter(RateLimitProperties.builder().enabled(false).allBuckets(1));
         MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/session");
-        // shouldNotFilter → OncePerRequestFilter won't call doFilterInternal;
-        // call doFilter which respects shouldNotFilter
         for (int i = 0; i < 5; i++) {
             MockHttpServletResponse res = new MockHttpServletResponse();
             filter.doFilter(req, res, new MockFilterChain());
@@ -74,7 +76,7 @@ class RateLimitFilterTest {
 
     @Test
     void metricsPathLimited() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(true, 100, 2, 100, 100);
+        RateLimitFilter filter = filter(RateLimitProperties.builder().metricsPerMinute(2));
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/metrics");
         req.setRemoteAddr("9.9.9.9");
         filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
@@ -86,8 +88,8 @@ class RateLimitFilterTest {
 
     @Test
     void logoutBucketIndependentOfSession() throws Exception {
-        // session budget 100, logout budget 2
-        RateLimitFilter filter = new RateLimitFilter(true, 100, 2, 100, 100, 100);
+        RateLimitFilter filter = filter(RateLimitProperties.builder()
+                .sessionPerMinute(100).logoutPerMinute(2));
         for (int i = 0; i < 2; i++) {
             MockHttpServletRequest req = new MockHttpServletRequest("DELETE", "/v2/session");
             req.setRemoteAddr("198.51.100.10");
@@ -102,7 +104,6 @@ class RateLimitFilterTest {
         assertEquals(429, blocked.getStatus());
         assertNotNull(blocked.getHeader("Retry-After"));
 
-        // session mint still allowed for same IP
         MockHttpServletRequest post = new MockHttpServletRequest("POST", "/v2/session");
         post.setRemoteAddr("198.51.100.10");
         MockHttpServletResponse postRes = new MockHttpServletResponse();
@@ -110,11 +111,9 @@ class RateLimitFilterTest {
         assertEquals(200, postRes.getStatus());
     }
 
-
     @Test
     void adminBucketLimitsBruteForce() throws Exception {
-        // session 100, logout 100, admin 2, metrics 100, verify 100, default 100
-        RateLimitFilter filter = new RateLimitFilter(true, 100, 100, 2, 100, 100, 100);
+        RateLimitFilter filter = filter(RateLimitProperties.builder().adminPerMinute(2));
         for (int i = 0; i < 2; i++) {
             MockHttpServletRequest req = new MockHttpServletRequest("GET", "/v2/admin/receipts");
             req.setRemoteAddr("203.0.113.50");
@@ -129,11 +128,9 @@ class RateLimitFilterTest {
         assertEquals(429, blocked.getStatus());
     }
 
-
     @Test
     void installBucketCoversMarketplaceAndUpload() throws Exception {
-        // session 100, logout 100, admin 100, install 2, metrics 100, verify 100, default 100
-        RateLimitFilter filter = new RateLimitFilter(true, 100, 100, 100, 2, 100, 100, 100);
+        RateLimitFilter filter = filter(RateLimitProperties.builder().installPerMinute(2));
         MockHttpServletRequest m1 = new MockHttpServletRequest("POST", "/v2/marketplace/cool-pack/install");
         m1.setRemoteAddr("198.51.100.77");
         MockHttpServletResponse r1 = new MockHttpServletResponse();
@@ -153,11 +150,9 @@ class RateLimitFilterTest {
         assertEquals(429, blocked.getStatus());
     }
 
-
     @Test
     void narrateBucketLimitsHttpNarration() throws Exception {
-        // session 100, logout 100, admin 100, install 100, narrate 2, metrics 100, verify 100, default 100
-        RateLimitFilter filter = new RateLimitFilter(true, 100, 100, 100, 100, 2, 100, 100, 100);
+        RateLimitFilter filter = filter(RateLimitProperties.builder().narratePerMinute(2));
         for (int i = 0; i < 2; i++) {
             MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/narrate");
             req.setRemoteAddr("203.0.113.88");
@@ -172,11 +167,9 @@ class RateLimitFilterTest {
         assertEquals(429, blocked.getStatus());
     }
 
-
     @Test
     void saveBucketCoversSaveLoadReset() throws Exception {
-        // session…action=100, save=2, metrics=100, verify=100, default=100
-        RateLimitFilter filter = new RateLimitFilter(true, 100, 100, 100, 100, 100, 100, 2, 100, 100, 100);
+        RateLimitFilter filter = filter(RateLimitProperties.builder().savePerMinute(2));
         for (String path : new String[]{"/v2/save", "/v2/load"}) {
             MockHttpServletRequest req = new MockHttpServletRequest("POST", path);
             req.setRemoteAddr("203.0.113.70");
@@ -190,12 +183,10 @@ class RateLimitFilterTest {
         filter.doFilter(blockedReq, blocked, new MockFilterChain());
         assertEquals(429, blocked.getStatus());
 
-        // legacy path shares bucket
         MockHttpServletRequest legacy = new MockHttpServletRequest("POST", "/api/game/save");
         legacy.setRemoteAddr("203.0.113.70");
         MockHttpServletResponse legacyRes = new MockHttpServletResponse();
         filter.doFilter(legacy, legacyRes, new MockFilterChain());
         assertEquals(429, legacyRes.getStatus());
     }
-
 }

@@ -1,6 +1,5 @@
 package com.xai.dungeonmaster.auth;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -16,20 +15,17 @@ public class ActionRateGuard {
     private final boolean enabled;
     private final int perMinute;
 
-    public ActionRateGuard(
-            RateLimitStore store,
-            RateLimitMetrics metrics,
-            @Value("${game.rate-limit.enabled:true}") boolean enabled,
-            @Value("${game.rate-limit.action-per-minute:60}") int perMinute) {
+    public ActionRateGuard(RateLimitStore store, RateLimitMetrics metrics, RateLimitProperties props) {
         this.store = store;
         this.metrics = metrics != null ? metrics : new RateLimitMetrics();
-        this.enabled = enabled;
-        this.perMinute = Math.max(1, perMinute);
+        this.enabled = props != null && props.enabled();
+        this.perMinute = props != null ? props.actionPerMinute() : 60;
     }
 
     /** Test helper. */
     public ActionRateGuard(RateLimitStore store, boolean enabled, int perMinute) {
-        this(store, new RateLimitMetrics(), enabled, perMinute);
+        this(store, new RateLimitMetrics(),
+                RateLimitProperties.builder().enabled(enabled).actionPerMinute(perMinute).build());
     }
 
     public Decision check(String clientKey) {

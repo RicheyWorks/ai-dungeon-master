@@ -20,7 +20,8 @@ class ActionRateGuardTest {
 
     @Test
     void httpActionBucket() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(true, 100, 100, 100, 100, 100, 2, 100, 100, 100);
+        RateLimitFilter filter = new RateLimitFilter(
+                RateLimitProperties.builder().actionPerMinute(2).build());
         for (int i = 0; i < 2; i++) {
             MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/action");
             req.setRemoteAddr("198.51.100.40");
