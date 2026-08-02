@@ -132,11 +132,12 @@ See `deploy/alertmanager/alertmanager.receivers.yml` and `templates/dm.tmpl`.
 | `game.rate-limit.enabled` | true | true |
 | `game.rate-limit.session-per-minute` | 30 | 20 |
 | `game.rate-limit.logout-per-minute` | 20 | 15 |
+| `game.rate-limit.admin-per-minute` | 30 | 20 |
 | `game.rate-limit.metrics-per-minute` | 120 | 60 |
 | `game.rate-limit.verify-per-minute` | 60 | 40 |
 | `game.rate-limit.store` | `memory` | `redis` (shared across nodes) |
 
-Covered paths: `POST /v2/session`, `DELETE /v2/session`, `GET /metrics`, `POST /v2/entitlements/verify`.
+Covered paths: `POST /v2/session`, `DELETE /v2/session`, `/v2/admin/**`, `GET /metrics`, `POST /v2/entitlements/verify`.
 429 responses include `Retry-After` and `X-RateLimit-*` headers. Client IP prefers
 `X-Forwarded-For` (nginx sets this).
 
