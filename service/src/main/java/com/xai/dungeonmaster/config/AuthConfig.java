@@ -9,7 +9,10 @@ import com.xai.dungeonmaster.entitlement.EntitlementStore;
 import com.xai.dungeonmaster.entitlement.FileEntitlementStore;
 import com.xai.dungeonmaster.entitlement.InMemoryEntitlementStore;
 import com.xai.dungeonmaster.entitlement.JdbcEntitlementStore;
+import com.xai.dungeonmaster.entitlement.MemoryReceiptLedger;
+import com.xai.dungeonmaster.entitlement.ReceiptLedger;
 import com.xai.dungeonmaster.entitlement.RedisEntitlementStore;
+import com.xai.dungeonmaster.entitlement.RedisReceiptLedger;
 import com.xai.dungeonmaster.store.JedisRedisOps;
 import com.xai.dungeonmaster.store.RedisOps;
 import com.zaxxer.hikari.HikariConfig;
@@ -41,14 +44,17 @@ public class AuthConfig {
             @Value("${game.auth.entitlement.store:memory}") String entitlementKind,
             @Value("${game.rate-limit.store:memory}") String rateLimitStore,
             @Value("${game.marketplace.jobs.store:memory}") String marketplaceJobsStore,
+            @Value("${game.auth.receipt-ledger.store:memory}") String receiptLedgerStore,
             @Value("${game.auth.redis.url:redis://127.0.0.1:6379}") String redisUrl) {
         if (needsRedis(sessionKind)
                 || needsRedis(entitlementKind)
                 || needsRedis(rateLimitStore)
-                || needsRedis(marketplaceJobsStore)) {
+                || needsRedis(marketplaceJobsStore)
+                || needsRedis(receiptLedgerStore)) {
             System.out.println("[auth] redis ops: " + redisUrl
                     + (needsRedis(rateLimitStore) ? " (rate-limit)" : "")
-                    + (needsRedis(marketplaceJobsStore) ? " (marketplace-jobs)" : ""));
+                    + (needsRedis(marketplaceJobsStore) ? " (marketplace-jobs)" : "")
+                    + (needsRedis(receiptLedgerStore) ? " (receipt-ledger)" : ""));
             return new JedisRedisOps(redisUrl);
         }
         return noopRedis();
@@ -127,6 +133,20 @@ public class AuthConfig {
             return new JdbcEntitlementStore(authDataSource);
         }
         return new InMemoryEntitlementStore();
+    }
+
+    @Bean
+    public ReceiptLedger receiptLedger(
+            @Value("${game.auth.receipt-ledger.store:memory}") String kind,
+            @Value("${game.auth.redis.key-prefix:dm}") String redisPrefix,
+            @Value("${game.auth.receipt-ledger.ttl-seconds:7776000}") int ttlSeconds,
+            RedisOps redisOps) {
+        if ("redis".equalsIgnoreCase(kind)) {
+            System.out.println("[auth] receipt ledger: redis (prefix=" + redisPrefix
+                    + ", ttl=" + ttlSeconds + "s)");
+            return new RedisReceiptLedger(redisOps, redisPrefix, ttlSeconds);
+        }
+        return new MemoryReceiptLedger();
     }
 
     private static boolean needsRedis(String kind) {
