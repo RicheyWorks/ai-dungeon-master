@@ -26,7 +26,9 @@ class ProductionSecurityGuardTest {
                 env, false, true,
                 "a-strong-production-jwt-secret-32+",
                 "jdbc", "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default",
-                "https://play.example.com");
+                "https://play.example.com",
+                "prod-admin-token-strong-enough!!",
+                "redis");
         assertTrue(g.isProductionMode());
     }
 
@@ -111,6 +113,22 @@ class ProductionSecurityGuardTest {
                 jdbcPassword, "https://play.example.com");
     }
 
+
+    @Test
+    void rejectsWeakAdminTokenAndMemoryRateLimit() {
+        ProductionSecurityGuard g = new ProductionSecurityGuard(
+                new StandardEnvironment(),
+                true, true,
+                "a-strong-production-jwt-secret-32chars!!",
+                "jdbc", "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default",
+                "https://play.example.com",
+                "short",
+                "memory");
+        List<String> problems = g.validate();
+        assertTrue(problems.stream().anyMatch(p -> p.contains("admin.token")), problems.toString());
+        assertTrue(problems.stream().anyMatch(p -> p.contains("rate-limit.store")), problems.toString());
+    }
+
     private static ProductionSecurityGuard guard(
             boolean production,
             boolean auth,
@@ -130,6 +148,8 @@ class ProductionSecurityGuardTest {
                 receiptLedgerStore,
                 receiptLedgerStore, // session-packs: same multi-node backend as receipts in tests
                 jdbcPassword,
-                corsOrigins);
+                corsOrigins,
+                "prod-admin-token-strong-enough!!",
+                "redis");
     }
 }
