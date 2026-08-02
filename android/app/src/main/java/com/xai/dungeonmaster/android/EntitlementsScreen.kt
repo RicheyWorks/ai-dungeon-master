@@ -34,11 +34,16 @@ import com.xai.dungeonmaster.client.models.EntitlementPayload
 fun EntitlementsScreen(
     entitlements: EntitlementPayload?,
     busy: Boolean,
+    initialProductId: String? = null,
+    unlockHint: String? = null,
+    onClearUnlockHint: () -> Unit = {},
     onRefresh: () -> Unit,
     onVerify: (productId: String, receipt: String, storefront: String) -> Unit,
     onSandboxPurchase: (productId: String, storefront: String) -> Unit,
 ) {
-    var productId by remember { mutableStateOf("sku_gold") }
+    var productId by remember(initialProductId) {
+        mutableStateOf(initialProductId?.takeIf { it.isNotBlank() } ?: "sku_gold")
+    }
     var storefront by remember { mutableStateOf(DevReceipts.STOREFRONT_DEV) }
     var receipt by remember { mutableStateOf("") }
     var billingNote by remember { mutableStateOf<String?>(null) }
@@ -96,6 +101,27 @@ fun EntitlementsScreen(
                     }
                     entitlements?.reason?.let {
                         Text("Last: $it", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+
+        if (unlockHint != null) {
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
+                        Text("Unlock pack", style = MaterialTheme.typography.titleSmall)
+                        Text(unlockHint, style = MaterialTheme.typography.bodyMedium)
+                        Button(
+                            onClick = {
+                                if (productId.isNotBlank()) {
+                                    onSandboxPurchase(productId.trim(), DevReceipts.STOREFRONT_DEV)
+                                }
+                            },
+                            enabled = !busy && productId.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Buy $productId (sandbox) now") }
+                        OutlinedButton(onClick = onClearUnlockHint, enabled = !busy) { Text("Dismiss") }
                     }
                 }
             }

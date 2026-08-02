@@ -15,7 +15,7 @@ public struct ContentView: View {
                 GameTab(model: model)
                     .tabItem { Label("Game", systemImage: "shield.lefthalf.filled") }
                     .tag(0)
-                ModsTab(model: model)
+                ModsTab(model: model, tab: $tab)
                     .tabItem { Label("Mods", systemImage: "shippingbox") }
                     .tag(1)
                     .onAppear {

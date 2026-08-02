@@ -21,12 +21,43 @@ struct StoreTab: View {
                 }
 
                 ownedCard
+                if let hint = model.unlockHint {
+                    unlockCard(hint)
+                }
                 storeKitCard
                 sandboxPurchaseCard
                 verifyCard
                 demoSection
             }
             .padding()
+        }
+    }
+
+    @ViewBuilder
+    private func unlockCard(_ hint: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Unlock pack").font(.subheadline.bold())
+            Text(hint).font(.caption).foregroundStyle(.secondary)
+            if let sku = model.unlockSku {
+                Text("Product: \(sku)").font(.caption)
+            }
+            Button("Buy \(model.unlockSku ?? productId) (sandbox) now") {
+                let sku = (model.unlockSku ?? productId).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !sku.isEmpty {
+                    productId = sku
+                    model.sandboxPurchase(productId: sku, storefront: DevReceipts.storefrontDev)
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(model.busy)
+            Button("Dismiss") { model.clearUnlockHint() }
+                .buttonStyle(.bordered)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .onAppear {
+            if let sku = model.unlockSku { productId = sku }
         }
     }
 

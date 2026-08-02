@@ -55,6 +55,8 @@ export function App() {
   const [tab, setTab] = useState<Tab>("game");
   const [prompt, setPrompt] = useState("");
   const [productId, setProductId] = useState("sku_gold");
+  /** Set when user taps Buy to unlock on a locked pack. */
+  const [unlockHint, setUnlockHint] = useState<string | null>(null);
   const [storefront, setStorefront] = useState(DEV_STOREFRONT);
   const [receipt, setReceipt] = useState("");
   const [replace, setReplace] = useState(false);
@@ -458,6 +460,20 @@ export function App() {
               setInfo(replace ? "Pack replaced" : "Pack uploaded");
             })
           }
+          onBuyToUnlock={(sku, packLabel) => {
+            setProductId(sku);
+            setStorefront(DEV_STOREFRONT);
+            setUnlockHint(
+              packLabel
+                ? `Unlock "${packLabel}" with product ${sku}`
+                : `Unlock with product ${sku}`,
+            );
+            setTab("store");
+            if (!entitlements) {
+              void run(async (s) => setEntitlements(await api.listEntitlements(baseUrl, s.token)));
+            }
+            setInfo(`Store ready — buy ${sku} to unlock${packLabel ? ` ${packLabel}` : ""}.`);
+          }}
         />
       )}
 
@@ -471,6 +487,8 @@ export function App() {
           setStorefront={setStorefront}
           receipt={receipt}
           setReceipt={setReceipt}
+          unlockHint={unlockHint}
+          onClearUnlockHint={() => setUnlockHint(null)}
           onRefresh={() =>
             void run(async (s) => setEntitlements(await api.listEntitlements(baseUrl, s.token)))
           }
@@ -503,6 +521,7 @@ export function App() {
               setEntitlements(p);
               setProductId(sku);
               setStorefront(minted.storefront);
+              if (p.granted) setUnlockHint(null);
               setInfo(
                 p.granted
                   ? `Sandbox ${minted.storefront} granted: ${p.productId}`
@@ -678,6 +697,7 @@ function ModsTab(props: {
   onCancelInstall: () => void;
   onToggle: (id: string, enable: boolean) => void;
   onUpload: (file: File) => void;
+  onBuyToUnlock: (sku: string, packLabel?: string) => void;
 }) {
   const marketPacks = props.marketplace?.packs ?? [];
   const livePacks = props.catalog?.contentPacks ?? [];
@@ -868,12 +888,29 @@ function ModsTab(props: {
                 : ""}
             </div>
           </div>
-          <input
-            type="checkbox"
-            checked={pack.enabled === true}
-            disabled={props.busy || !pack.id || (!!pack.locked && !pack.enabled)}
-            onChange={(e) => pack.id && props.onToggle(pack.id, e.target.checked)}
-          />
+          <div className="stack" style={{ alignItems: "flex-end", gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={pack.enabled === true}
+              disabled={props.busy || !pack.id || (!!pack.locked && !pack.enabled)}
+              onChange={(e) => pack.id && props.onToggle(pack.id, e.target.checked)}
+            />
+            {pack.locked && (pack.requiredProductIds?.length ?? 0) > 0 ? (
+              <button
+                type="button"
+                className="primary"
+                disabled={props.busy}
+                onClick={() =>
+                  props.onBuyToUnlock(
+                    pack.requiredProductIds![0],
+                    pack.displayName ?? pack.id ?? undefined,
+                  )
+                }
+              >
+                Buy to unlock
+              </button>
+            ) : null}
+          </div>
         </div>
       ))}
 
@@ -901,6 +938,8 @@ function StoreTab(props: {
   setStorefront: (v: string) => void;
   receipt: string;
   setReceipt: (v: string) => void;
+  unlockHint: string | null;
+  onClearUnlockHint: () => void;
   onRefresh: () => void;
   onVerify: (override?: { productId?: string; receipt?: string; storefront?: string }) => void;
   onSandboxBuy: (sku: string, storefront: string) => void;
@@ -928,6 +967,28 @@ function StoreTab(props: {
           <div className="muted">Last: {props.entitlements.reason}</div>
         )}
       </div>
+
+      {props.unlockHint ? (
+        <div className="card" style={{ borderColor: "var(--accent, #7c6af7)" }}>
+          <strong>Unlock pack</strong>
+          <p className="muted" style={{ marginBottom: 8 }}>{props.unlockHint}</p>
+          <div className="row">
+            <button
+              type="button"
+              className="primary"
+              disabled={props.busy || !props.productId.trim()}
+              onClick={() => {
+                props.onSandboxBuy(props.productId.trim(), props.storefront || DEV_STOREFRONT);
+              }}
+            >
+              Buy {props.productId} (sandbox) now
+            </button>
+            <button type="button" disabled={props.busy} onClick={props.onClearUnlockHint}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="card stack">
         <strong>Steam desktop (orderId)</strong>

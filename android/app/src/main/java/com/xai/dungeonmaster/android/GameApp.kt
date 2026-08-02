@@ -51,6 +51,8 @@ fun GameApp() {
     )
     val ui by viewModel.state.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
+    var pendingUnlockSku by remember { mutableStateOf<String?>(null) }
+    var unlockHint by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -168,13 +170,29 @@ fun GameApp() {
                 onCancelInstall = viewModel::cancelMarketplaceInstall,
                 onToggle = viewModel::togglePack,
                 onUpload = viewModel::uploadPack,
+                onBuyToUnlock = { sku, label ->
+                    pendingUnlockSku = sku
+                    unlockHint = if (label != null) "Unlock \"$label\" with $sku" else "Unlock with $sku"
+                    tab = 2
+                    viewModel.loadEntitlements()
+                },
             )
             2 -> EntitlementsScreen(
                 entitlements = ui.entitlements,
                 busy = ui.busy,
+                initialProductId = pendingUnlockSku,
+                unlockHint = unlockHint,
+                onClearUnlockHint = {
+                    unlockHint = null
+                    pendingUnlockSku = null
+                },
                 onRefresh = viewModel::loadEntitlements,
                 onVerify = viewModel::verifyReceipt,
-                onSandboxPurchase = viewModel::sandboxPurchase,
+                onSandboxPurchase = { sku, sf ->
+                    viewModel.sandboxPurchase(sku, sf)
+                    unlockHint = null
+                    pendingUnlockSku = null
+                },
             )
             else -> SystemScreen(
                 readiness = ui.readiness,
