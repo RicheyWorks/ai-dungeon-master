@@ -77,7 +77,8 @@ public class EntitlementController {
                 session.id(), req.storefront(), req.productId(), req.receipt());
         EntitlementPayload payload = new EntitlementPayload(
                 g.granted(), g.productId(), g.storefront(), g.reason(),
-                new ArrayList<>(entitlements.entitlements(session.id())));
+                new ArrayList<>(entitlements.entitlements(session.id())),
+                g.enabledPacks() == null ? List.of() : g.enabledPacks());
         HttpStatus code = g.granted() ? HttpStatus.OK : HttpStatus.PAYMENT_REQUIRED;
         return ResponseEntity.status(code).body(Envelope.of("entitlement", payload, requestId));
     }
