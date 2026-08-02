@@ -38,6 +38,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private static final String LOGIN_PATH = "/v2/session";
     private static final String HEALTH_V2_PATH = "/v2/health";
+    private static final String ADMIN_PREFIX = "/v2/admin";
 
     private final JwtService jwt;
     private final SessionService sessions;
@@ -76,13 +77,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         chain.doFilter(req, res);
     }
 
-    /** Auth applies to /v2/** except public login and health. */
+    /** Auth applies to /v2/** except public login, health, and admin (admin uses X-Admin-Token). */
     private boolean requiresAuth(HttpServletRequest req) {
         String path = req.getRequestURI();
         if (path == null || !path.startsWith("/v2")) {
             return false;
         }
-        if (path.equals(LOGIN_PATH) || path.equals(HEALTH_V2_PATH)) {
+        if (path.equals(LOGIN_PATH) || path.equals(HEALTH_V2_PATH) || path.startsWith(ADMIN_PREFIX)) {
             return false;
         }
         return true;

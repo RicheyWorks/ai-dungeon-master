@@ -3,6 +3,7 @@ package com.xai.dungeonmaster.entitlement;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -24,6 +25,14 @@ public interface ReceiptLedger {
     Optional<RedeemRecord> find(String fingerprint);
 
     void record(RedeemRecord record);
+
+    /**
+     * Recent redeems newest-first (ops inventory). Default empty when the
+     * backend cannot enumerate.
+     */
+    default List<RedeemRecord> listRecent(int limit) {
+        return List.of();
+    }
 
     static String fingerprint(String storefront, String productId, String receipt) {
         String sf = storefront == null ? "" : storefront.trim().toLowerCase(Locale.ROOT);
