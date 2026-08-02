@@ -1,10 +1,13 @@
 package com.xai.dungeonmaster.service;
 
 import com.xai.dungeonmaster.DungeonMasterEngine;
-import com.xai.dungeonmaster.plugin.LLMProvider;
+import com.xai.dungeonmaster.auth.NarrationRateGuard;
 import com.xai.dungeonmaster.dto.Envelope;
+import com.xai.dungeonmaster.dto.ErrorPayload;
 import com.xai.dungeonmaster.dto.NarrativeChunkPayload;
 import com.xai.dungeonmaster.dto.NarrativePayload;
+import com.xai.dungeonmaster.plugin.LLMProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -23,15 +26,26 @@ public class NarrationSocketService {
 
     private final GameInstanceService games;
     private final SimpMessagingTemplate messaging;
+    private final NarrationRateGuard rateGuard;
 
-    public NarrationSocketService(GameInstanceService games, SimpMessagingTemplate messaging) {
+    @Autowired
+    public NarrationSocketService(
+            GameInstanceService games,
+            SimpMessagingTemplate messaging,
+            @Autowired(required = false) NarrationRateGuard rateGuard) {
         this.games = games;
         this.messaging = messaging;
+        this.rateGuard = rateGuard;
     }
 
-    /** Test helper: single shared engine. */
+    /** Test helper: multi-session games, no rate limit. */
+    public NarrationSocketService(GameInstanceService games, SimpMessagingTemplate messaging) {
+        this(games, messaging, null);
+    }
+
+    /** Test helper: single shared engine, no rate limit. */
     public NarrationSocketService(DungeonMasterEngine engine, SimpMessagingTemplate messaging) {
-        this(GameInstanceService.singleton(engine), messaging);
+        this(GameInstanceService.singleton(engine), messaging, null);
     }
 
     /**
@@ -43,11 +57,28 @@ public class NarrationSocketService {
 
     /**
      * Stream narration for the given player session (null = default engine +
-     * global topic).
+     * global topic). Rate-limited per session (or {@code anon}).
      */
     public LLMProvider.NarrativeResponse streamNarration(String sessionId, String prompt, String requestId) {
-        DungeonMasterEngine engine = games.forSession(sessionId);
         String topic = GameInstanceService.narrativeTopic(sessionId);
+        if (rateGuard != null) {
+            String key = (sessionId == null || sessionId.isBlank()) ? "anon" : sessionId;
+            NarrationRateGuard.Decision d = rateGuard.check(key);
+            if (!d.allowed()) {
+                messaging.convertAndSend(
+                        topic,
+                        Envelope.of(
+                                "error",
+                                new ErrorPayload(
+                                        "Narration rate limit exceeded. Retry after "
+                                                + d.retryAfterSeconds()
+                                                + "s."),
+                                requestId));
+                return new LLMProvider.NarrativeResponse("", 0, 0.0, true);
+            }
+        }
+
+        DungeonMasterEngine engine = games.forSession(sessionId);
 
         LLMProvider.NarrativeResponse response = engine.narrateStreaming(prompt, chunk ->
                 messaging.convertAndSend(topic,

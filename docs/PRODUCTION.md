@@ -134,11 +134,12 @@ See `deploy/alertmanager/alertmanager.receivers.yml` and `templates/dm.tmpl`.
 | `game.rate-limit.logout-per-minute` | 20 | 15 |
 | `game.rate-limit.admin-per-minute` | 30 | 20 |
 | `game.rate-limit.install-per-minute` | 15 | 10 |
+| `game.rate-limit.narrate-per-minute` | 20 | 12 |
 | `game.rate-limit.metrics-per-minute` | 120 | 60 |
 | `game.rate-limit.verify-per-minute` | 60 | 40 |
 | `game.rate-limit.store` | `memory` | `redis` (shared across nodes) |
 
-Covered paths: `POST /v2/session`, `DELETE /v2/session`, `/v2/admin/**`, `POST /v2/marketplace/{id}/install`, `POST /v2/catalog/packs`, `GET /metrics`, `POST /v2/entitlements/verify`.
+Covered paths: `POST /v2/session`, `DELETE /v2/session`, `/v2/admin/**`, `POST /v2/marketplace/{id}/install`, `POST /v2/catalog/packs`, `POST /v2/narrate` (+ STOMP `/app/narrate` per session), `GET /metrics`, `POST /v2/entitlements/verify`.
 429 responses include `Retry-After` and `X-RateLimit-*` headers. Client IP prefers
 `X-Forwarded-For` (nginx sets this).
 
@@ -299,3 +300,8 @@ Drops the session, clears session pack overrides, and destroys the live game eng
 Clients should discard the token and mint a new session to continue.
 
 Ops: `GET /v2/admin/session-packs?sessionId=…` lists enabled packs + overrides (`X-Admin-Token`).
+
+### Pack upload size
+
+Already capped by Spring multipart: `spring.servlet.multipart.max-file-size=10MB`
+(request 12MB). Service also caps uncompressed zip contents (~20 MB).
