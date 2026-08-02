@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -71,5 +72,11 @@ public class SessionPackService {
     public void clearSession(String sessionId) {
         if (sessionId == null || sessionId.isBlank()) return;
         store.clear(sessionId);
+    }
+
+    /** Explicit overrides only (ops inventory). */
+    public Map<String, Boolean> overrides(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return Map.of();
+        return store.all(sessionId);
     }
 }

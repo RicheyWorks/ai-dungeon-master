@@ -2,6 +2,7 @@ package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.dto.ErrorPayload;
+import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.entitlement.ReceiptLedger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -28,13 +29,21 @@ import java.util.Map;
 public class AdminController {
 
     private final ReceiptLedger ledger;
+    private final SessionPackService sessionPacks;
     private final String adminToken;
 
     public AdminController(
             ReceiptLedger ledger,
+            SessionPackService sessionPacks,
             @Value("${game.admin.token:}") String adminToken) {
         this.ledger = ledger;
+        this.sessionPacks = sessionPacks;
         this.adminToken = adminToken == null ? "" : adminToken.trim();
+    }
+
+    /** Back-compat for receipt-only tests. */
+    public AdminController(ReceiptLedger ledger, String adminToken) {
+        this(ledger, null, adminToken);
     }
 
     /**
@@ -88,6 +97,46 @@ public class AdminController {
         if (until != null) payload.put("until", until);
         payload.put("receipts", items);
         return ResponseEntity.ok(Envelope.of("admin.receipts", payload, requestId));
+    }
+
+    /**
+     * List pack enable overrides for a session.
+     * <pre>GET /v2/admin/session-packs?sessionId=…</pre>
+     */
+    @GetMapping("/session-packs")
+    public ResponseEntity<Envelope<?>> listSessionPacks(
+            @RequestParam("sessionId") String sessionId,
+            @RequestHeader(value = "X-Admin-Token", required = false) String token,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId);
+        if (denied != null) return denied;
+        if (sessionId == null || sessionId.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Envelope.of("error", new ErrorPayload("sessionId is required."), requestId));
+        }
+        if (sessionPacks == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
+                    Envelope.of("error", new ErrorPayload("Session pack service unavailable."), requestId));
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        String sid = sessionId.trim();
+        payload.put("sessionId", sid);
+        payload.put("enabledPackIds", List.copyOf(sessionPacks.enabledPackIds(sid)));
+        payload.put("overrides", sessionPacks.overrides(sid));
+        payload.put("sessionScoped", sessionPacks.isSessionScoped());
+        return ResponseEntity.ok(Envelope.of("admin.session-packs", payload, requestId));
+    }
+
+    private ResponseEntity<Envelope<?>> authorize(String token, String requestId) {
+        if (adminToken.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    Envelope.of("error", new ErrorPayload("Admin API disabled (game.admin.token not set)."), requestId));
+        }
+        if (token == null || !constantTimeEquals(adminToken, token.trim())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    Envelope.of("error", new ErrorPayload("Invalid or missing X-Admin-Token."), requestId));
+        }
+        return null;
     }
 
     private static boolean constantTimeEquals(String expected, String actual) {
