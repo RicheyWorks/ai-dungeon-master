@@ -110,4 +110,23 @@ class RateLimitFilterTest {
         assertEquals(200, postRes.getStatus());
     }
 
+
+    @Test
+    void adminBucketLimitsBruteForce() throws Exception {
+        // session 100, logout 100, admin 2, metrics 100, verify 100, default 100
+        RateLimitFilter filter = new RateLimitFilter(true, 100, 100, 2, 100, 100, 100);
+        for (int i = 0; i < 2; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("GET", "/v2/admin/receipts");
+            req.setRemoteAddr("203.0.113.50");
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            filter.doFilter(req, res, new MockFilterChain());
+            assertEquals(200, res.getStatus());
+        }
+        MockHttpServletRequest blockedReq = new MockHttpServletRequest("GET", "/v2/admin/session-packs");
+        blockedReq.setRemoteAddr("203.0.113.50");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(blockedReq, blocked, new MockFilterChain());
+        assertEquals(429, blocked.getStatus());
+    }
+
 }

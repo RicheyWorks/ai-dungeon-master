@@ -133,6 +133,50 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
     }
 
     /**
+     * Explicit logout — drop session, pack prefs, and live engine.
+     * @param xRequestId Optional correlation id
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun deleteSessionV2(xRequestId: kotlin.String? = null) : kotlin.collections.Map<kotlin.String, kotlin.Any?> {
+        val localVarResponse = deleteSessionV2WithHttpInfo(xRequestId = xRequestId)
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as kotlin.collections.Map<kotlin.String, kotlin.Any?>
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun deleteSessionV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<kotlin.collections.Map<kotlin.String, kotlin.Any?>?> {
+        val localVariableConfig = deleteSessionV2RequestConfig(xRequestId = xRequestId)
+        return request<Unit, kotlin.collections.Map<kotlin.String, kotlin.Any?>>(localVariableConfig)
+    }
+
+    fun deleteSessionV2RequestConfig(xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+        return RequestConfig(
+            method = RequestMethod.DELETE,
+            path = "/v2/session",
+            query = mutableMapOf(),
+            headers = localVariableHeaders,
+            requiresAuthentication = true,
+            body = null
+        )
+    }
+
+    /**
      * Disable a content pack; returns the updated catalog.
      * 
      * @param id 

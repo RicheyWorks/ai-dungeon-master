@@ -19,6 +19,7 @@ import java.util.Locale;
  * <ul>
  *   <li>{@code POST /v2/session} — session minting</li>
  *   <li>{@code DELETE /v2/session} — logout</li>
+ *   <li>{@code /v2/admin/**} — admin token brute-force protection</li>
  *   <li>{@code GET /metrics} — Prometheus scrapes (generous default)</li>
  *   <li>{@code POST /v2/entitlements/verify} — receipt verification</li>
  * </ul>
@@ -35,6 +36,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final boolean enabled;
     private final int sessionPerMinute;
     private final int logoutPerMinute;
+    private final int adminPerMinute;
     private final int metricsPerMinute;
     private final int verifyPerMinute;
     private final RateLimitStore store;
@@ -44,6 +46,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             @Value("${game.rate-limit.enabled:true}") boolean enabled,
             @Value("${game.rate-limit.session-per-minute:30}") int sessionPerMinute,
             @Value("${game.rate-limit.logout-per-minute:20}") int logoutPerMinute,
+            @Value("${game.rate-limit.admin-per-minute:30}") int adminPerMinute,
             @Value("${game.rate-limit.metrics-per-minute:120}") int metricsPerMinute,
             @Value("${game.rate-limit.verify-per-minute:60}") int verifyPerMinute,
             @Value("${game.rate-limit.default-per-minute:120}") int defaultPerMinute) {
@@ -51,6 +54,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         this.enabled = enabled;
         this.sessionPerMinute = Math.max(1, sessionPerMinute);
         this.logoutPerMinute = Math.max(1, logoutPerMinute);
+        this.adminPerMinute = Math.max(1, adminPerMinute);
         this.metricsPerMinute = Math.max(1, metricsPerMinute);
         this.verifyPerMinute = Math.max(1, verifyPerMinute);
         // defaultPerMinute reserved for future catch-all paths
@@ -58,20 +62,28 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     /**
      * Test helper: memory store + limits.
-     * Argument order: session, metrics, verify, default (legacy) — logout uses
-     * the same cap as session for simple tests.
+     * Argument order: session, metrics, verify, default (legacy) — logout/admin
+     * reuse the session cap for simple tests.
      */
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int metricsPerMinute,
                            int verifyPerMinute, int defaultPerMinute) {
         this(new MemoryRateLimitStore(), enabled, sessionPerMinute, sessionPerMinute,
-                metricsPerMinute, verifyPerMinute, defaultPerMinute);
+                sessionPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
     }
 
-    /** Full test helper including a distinct logout budget. */
+    /** Test helper with distinct logout budget (admin reuses session cap). */
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
                            int metricsPerMinute, int verifyPerMinute, int defaultPerMinute) {
         this(new MemoryRateLimitStore(), enabled, sessionPerMinute, logoutPerMinute,
-                metricsPerMinute, verifyPerMinute, defaultPerMinute);
+                sessionPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
+    }
+
+    /** Full test helper including admin budget. */
+    public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
+                           int adminPerMinute, int metricsPerMinute, int verifyPerMinute,
+                           int defaultPerMinute) {
+        this(new MemoryRateLimitStore(), enabled, sessionPerMinute, logoutPerMinute,
+                adminPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
     }
 
     @Override
@@ -120,6 +132,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if ("DELETE".equals(method) && path.equals("/v2/session")) {
             return new Limit("logout", logoutPerMinute);
+        }
+        if (path.startsWith("/v2/admin")) {
+            return new Limit("admin", adminPerMinute);
         }
         if ("GET".equals(method) && path.equals("/metrics")) {
             return new Limit("metrics", metricsPerMinute);

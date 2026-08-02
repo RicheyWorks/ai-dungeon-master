@@ -144,6 +144,38 @@ export interface VerifyReceiptV2Request {
 export class V2Api extends runtime.BaseAPI {
 
     /**
+     * Explicit logout — drop session, pack prefs, and live engine.
+     * DELETE /v2/session
+     */
+    async deleteSessionV2Raw(requestParameters: DeleteSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        const queryParameters: any = {};
+        const headerParameters: runtime.HTTPHeaders = {};
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("bearer", []);
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/v2/session`,
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    async deleteSessionV2(requestParameters: DeleteSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.deleteSessionV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+
+    /**
      * Public endpoint. Returns a session id plus a Bearer token used on all subsequent `/v2/_*` calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
      * Mint a guest player session and JWT.
      */
@@ -778,4 +810,9 @@ export class V2Api extends runtime.BaseAPI {
         return await response.value();
     }
 
+}
+
+
+export interface DeleteSessionV2Request {
+    xRequestId?: string;
 }

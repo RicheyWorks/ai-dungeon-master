@@ -86,6 +86,38 @@ export interface VerifyReceiptV2Request {
 export class V2Api extends runtime.BaseAPI {
 
     /**
+     * Explicit logout — drop session, pack prefs, and live engine.
+     * DELETE /v2/session
+     */
+    async deleteSessionV2Raw(requestParameters: DeleteSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        const queryParameters: any = {};
+        const headerParameters: runtime.HTTPHeaders = {};
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("bearer", []);
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+        const response = await this.request({
+            path: `/v2/session`,
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    async deleteSessionV2(requestParameters: DeleteSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.deleteSessionV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+
+    /**
      * Disable a content pack; returns the updated catalog.
      */
     async disablePackV2Raw(requestParameters: DisablePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CatalogEnvelope>> {
@@ -362,4 +394,9 @@ export class V2Api extends runtime.BaseAPI {
         return await response.value();
     }
 
+}
+
+
+export interface DeleteSessionV2Request {
+    xRequestId?: string;
 }

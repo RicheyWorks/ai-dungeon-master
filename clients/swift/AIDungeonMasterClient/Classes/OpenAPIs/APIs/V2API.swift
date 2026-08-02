@@ -52,6 +52,33 @@ open class V2API {
     }
 
     /**
+     Explicit logout — drop session, pack prefs, and live engine.
+     - DELETE /v2/session
+     - returns: LogoutEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func deleteSessionV2(xRequestId: String? = nil) async throws -> LogoutEnvelope {
+        return try await deleteSessionV2WithRequestBuilder(xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Explicit logout — drop session, pack prefs, and live engine.
+     - DELETE /v2/session
+     - returns: RequestBuilder<LogoutEnvelope>
+     */
+    open class func deleteSessionV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<LogoutEnvelope> {
+        let localVariablePath = "/v2/session"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+        let localVariableRequestBuilder: RequestBuilder<LogoutEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+        return localVariableRequestBuilder.init(method: "DELETE", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: nil, headers: localVariableHeaderParameters, requiresAuthentication: true)
+    }
+
+    /**
      Disable a content pack; returns the updated catalog.
      
      - parameter id: (path)  

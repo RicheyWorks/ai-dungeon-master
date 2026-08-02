@@ -215,6 +215,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionEnvelope'
+
+    delete:
+      tags: [v2]
+      operationId: deleteSessionV2
+      summary: Explicit logout — drop session, pack prefs, and live engine.
+      description: |
+        Requires a valid Bearer token. Clears session identity, session-scoped
+        pack overrides, and the live game engine. Clients should discard the
+        token afterward.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Logout confirmation envelope.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type: { type: string, example: session.logout }
+                  version: { type: integer, example: 1 }
+                  payload:
+                    type: object
+                    properties:
+                      loggedOut: { type: boolean }
+                      sessionId: { type: string }
+                  requestId: { type: string }
+        '401':
+          description: Not authenticated.
+        '429':
+          description: Rate limited.
   /v2/session/me:
     get:
       tags: [v2]
