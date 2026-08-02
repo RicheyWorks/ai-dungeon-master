@@ -160,7 +160,8 @@ public final class GameViewModel: ObservableObject {
         run {
             self.disconnectStomp()
             if let token = self.session?.token, !token.isEmpty {
-                try? await self.logoutOnServer(token: token)
+                self.applyBearer(token)
+                try? await V2API.deleteSessionV2()
             }
             self.clearBearer()
             self.store.clearSession()
@@ -525,20 +526,6 @@ public final class GameViewModel: ObservableObject {
 
     // MARK: - Session / auth
 
-    private func logoutOnServer(token: String) async throws {
-        let root = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let url = URL(string: root + "/v2/session") else {
-            throw URLError(.badURL)
-        }
-        var req = URLRequest(url: url)
-        req.httpMethod = "DELETE"
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Accept")
-        let (_, resp) = try await URLSession.shared.data(for: req)
-        if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode), http.statusCode != 401 {
-            throw URLError(.badServerResponse)
-        }
-    }
 
     private func mintSession(displayName: String?) async throws -> SessionInfo {
         applyBasePath()

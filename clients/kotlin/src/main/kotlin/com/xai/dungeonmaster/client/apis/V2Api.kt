@@ -26,6 +26,7 @@ import com.xai.dungeonmaster.client.models.ErrorEnvelope
 import com.xai.dungeonmaster.client.models.GameSaveEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
 import com.xai.dungeonmaster.client.models.HealthEnvelope
+import com.xai.dungeonmaster.client.models.LogoutEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
 import com.xai.dungeonmaster.client.models.NarrativeEnvelope
 import com.xai.dungeonmaster.client.models.SessionEnvelope
@@ -138,10 +139,10 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
-    fun deleteSessionV2(xRequestId: kotlin.String? = null) : kotlin.collections.Map<kotlin.String, kotlin.Any?> {
+    fun deleteSessionV2(xRequestId: kotlin.String? = null) : LogoutEnvelope {
         val localVarResponse = deleteSessionV2WithHttpInfo(xRequestId = xRequestId)
         return when (localVarResponse.responseType) {
-            ResponseType.Success -> (localVarResponse as Success<*>).data as kotlin.collections.Map<kotlin.String, kotlin.Any?>
+            ResponseType.Success -> (localVarResponse as Success<*>).data as LogoutEnvelope
             ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
             ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
             ResponseType.ClientError -> {
@@ -157,9 +158,9 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
 
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class)
-    fun deleteSessionV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<kotlin.collections.Map<kotlin.String, kotlin.Any?>?> {
+    fun deleteSessionV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<LogoutEnvelope?> {
         val localVariableConfig = deleteSessionV2RequestConfig(xRequestId = xRequestId)
-        return request<Unit, kotlin.collections.Map<kotlin.String, kotlin.Any?>>(localVariableConfig)
+        return request<Unit, LogoutEnvelope>(localVariableConfig)
     }
 
     fun deleteSessionV2RequestConfig(xRequestId: kotlin.String?) : RequestConfig<Unit> {
