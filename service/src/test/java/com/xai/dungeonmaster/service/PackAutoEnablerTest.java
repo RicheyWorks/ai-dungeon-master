@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -44,7 +45,14 @@ class PackAutoEnablerTest {
         var g = ents.verifyAndGrant("sess", "dev", "pack_the_hollows", receipt);
         assertTrue(g.granted(), g.reason());
         assertEquals(List.of("black-hollows"), g.enabledPacks());
-        assertTrue(ContentRegistry.isEnabled("black-hollows"));
+        // Session-scoped: process default stays off; session sees pack enabled
+        assertFalse(ContentRegistry.isProcessEnabled("black-hollows"));
+        ContentRegistry.pushEnabledOverride(Set.of("black-hollows"));
+        try {
+            assertTrue(ContentRegistry.isEnabled("black-hollows"));
+        } finally {
+            ContentRegistry.clearEnabledOverride();
+        }
     }
 
     @Test

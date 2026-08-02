@@ -1,5 +1,6 @@
 package com.xai.dungeonmaster.service;
 
+import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.entitlement.EntitlementStore;
 import com.xai.dungeonmaster.plugin.ContentPack;
 import com.xai.dungeonmaster.plugin.ContentRegistry;
@@ -18,18 +19,29 @@ import java.util.Set;
 public class PackAutoEnabler {
 
     private final EntitlementStore entitlementStore;
+    private final SessionPackService sessionPacks;
     private final boolean enabled;
 
     public PackAutoEnabler(
             EntitlementStore entitlementStore,
+            SessionPackService sessionPacks,
             @Value("${game.content.auto-enable-on-grant:true}") boolean enabled) {
         this.entitlementStore = entitlementStore;
+        this.sessionPacks = sessionPacks != null ? sessionPacks : new SessionPackService();
         this.enabled = enabled;
     }
 
     /** Visible for tests. */
     public PackAutoEnabler(EntitlementStore entitlementStore) {
-        this(entitlementStore, true);
+        this(entitlementStore, new SessionPackService(), true);
+    }
+
+    public PackAutoEnabler(EntitlementStore entitlementStore, SessionPackService sessionPacks) {
+        this(entitlementStore, sessionPacks, true);
+    }
+
+    public PackAutoEnabler(EntitlementStore entitlementStore, boolean enabled) {
+        this(entitlementStore, new SessionPackService(), enabled);
     }
 
     public boolean isEnabled() {
@@ -51,8 +63,8 @@ public class PackAutoEnabler {
             if (required == null || required.isEmpty()) continue;
             if (!required.contains(productId)) continue;
             if (!satisfies(pack, owned)) continue;
-            if (ContentRegistry.isEnabled(pack.id())) continue;
-            if (ContentRegistry.setEnabled(pack.id(), true)) {
+            if (sessionPacks.isEnabled(sessionId, pack.id())) continue;
+            if (sessionPacks.setEnabled(sessionId, pack.id(), true)) {
                 enabledPacks.add(pack.id());
             }
         }

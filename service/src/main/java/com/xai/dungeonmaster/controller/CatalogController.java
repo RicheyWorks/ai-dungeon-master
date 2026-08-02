@@ -18,6 +18,7 @@ import com.xai.dungeonmaster.plugin.LootTableRegistry;
 import com.xai.dungeonmaster.plugin.QuestScriptRegistry;
 import com.xai.dungeonmaster.plugin.SpellEffectRegistry;
 import com.xai.dungeonmaster.plugin.StorefrontRegistry;
+import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.service.PackEntitlementGate;
 import com.xai.dungeonmaster.service.PackUploadService;
 import org.springframework.http.HttpStatus;
@@ -45,10 +46,17 @@ public class CatalogController {
 
     private final PackUploadService uploads;
     private final PackEntitlementGate packGate;
+    private final SessionPackService sessionPacks;
 
-    public CatalogController(PackUploadService uploads, PackEntitlementGate packGate) {
+    public CatalogController(PackUploadService uploads, PackEntitlementGate packGate, SessionPackService sessionPacks) {
         this.uploads = uploads;
         this.packGate = packGate;
+        this.sessionPacks = sessionPacks != null ? sessionPacks : new SessionPackService();
+    }
+
+    /** Test helper without session pack service. */
+    public CatalogController(PackUploadService uploads, PackEntitlementGate packGate) {
+        this(uploads, packGate, new SessionPackService());
     }
 
     @GetMapping
@@ -113,9 +121,10 @@ public class CatalogController {
                         Envelope.of("error", new ErrorPayload(deny), requestId));
             }
         }
-        ContentRegistry.setEnabled(id, enabled);
+        String sid = session == null ? null : session.id();
+        sessionPacks.setEnabled(sid, id, enabled);
         return ResponseEntity.ok(Envelope.of(
-                "catalog", buildPayload(session == null ? null : session.id()), requestId));
+                "catalog", buildPayload(sid), requestId));
     }
 
     private CatalogPayload buildPayload(String sessionId) {
@@ -133,7 +142,7 @@ public class CatalogController {
                     pack.version(),
                     pack.monsters().size(),
                     pack.items().size(),
-                    ContentRegistry.isEnabled(pack.id()),
+                    sessionPacks.isEnabled(sessionId, pack.id()),
                     required,
                     locked));
         }
