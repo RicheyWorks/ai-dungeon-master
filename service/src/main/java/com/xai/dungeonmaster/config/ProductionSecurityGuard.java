@@ -64,6 +64,7 @@ public class ProductionSecurityGuard implements ApplicationRunner {
     private final String receiptLedgerStore;
     private final String sessionPacksStore;
     private final String jdbcPassword;
+    private final String corsAllowedOrigins;
 
     public ProductionSecurityGuard(
             Environment env,
@@ -74,7 +75,8 @@ public class ProductionSecurityGuard implements ApplicationRunner {
             @Value("${game.auth.entitlement.store:memory}") String entitlementStore,
             @Value("${game.auth.receipt-ledger.store:memory}") String receiptLedgerStore,
             @Value("${game.content.session-packs.store:memory}") String sessionPacksStore,
-            @Value("${game.auth.jdbc.password:}") String jdbcPassword) {
+            @Value("${game.auth.jdbc.password:}") String jdbcPassword,
+            @Value("${game.cors.allowed-origins:*}") String corsAllowedOrigins) {
         this.env = env;
         this.productionFlag = productionFlag;
         this.authEnabled = authEnabled;
@@ -84,6 +86,7 @@ public class ProductionSecurityGuard implements ApplicationRunner {
         this.receiptLedgerStore = receiptLedgerStore == null ? "memory" : receiptLedgerStore;
         this.sessionPacksStore = sessionPacksStore == null ? "memory" : sessionPacksStore;
         this.jdbcPassword = jdbcPassword == null ? "" : jdbcPassword;
+        this.corsAllowedOrigins = corsAllowedOrigins == null ? "" : corsAllowedOrigins.trim();
     }
 
     /** True when production mode is active (explicit flag or {@code prod} profile). */
@@ -148,6 +151,12 @@ public class ProductionSecurityGuard implements ApplicationRunner {
                     || INSECURE_DB_PASSWORDS.contains(jdbcPassword.toLowerCase(Locale.ROOT))) {
                 problems.add("game.auth.jdbc.password is missing or is a known insecure default");
             }
+        }
+
+        if (corsAllowedOrigins.isBlank() || "*".equals(corsAllowedOrigins)
+                || corsAllowedOrigins.contains("*")) {
+            problems.add("game.cors.allowed-origins must be an explicit allow-list in production "
+                    + "(no wildcards; got '" + corsAllowedOrigins + "')");
         }
 
         // Storefront sandbox secrets — only fail if still default AND no live credentials.

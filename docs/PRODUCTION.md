@@ -319,3 +319,21 @@ Already capped by Spring multipart: `spring.servlet.multipart.max-file-size=10MB
 
 Buckets include: `session`, `logout`, `admin`, `install`, `narrate`, `narrate_stomp`, `action`, `action_stomp`, `save`, `metrics`, `verify`.
 Counters reset on process restart.
+
+## CORS and security headers
+
+| Property | Dev default | Prod |
+|---|---|---|
+| `game.cors.allowed-origins` | `*` | **required explicit list** (no `*`) |
+| `game.cors.allowed-methods` | REST verbs | same |
+| `game.security.headers.enabled` | `true` | `true` |
+| `game.security.hsts.enabled` | `false` | `true` |
+| `game.security.frame-options` | `DENY` | `DENY` |
+
+Headers added on every response: `X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`,
+`Content-Security-Policy`, and `Strict-Transport-Security` when HSTS is on + HTTPS.
+
+WebSocket (`/ws`, `/ws-stomp`) uses the same origin allow-list.
+
+Set e.g. `game.cors.allowed-origins=https://play.example.com,https://admin.example.com`.

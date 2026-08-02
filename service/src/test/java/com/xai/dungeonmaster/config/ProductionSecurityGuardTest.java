@@ -25,7 +25,8 @@ class ProductionSecurityGuardTest {
         ProductionSecurityGuard g = new ProductionSecurityGuard(
                 env, false, true,
                 "a-strong-production-jwt-secret-32+",
-                "jdbc", "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default");
+                "jdbc", "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default",
+                "https://play.example.com");
         assertTrue(g.isProductionMode());
     }
 
@@ -73,6 +74,17 @@ class ProductionSecurityGuardTest {
     }
 
     @Test
+    void rejectsWildcardCors() {
+        ProductionSecurityGuard g = guard(
+                true, true,
+                "a-strong-production-jwt-secret-32chars!!",
+                "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default",
+                "*");
+        List<String> problems = g.validate();
+        assertTrue(problems.stream().anyMatch(p -> p.contains("cors.allowed-origins")), problems.toString());
+    }
+
+    @Test
     void acceptsHardenedConfigWhenLiveStorefrontPresent() {
         System.setProperty("STOREFRONT_STEAM_PUBLISHER_KEY", "not-empty");
         try {
@@ -95,6 +107,19 @@ class ProductionSecurityGuardTest {
             String entitlementStore,
             String receiptLedgerStore,
             String jdbcPassword) {
+        return guard(production, auth, jwt, sessionStore, entitlementStore, receiptLedgerStore,
+                jdbcPassword, "https://play.example.com");
+    }
+
+    private static ProductionSecurityGuard guard(
+            boolean production,
+            boolean auth,
+            String jwt,
+            String sessionStore,
+            String entitlementStore,
+            String receiptLedgerStore,
+            String jdbcPassword,
+            String corsOrigins) {
         return new ProductionSecurityGuard(
                 new StandardEnvironment(),
                 production,
@@ -104,6 +129,7 @@ class ProductionSecurityGuardTest {
                 entitlementStore,
                 receiptLedgerStore,
                 receiptLedgerStore, // session-packs: same multi-node backend as receipts in tests
-                jdbcPassword);
+                jdbcPassword,
+                corsOrigins);
     }
 }

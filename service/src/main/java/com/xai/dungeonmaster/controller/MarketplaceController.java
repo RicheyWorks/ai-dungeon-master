@@ -7,7 +7,6 @@ import com.xai.dungeonmaster.dto.MarketplaceListing;
 import com.xai.dungeonmaster.dto.MarketplacePayload;
 import com.xai.dungeonmaster.service.MarketplaceService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,7 +34,6 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/v2/marketplace")
-@CrossOrigin(origins = "*")
 public class MarketplaceController {
 
     private final MarketplaceService marketplace;

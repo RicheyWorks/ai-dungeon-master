@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/game")
-@CrossOrigin(origins = "*")   // tighten in production
+// tighten in production
 public class GameRestController {
 
     private final DungeonMasterEngine engine;
