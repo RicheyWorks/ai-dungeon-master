@@ -4,7 +4,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -30,10 +29,10 @@ import java.util.regex.Pattern;
  *   <li>{@code POST /v2/entitlements/verify} — receipt verification</li>
  * </ul>
  *
- * Counters come from {@link RateLimitStore} — process-local memory or shared
- * Redis ({@code game.rate-limit.store=redis}) for multi-node clusters.
- * Disabled when {@code game.rate-limit.enabled=false}. Returns 429 +
- * {@code Retry-After} when a bucket is exhausted.
+ * Limits come from {@link RateLimitProperties}. Counters come from
+ * {@link RateLimitStore} — process-local memory or shared Redis
+ * ({@code game.rate-limit.store=redis}). Returns 429 + {@code Retry-After}
+ * when a bucket is exhausted.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
@@ -42,118 +41,29 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final Pattern MARKETPLACE_INSTALL =
             Pattern.compile("^/v2/marketplace/[^/]+/install$");
 
-    private final boolean enabled;
-    private final int sessionPerMinute;
-    private final int logoutPerMinute;
-    private final int adminPerMinute;
-    private final int installPerMinute;
-    private final int narratePerMinute;
-    private final int actionPerMinute;
-    private final int savePerMinute;
-    private final int metricsPerMinute;
-    private final int verifyPerMinute;
+    private final RateLimitProperties props;
     private final RateLimitStore store;
     private final RateLimitMetrics metrics;
 
-    public RateLimitFilter(
-            RateLimitStore store,
-            RateLimitMetrics metrics,
-            @Value("${game.rate-limit.enabled:true}") boolean enabled,
-            @Value("${game.rate-limit.session-per-minute:30}") int sessionPerMinute,
-            @Value("${game.rate-limit.logout-per-minute:20}") int logoutPerMinute,
-            @Value("${game.rate-limit.admin-per-minute:30}") int adminPerMinute,
-            @Value("${game.rate-limit.install-per-minute:15}") int installPerMinute,
-            @Value("${game.rate-limit.narrate-per-minute:20}") int narratePerMinute,
-            @Value("${game.rate-limit.action-per-minute:60}") int actionPerMinute,
-            @Value("${game.rate-limit.save-per-minute:30}") int savePerMinute,
-            @Value("${game.rate-limit.metrics-per-minute:120}") int metricsPerMinute,
-            @Value("${game.rate-limit.verify-per-minute:60}") int verifyPerMinute,
-            @Value("${game.rate-limit.default-per-minute:120}") int defaultPerMinute) {
+    public RateLimitFilter(RateLimitStore store, RateLimitMetrics metrics, RateLimitProperties props) {
         this.store = store;
         this.metrics = metrics != null ? metrics : new RateLimitMetrics();
-        this.enabled = enabled;
-        this.sessionPerMinute = Math.max(1, sessionPerMinute);
-        this.logoutPerMinute = Math.max(1, logoutPerMinute);
-        this.adminPerMinute = Math.max(1, adminPerMinute);
-        this.installPerMinute = Math.max(1, installPerMinute);
-        this.narratePerMinute = Math.max(1, narratePerMinute);
-        this.actionPerMinute = Math.max(1, actionPerMinute);
-        this.savePerMinute = Math.max(1, savePerMinute);
-        this.metricsPerMinute = Math.max(1, metricsPerMinute);
-        this.verifyPerMinute = Math.max(1, verifyPerMinute);
-        // defaultPerMinute reserved for future catch-all paths
+        this.props = props != null ? props : RateLimitProperties.builder().build();
     }
 
-    /**
-     * Test helper: memory store + limits.
-     * Argument order: session, metrics, verify, default (legacy) — other buckets
-     * reuse the session cap for simple tests.
-     */
-    public RateLimitFilter(boolean enabled, int sessionPerMinute, int metricsPerMinute,
-                           int verifyPerMinute, int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, sessionPerMinute,
-                sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, metricsPerMinute,
-                verifyPerMinute, defaultPerMinute);
+    /** Memory-store test helper. */
+    public RateLimitFilter(RateLimitProperties props) {
+        this(new MemoryRateLimitStore(), new RateLimitMetrics(), props);
     }
 
-    /** Test helper with distinct logout budget. */
-    public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
-                           int metricsPerMinute, int verifyPerMinute, int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, metricsPerMinute,
-                verifyPerMinute, defaultPerMinute);
-    }
-
-    /** Test helper including admin budget. */
-    public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
-                           int adminPerMinute, int metricsPerMinute, int verifyPerMinute,
-                           int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, adminPerMinute, adminPerMinute, adminPerMinute, adminPerMinute, metricsPerMinute,
-                verifyPerMinute, defaultPerMinute);
-    }
-
-    /** Test helper including install budget. */
-    public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
-                           int adminPerMinute, int installPerMinute, int metricsPerMinute,
-                           int verifyPerMinute, int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, installPerMinute, installPerMinute, installPerMinute, installPerMinute, metricsPerMinute,
-                verifyPerMinute, defaultPerMinute);
-    }
-
-    /** Full test helper including narrate budget (action reuses narrate). */
-    public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
-                           int adminPerMinute, int installPerMinute, int narratePerMinute,
-                           int metricsPerMinute, int verifyPerMinute, int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, installPerMinute, narratePerMinute, narratePerMinute, narratePerMinute, metricsPerMinute,
-                verifyPerMinute, defaultPerMinute);
-    }
-
-    /** Full test helper including action budget (save reuses action). */
-    public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
-                           int adminPerMinute, int installPerMinute, int narratePerMinute,
-                           int actionPerMinute, int metricsPerMinute, int verifyPerMinute,
-                           int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, installPerMinute, narratePerMinute, actionPerMinute, actionPerMinute, metricsPerMinute,
-                verifyPerMinute, defaultPerMinute);
-    }
-
-    /** Full test helper including save/load/reset budget. */
-    public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
-                           int adminPerMinute, int installPerMinute, int narratePerMinute,
-                           int actionPerMinute, int savePerMinute, int metricsPerMinute,
-                           int verifyPerMinute, int defaultPerMinute) {
-        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, installPerMinute, narratePerMinute, actionPerMinute, savePerMinute, metricsPerMinute,
-                verifyPerMinute, defaultPerMinute);
+    /** Memory-store test helper with shared metrics. */
+    public RateLimitFilter(RateLimitProperties props, RateLimitMetrics metrics) {
+        this(new MemoryRateLimitStore(), metrics, props);
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        if (!enabled) return true;
+        if (!props.enabled()) return true;
         return limitFor(request) == null;
     }
 
@@ -198,35 +108,34 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         String method = req.getMethod() == null ? "" : req.getMethod().toUpperCase(Locale.ROOT);
         if ("POST".equals(method) && path.equals("/v2/session")) {
-            return new Limit("session", sessionPerMinute);
+            return new Limit("session", props.sessionPerMinute());
         }
         if ("DELETE".equals(method) && path.equals("/v2/session")) {
-            return new Limit("logout", logoutPerMinute);
+            return new Limit("logout", props.logoutPerMinute());
         }
         if (path.startsWith("/v2/admin")) {
-            return new Limit("admin", adminPerMinute);
+            return new Limit("admin", props.adminPerMinute());
         }
         if ("POST".equals(method) && (MARKETPLACE_INSTALL.matcher(path).matches()
                 || path.equals("/v2/catalog/packs"))) {
-            return new Limit("install", installPerMinute);
+            return new Limit("install", props.installPerMinute());
         }
         if ("POST".equals(method) && path.equals("/v2/narrate")) {
-            // Same bucket prefix as NarrationRateGuard (HTTP keys by IP).
-            return new Limit("narrate", narratePerMinute);
+            return new Limit("narrate", props.narratePerMinute());
         }
         if ("POST".equals(method) && (path.equals("/v2/action") || path.equals("/api/game/action"))) {
-            return new Limit("action", actionPerMinute);
+            return new Limit("action", props.actionPerMinute());
         }
         if ("POST".equals(method) && (
                 path.equals("/v2/save") || path.equals("/v2/load") || path.equals("/v2/reset")
                 || path.equals("/api/game/save") || path.equals("/api/game/load"))) {
-            return new Limit("save", savePerMinute);
+            return new Limit("save", props.savePerMinute());
         }
         if ("GET".equals(method) && path.equals("/metrics")) {
-            return new Limit("metrics", metricsPerMinute);
+            return new Limit("metrics", props.metricsPerMinute());
         }
         if ("POST".equals(method) && path.equals("/v2/entitlements/verify")) {
-            return new Limit("verify", verifyPerMinute);
+            return new Limit("verify", props.verifyPerMinute());
         }
         return null;
     }

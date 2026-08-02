@@ -1,6 +1,5 @@
 package com.xai.dungeonmaster.auth;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -16,30 +15,29 @@ public class NarrationRateGuard {
     private final boolean enabled;
     private final int perMinute;
 
-    public NarrationRateGuard(
-            RateLimitStore store,
-            RateLimitMetrics metrics,
-            @Value("${game.rate-limit.enabled:true}") boolean enabled,
-            @Value("${game.rate-limit.narrate-per-minute:20}") int perMinute) {
+    public NarrationRateGuard(RateLimitStore store, RateLimitMetrics metrics, RateLimitProperties props) {
         this.store = store;
         this.metrics = metrics != null ? metrics : new RateLimitMetrics();
-        this.enabled = enabled;
-        this.perMinute = Math.max(1, perMinute);
+        this.enabled = props != null && props.enabled();
+        this.perMinute = props != null ? props.narratePerMinute() : 20;
     }
 
-    /** Test helper without metrics bean. */
+    /** Test helper. */
     public NarrationRateGuard(RateLimitStore store, boolean enabled, int perMinute) {
-        this(store, new RateLimitMetrics(), enabled, perMinute);
+        this(store, new RateLimitMetrics(),
+                RateLimitProperties.builder().enabled(enabled).narratePerMinute(perMinute).build());
+    }
+
+    /** Test helper with metrics. */
+    public NarrationRateGuard(RateLimitStore store, RateLimitMetrics metrics, boolean enabled, int perMinute) {
+        this(store, metrics,
+                RateLimitProperties.builder().enabled(enabled).narratePerMinute(perMinute).build());
     }
 
     public int limitPerMinute() {
         return perMinute;
     }
 
-    /**
-     * @param clientKey session id (or {@code anon})
-     * @return allow + remaining after this hit (or denied with retry-after)
-     */
     public Decision check(String clientKey) {
         if (!enabled) {
             return Decision.allow(perMinute, perMinute);

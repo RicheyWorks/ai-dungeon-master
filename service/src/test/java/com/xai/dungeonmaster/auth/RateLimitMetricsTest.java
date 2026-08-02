@@ -12,9 +12,8 @@ class RateLimitMetricsTest {
     @Test
     void filterIncrementsRejectedAndAllowed() throws Exception {
         RateLimitMetrics metrics = new RateLimitMetrics();
-        RateLimitFilter filter = new RateLimitFilter(
-                new MemoryRateLimitStore(), metrics, true,
-                2, 20, 30, 15, 20, 60, 30, 100, 100, 100);
+        RateLimitProperties props = RateLimitProperties.builder().sessionPerMinute(2).build();
+        RateLimitFilter filter = new RateLimitFilter(new MemoryRateLimitStore(), metrics, props);
         MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/session");
         req.setRemoteAddr("10.0.0.9");
         for (int i = 0; i < 2; i++) {
