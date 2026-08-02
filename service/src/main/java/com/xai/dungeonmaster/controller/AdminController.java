@@ -25,7 +25,8 @@ import java.util.Map;
 
 /**
  * Ops inventory endpoints. Protected by {@code X-Admin-Token} matching
- * {@code game.admin.token} (disabled when blank).
+ * {@code game.admin.token} (or {@code game.admin.token.previous} during rotation).
+ * Disabled when the primary token is blank.
  */
 @RestController
 @RequestMapping("/v2/admin")
@@ -34,20 +35,28 @@ public class AdminController {
     private final ReceiptLedger ledger;
     private final SessionPackService sessionPacks;
     private final String adminToken;
+    private final String previousAdminToken;
 
     @org.springframework.beans.factory.annotation.Autowired
     public AdminController(
             ReceiptLedger ledger,
             SessionPackService sessionPacks,
-            @Value("${game.admin.token:}") String adminToken) {
+            @Value("${game.admin.token:}") String adminToken,
+            @Value("${game.admin.token.previous:}") String previousAdminToken) {
         this.ledger = ledger;
         this.sessionPacks = sessionPacks;
         this.adminToken = adminToken == null ? "" : adminToken.trim();
+        this.previousAdminToken = previousAdminToken == null ? "" : previousAdminToken.trim();
     }
 
     /** Back-compat for receipt-only tests. */
     public AdminController(ReceiptLedger ledger, String adminToken) {
-        this(ledger, null, adminToken);
+        this(ledger, null, adminToken, "");
+    }
+
+    /** Test helper with session packs + dual token. */
+    public AdminController(ReceiptLedger ledger, SessionPackService sessionPacks, String adminToken) {
+        this(ledger, sessionPacks, adminToken, "");
     }
 
     /**
@@ -139,12 +148,17 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     Envelope.of("error", new ErrorPayload("Admin API disabled (game.admin.token not set)."), requestId));
         }
-        if (token == null || !constantTimeEquals(adminToken, token.trim())) {
+        if (token == null || !tokenAccepted(token.trim())) {
             AdminAudit.log("unauthorized", path, ip, requestId, "token=" + AdminAudit.tokenFingerprint(token));
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     Envelope.of("error", new ErrorPayload("Invalid or missing X-Admin-Token."), requestId));
         }
         return null;
+    }
+
+    private boolean tokenAccepted(String presented) {
+        if (constantTimeEquals(adminToken, presented)) return true;
+        return !previousAdminToken.isEmpty() && constantTimeEquals(previousAdminToken, presented);
     }
 
     private static boolean constantTimeEquals(String expected, String actual) {

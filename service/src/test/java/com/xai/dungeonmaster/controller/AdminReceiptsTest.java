@@ -91,4 +91,17 @@ class AdminReceiptsTest {
                 .andExpect(jsonPath("$.payload.count").value(0));
     }
 
+
+    @Test
+    void previousAdminTokenAccepted() throws Exception {
+        MockMvc dual = MockMvcBuilders.standaloneSetup(
+                new AdminController(ledger, null, "current-admin-token-strong!!", "previous-admin-token-strong!!"))
+                .build();
+        dual.perform(get("/v2/admin/receipts").header("X-Admin-Token", "previous-admin-token-strong!!"))
+                .andExpect(status().isOk());
+        dual.perform(get("/v2/admin/receipts").header("X-Admin-Token", "current-admin-token-strong!!"))
+                .andExpect(status().isOk());
+        dual.perform(get("/v2/admin/receipts").header("X-Admin-Token", "wrong"))
+                .andExpect(status().isUnauthorized());
+    }
 }

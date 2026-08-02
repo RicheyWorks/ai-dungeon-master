@@ -23,6 +23,8 @@ public interface MarketplaceJobStore {
 
     /**
      * Serializable job row. {@code cancelRequested} is sticky once true.
+     * {@code ownerSessionId} binds poll/cancel to the session that started the job
+     * (null for legacy rows / unauthenticated installs).
      */
     record JobRecord(
             String jobId,
@@ -33,7 +35,8 @@ public interface MarketplaceJobStore {
             String message,
             boolean cancelRequested,
             String error,
-            long updatedAtMs
+            long updatedAtMs,
+            String ownerSessionId
     ) {
         public MarketplaceInstallJob toDto() {
             return MarketplaceInstallJob.of(
@@ -42,6 +45,12 @@ public interface MarketplaceJobStore {
 
         public boolean terminal() {
             return "DONE".equals(phase) || "FAILED".equals(phase) || "CANCELLED".equals(phase);
+        }
+
+        /** True when the job has no owner (legacy) or the session matches. */
+        public boolean ownedBy(String sessionId) {
+            if (ownerSessionId == null || ownerSessionId.isBlank()) return true;
+            return sessionId != null && ownerSessionId.equals(sessionId);
         }
     }
 }

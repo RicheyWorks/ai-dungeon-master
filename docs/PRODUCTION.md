@@ -163,7 +163,14 @@ GAME_PRODUCTION=true GAME_AUTH_ENABLED=true \
 |---|---|---|
 | `GET /health` | Liveness (process up) | always 200 when listening |
 | `GET /health/ready` | Readiness — probes JDBC/Redis/file when configured | 200 UP / **503** DOWN |
-| `GET /v2/health` | Metrics + dependency map (public) | 200 / 503 |
+| `GET /v2/health` | Versioned health (lean by default) | 200 / 503 |
+
+**Public (unauthenticated) responses are lean:** `status`, `probe` (and on
+`/v2/health`: `uptimeSeconds`, `detail=false`). Session/engine counts,
+dependency maps, and memory stats are **not** exposed without an ops token:
+
+- `X-Metrics-Token: <game.metrics.scrape-token>` or `Authorization: Bearer …`
+- `X-Admin-Token: <game.admin.token>` (or `game.admin.token.previous` during rotation)
 
 `AuthDependencyProbe` only checks backends your store config actually uses
 (`memory` → `NOT_CONFIGURED`). Compose healthchecks hit `/health/ready` so a
@@ -289,11 +296,15 @@ Sign index files with `scripts/sign-marketplace-index.sh` (header form preferred
 
 ```http
 POST /v2/marketplace/{id}/install?async=true   → 202 { jobId, phase, percent, … }
-GET  /v2/marketplace/jobs/{jobId}              → progress (DOWNLOADING/VERIFYING/INSTALLING/DONE)
-DELETE /v2/marketplace/jobs/{jobId}            → cancel
+GET  /v2/marketplace/jobs/{jobId}              → progress (owner session only)
+DELETE /v2/marketplace/jobs/{jobId}            → cancel (owner session only)
 ```
 
 Phases: `QUEUED` → `DOWNLOADING` → `VERIFYING` → `INSTALLING` → `DONE` | `FAILED` | `CANCELLED`.
+
+**Job ownership:** async installs bind to the caller's session id (JWT). Poll and
+cancel return **403** for other sessions. Jobs with no owner (legacy / unauthenticated
+start) remain open. Multi-node Redis snapshots store `ownerSessionId`.
 
 ### Marketplace install job store
 
@@ -302,7 +313,7 @@ Phases: `QUEUED` → `DOWNLOADING` → `VERIFYING` → `INSTALLING` → `DONE` |
 | `game.marketplace.jobs.store` | `memory` (default) or `redis` (prod) |
 | `game.marketplace.jobs.ttl-seconds` | Redis key TTL (default 3600) |
 
-Job snapshots (`phase`, bytes, cancel) are written to Redis so other nodes can poll progress. Download workers remain process-local; orphaned non-terminal jobs report `FAILED` after restart.
+Job snapshots (`phase`, bytes, cancel, owner) are written to Redis so other nodes can poll progress. Download workers remain process-local; orphaned non-terminal jobs report `FAILED` after restart.
 
 ## Live storefronts (Play / App Store / Steam)
 
@@ -368,7 +379,8 @@ Set `game.auth.receipt-ledger.store=jdbc` with the same `game.auth.jdbc.*` pool 
 
 | Property | Default | Meaning |
 |---|---|---|
-| `game.admin.token` | empty (disabled) | Shared secret for ops routes |
+| `game.admin.token` | empty (disabled) | Shared secret for ops routes (`X-Admin-Token`) |
+| `game.admin.token.previous` | empty | Optional previous token during rotation (`GAME_ADMIN_TOKEN_PREVIOUS`) |
 
 ```http
 GET /v2/admin/receipts?limit=50&productId=sku_gold&storefront=dev&sessionId=…&since=…&until=…
@@ -376,6 +388,20 @@ X-Admin-Token: <game.admin.token>
 ```
 
 Optional filters: `productId`, `storefront`, `sessionId`, `since` / `until` (epoch ms).
+
+During rotation, set `GAME_ADMIN_TOKEN` to the new value and
+`GAME_ADMIN_TOKEN_PREVIOUS` to the old value so both are accepted until scrapers
+and runbooks are updated; then clear previous.
+
+## Catalog pack upload (multi-tenant)
+
+| Property | Dev default | Prod default | Meaning |
+|---|---|---|---|
+| `game.catalog.upload.enabled` | `true` | `true` | When false, `POST /v2/catalog/packs` → 403 |
+| `game.catalog.upload.require-admin` | `false` | **`true`** | When true, upload needs valid `X-Admin-Token` (current or previous) |
+
+Prod multi-tenant deployments should keep `require-admin=true` so anonymous sessions
+cannot inject content packs. Local/dev keeps uploads open for mod tooling.
 
 
 Returns fingerprint + sessionId + productId + storefront + redeemedAt (never raw receipts).

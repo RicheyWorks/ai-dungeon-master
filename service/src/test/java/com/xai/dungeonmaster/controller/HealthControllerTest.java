@@ -13,7 +13,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -22,6 +21,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 class HealthControllerTest {
 
     private MockMvc mvc;
+    private MockMvc detailedMvc;
 
     @BeforeEach
     void setUp() {
@@ -31,6 +31,8 @@ class HealthControllerTest {
         AuthDependencyProbe probe = new AuthDependencyProbe(
                 new UnusedDataSource(), new MemoryRedisOps(), "memory", "memory");
         mvc = standaloneSetup(new HealthController(sessions, instances, probe)).build();
+        detailedMvc = standaloneSetup(new HealthController(
+                sessions, instances, probe, "scrape-token-health", "admin-token-health-24chars!!", "")).build();
     }
 
     @Test
@@ -42,11 +44,19 @@ class HealthControllerTest {
     }
 
     @Test
-    void readinessUpWithDependencyMap() throws Exception {
+    void readinessPublicIsLean() throws Exception {
         mvc.perform(get("/health/ready"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", equalTo("UP")))
                 .andExpect(jsonPath("$.probe", equalTo("readiness")))
+                .andExpect(jsonPath("$.engines").doesNotExist())
+                .andExpect(jsonPath("$.dependencies").doesNotExist());
+    }
+
+    @Test
+    void readinessDetailWithMetricsToken() throws Exception {
+        detailedMvc.perform(get("/health/ready").header("X-Metrics-Token", "scrape-token-health"))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.engines", greaterThanOrEqualTo(0)))
                 .andExpect(jsonPath("$.dependencies.jdbc.status", equalTo("NOT_CONFIGURED")))
                 .andExpect(jsonPath("$.dependencies.redis.status", equalTo("NOT_CONFIGURED")));
@@ -72,22 +82,35 @@ class HealthControllerTest {
                 },
                 "redis",
                 "redis");
-        MockMvc downMvc = standaloneSetup(new HealthController(sessions, instances, deadRedis)).build();
+        MockMvc downMvc = standaloneSetup(new HealthController(
+                sessions, instances, deadRedis, "scrape-token-health", "", "")).build();
         downMvc.perform(get("/health/ready"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.status", equalTo("DOWN")))
+                .andExpect(jsonPath("$.dependencies").doesNotExist());
+        downMvc.perform(get("/health/ready").header("X-Metrics-Token", "scrape-token-health"))
+                .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.dependencies.redis.status", equalTo("DOWN")));
     }
 
     @Test
-    void v2HealthEnvelope() throws Exception {
+    void v2HealthPublicLean() throws Exception {
         mvc.perform(get("/v2/health").header("X-Request-Id", "h1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type", equalTo("health")))
                 .andExpect(jsonPath("$.payload.status", equalTo("UP")))
                 .andExpect(jsonPath("$.payload.uptimeSeconds", greaterThanOrEqualTo(0)))
-                .andExpect(jsonPath("$.payload.dependencies", notNullValue()))
-                .andExpect(jsonPath("$.payload.memory", notNullValue()))
+                .andExpect(jsonPath("$.payload.detail", equalTo(false)))
+                .andExpect(jsonPath("$.payload.dependencies").doesNotExist())
+                .andExpect(jsonPath("$.payload.memory").doesNotExist())
                 .andExpect(jsonPath("$.requestId", equalTo("h1")));
+    }
+
+    @Test
+    void v2HealthDetailWithAdminToken() throws Exception {
+        detailedMvc.perform(get("/v2/health").header("X-Admin-Token", "admin-token-health-24chars!!"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.detail", equalTo(true)))
+                .andExpect(jsonPath("$.payload.memory.maxBytes", greaterThanOrEqualTo(0)));
     }
 }

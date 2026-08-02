@@ -22,7 +22,8 @@ class RedisMarketplaceJobStoreTest {
                 "Downloading…",
                 false,
                 null,
-                System.currentTimeMillis());
+                System.currentTimeMillis(),
+                "session-owner-1");
         a.save(rec);
 
         MarketplaceJobStore.JobRecord loaded = b.load("job-1").orElseThrow();
@@ -30,6 +31,9 @@ class RedisMarketplaceJobStoreTest {
         assertEquals("DOWNLOADING", loaded.phase());
         assertEquals(1024, loaded.bytesRead());
         assertEquals(4096, loaded.bytesTotal());
+        assertEquals("session-owner-1", loaded.ownerSessionId());
+        assertTrue(loaded.ownedBy("session-owner-1"));
+        assertFalse(loaded.ownedBy("other"));
         assertFalse(loaded.cancelRequested());
         assertTrue(b.ids().contains("job-1"));
     }
@@ -39,14 +43,16 @@ class RedisMarketplaceJobStoreTest {
         MemoryRedisOps redis = new MemoryRedisOps();
         RedisMarketplaceJobStore a = new RedisMarketplaceJobStore(redis, "t", 600);
         a.save(new MarketplaceJobStore.JobRecord(
-                "j2", "p", "DOWNLOADING", 0, 0, "go", false, null, System.currentTimeMillis()));
+                "j2", "p", "DOWNLOADING", 0, 0, "go", false, null, System.currentTimeMillis(), null));
         a.save(new MarketplaceJobStore.JobRecord(
-                "j2", "p", "CANCELLED", 0, 0, "Cancel requested", true, null, System.currentTimeMillis()));
+                "j2", "p", "CANCELLED", 0, 0, "Cancel requested", true, null, System.currentTimeMillis(), null));
 
         MarketplaceJobStore.JobRecord loaded = new RedisMarketplaceJobStore(redis, "t", 600)
                 .load("j2").orElseThrow();
         assertEquals("CANCELLED", loaded.phase());
         assertTrue(loaded.cancelRequested());
+        assertNull(loaded.ownerSessionId());
+        assertTrue(loaded.ownedBy("anyone"));
     }
 
     @Test

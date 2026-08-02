@@ -1,16 +1,20 @@
 package com.xai.dungeonmaster.controller;
 
+import com.xai.dungeonmaster.auth.JwtAuthFilter;
+import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.dto.ErrorPayload;
 import com.xai.dungeonmaster.dto.MarketplaceInstallJob;
 import com.xai.dungeonmaster.dto.MarketplaceListing;
 import com.xai.dungeonmaster.dto.MarketplacePayload;
+import com.xai.dungeonmaster.service.MarketplaceJobStore;
 import com.xai.dungeonmaster.service.MarketplaceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,8 +32,8 @@ import java.util.Optional;
  *   <li>{@code GET  /v2/marketplace/{id}} — pack detail</li>
  *   <li>{@code POST /v2/marketplace/{id}/install} — sync install (default)</li>
  *   <li>{@code POST /v2/marketplace/{id}/install?async=true} — background job (202)</li>
- *   <li>{@code GET  /v2/marketplace/jobs/{jobId}} — install progress</li>
- *   <li>{@code DELETE /v2/marketplace/jobs/{jobId}} — cancel install</li>
+ *   <li>{@code GET  /v2/marketplace/jobs/{jobId}} — install progress (owner only)</li>
+ *   <li>{@code DELETE /v2/marketplace/jobs/{jobId}} — cancel install (owner only)</li>
  * </ul>
  */
 @RestController
@@ -52,19 +56,35 @@ public class MarketplaceController {
     @GetMapping("/jobs/{jobId}")
     public ResponseEntity<Envelope<?>> job(
             @PathVariable("jobId") String jobId,
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        Optional<MarketplaceInstallJob> job = marketplace.job(jobId);
-        if (job.isEmpty()) {
+        Optional<MarketplaceJobStore.JobRecord> rec = marketplace.jobRecord(jobId);
+        if (rec.isEmpty()) {
             return ResponseEntity.status(404).body(
                     Envelope.of("error", new ErrorPayload("Unknown install job: " + jobId), requestId));
         }
-        return ResponseEntity.ok(Envelope.of("marketplace_install_job", job.get(), requestId));
+        if (!rec.get().ownedBy(sessionId(session))) {
+            return ResponseEntity.status(403).body(
+                    Envelope.of("error", new ErrorPayload("Install job belongs to another session."), requestId));
+        }
+        Optional<MarketplaceInstallJob> job = marketplace.job(jobId);
+        return ResponseEntity.ok(Envelope.of("marketplace_install_job", job.orElse(null), requestId));
     }
 
     @DeleteMapping("/jobs/{jobId}")
     public ResponseEntity<Envelope<?>> cancelJob(
             @PathVariable("jobId") String jobId,
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        Optional<MarketplaceJobStore.JobRecord> rec = marketplace.jobRecord(jobId);
+        if (rec.isEmpty()) {
+            return ResponseEntity.status(404).body(
+                    Envelope.of("error", new ErrorPayload("Unknown install job: " + jobId), requestId));
+        }
+        if (!rec.get().ownedBy(sessionId(session))) {
+            return ResponseEntity.status(403).body(
+                    Envelope.of("error", new ErrorPayload("Install job belongs to another session."), requestId));
+        }
         if (!marketplace.cancelJob(jobId)) {
             return ResponseEntity.status(404).body(
                     Envelope.of("error", new ErrorPayload("Unknown install job: " + jobId), requestId));
@@ -89,10 +109,11 @@ public class MarketplaceController {
     public ResponseEntity<Envelope<?>> install(
             @PathVariable("id") String id,
             @RequestParam(value = "async", defaultValue = "false") boolean async,
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         if (async) {
             try {
-                MarketplaceInstallJob job = marketplace.startInstallAsync(id);
+                MarketplaceInstallJob job = marketplace.startInstallAsync(id, sessionId(session));
                 return ResponseEntity.accepted()
                         .body(Envelope.of("marketplace_install_job", job, requestId));
             } catch (IllegalArgumentException e) {
@@ -114,5 +135,9 @@ public class MarketplaceController {
         payload.put("marketplace", marketplace.list(null));
         return ResponseEntity.status(result.alreadyInstalled() ? 200 : 201)
                 .body(Envelope.of("marketplace_install", payload, requestId));
+    }
+
+    private static String sessionId(SessionService.Session session) {
+        return session == null ? null : session.id();
     }
 }

@@ -107,4 +107,78 @@ class CatalogControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.type").value("error"));
     }
+
+    @Test
+    void uploadDisabledReturns403() throws Exception {
+        MockMvc gated = standaloneSetup(new CatalogController(
+                new com.xai.dungeonmaster.service.PackUploadService(packsDir.toString()),
+                new com.xai.dungeonmaster.service.PackEntitlementGate(
+                        new com.xai.dungeonmaster.entitlement.EntitlementService()),
+                new com.xai.dungeonmaster.content.SessionPackService(),
+                false, false, "", "")).build();
+        var file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "x.zip", "application/zip", "x".getBytes());
+        gated.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/v2/catalog/packs").file(file))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("error"));
+    }
+
+    @Test
+    void uploadRequireAdminRejectsMissingToken() throws Exception {
+        MockMvc gated = standaloneSetup(new CatalogController(
+                new com.xai.dungeonmaster.service.PackUploadService(packsDir.toString()),
+                new com.xai.dungeonmaster.service.PackEntitlementGate(
+                        new com.xai.dungeonmaster.entitlement.EntitlementService()),
+                new com.xai.dungeonmaster.content.SessionPackService(),
+                true, true, "admin-upload-token-24chars!!", "")).build();
+        var file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "x.zip", "application/zip", "x".getBytes());
+        gated.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/v2/catalog/packs").file(file))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.payload.message").value(
+                        Matchers.containsString("X-Admin-Token")));
+    }
+
+    @Test
+    void uploadRequireAdminAcceptsTokenAndPrevious() throws Exception {
+        MockMvc gated = standaloneSetup(new CatalogController(
+                new com.xai.dungeonmaster.service.PackUploadService(packsDir.toString()),
+                new com.xai.dungeonmaster.service.PackEntitlementGate(
+                        new com.xai.dungeonmaster.entitlement.EntitlementService()),
+                new com.xai.dungeonmaster.content.SessionPackService(),
+                true, true, "admin-upload-token-24chars!!", "previous-upload-token-24ch!!")).build();
+
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(out)) {
+            zos.putNextEntry(new java.util.zip.ZipEntry("pack.yaml"));
+            zos.write("id: \"admin-pack\"\ndisplayName: \"Admin Pack\"\nversion: \"1.0.0\"\n"
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
+        var file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "admin-pack.zip", "application/zip", out.toByteArray());
+
+        gated.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/v2/catalog/packs").file(file)
+                        .header("X-Admin-Token", "admin-upload-token-24chars!!"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.payload.contentPacks[?(@.id=='admin-pack')]").exists());
+
+        out.reset();
+        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(out)) {
+            zos.putNextEntry(new java.util.zip.ZipEntry("pack.yaml"));
+            zos.write("id: \"prev-pack\"\ndisplayName: \"Prev Pack\"\nversion: \"1.0.0\"\n"
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
+        var file2 = new org.springframework.mock.web.MockMultipartFile(
+                "file", "prev-pack.zip", "application/zip", out.toByteArray());
+        gated.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/v2/catalog/packs").file(file2)
+                        .header("X-Admin-Token", "previous-upload-token-24ch!!"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.payload.contentPacks[?(@.id=='prev-pack')]").exists());
+    }
 }
