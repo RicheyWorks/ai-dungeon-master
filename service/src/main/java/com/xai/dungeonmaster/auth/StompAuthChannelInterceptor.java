@@ -1,7 +1,9 @@
 package com.xai.dungeonmaster.auth;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
@@ -20,8 +22,8 @@ import java.util.Optional;
  * attributes so {@code @MessageMapping} handlers can resolve the caller's
  * isolated game engine.
  *
- * Unauthenticated connections are allowed (legacy single-player); they use
- * the process-default engine and {@code /topic/narrative}.
+ * When {@code game.auth.enabled=true}, CONNECT without a valid JWT is rejected.
+ * When auth is off, unauthenticated connections use the process-default engine.
  */
 @Component
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
@@ -31,10 +33,20 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private final JwtService jwt;
     private final SessionService sessions;
+    private final boolean authRequired;
 
-    public StompAuthChannelInterceptor(JwtService jwt, SessionService sessions) {
+    public StompAuthChannelInterceptor(
+            JwtService jwt,
+            SessionService sessions,
+            @Value("${game.auth.enabled:false}") boolean authRequired) {
         this.jwt = jwt;
         this.sessions = sessions;
+        this.authRequired = authRequired;
+    }
+
+    /** Test helper. */
+    public StompAuthChannelInterceptor(JwtService jwt, SessionService sessions) {
+        this(jwt, sessions, false);
     }
 
     @Override
@@ -45,6 +57,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String token = extractToken(accessor);
+            boolean bound = false;
             if (token != null) {
                 Optional<Map<String, Object>> claims = jwt.verify(token);
                 if (claims.isPresent()) {
@@ -53,9 +66,14 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                         Optional<SessionService.Session> session = sessions.touch(sub.toString());
                         if (session.isPresent() && accessor.getSessionAttributes() != null) {
                             accessor.getSessionAttributes().put(SESSION_ID_ATTR, session.get().id());
+                            bound = true;
                         }
                     }
                 }
+            }
+            if (authRequired && !bound) {
+                throw new MessageDeliveryException(
+                        "STOMP CONNECT requires Authorization: Bearer <jwt> when game.auth.enabled=true");
             }
         }
         return message;
@@ -86,7 +104,6 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private static String firstHeader(StompHeaderAccessor accessor, String name) {
         String v = accessor.getFirstNativeHeader(name);
         if (v != null) return v;
-        // Some clients lower-case native headers.
         return accessor.getFirstNativeHeader(name.toLowerCase());
     }
 }
