@@ -275,3 +275,12 @@ Set `false` to restore legacy process-wide toggles (single-player / single-tenan
 - **redis** — hash `{prefix}:session-packs:{sessionId}`
 - **jdbc** — table `dm_session_packs` (auto-created)
 
+## Session hygiene (pack cleanup)
+
+| Property | Default | Meaning |
+|---|---|---|
+| `game.auth.session.hygiene.enabled` | `true` | Periodic idle session purge |
+| `game.auth.session.idle-ttl-seconds` | `86400` (24h) | Last-seen age before expiry |
+| `game.auth.session.hygiene-interval-ms` | `300000` | Reaper interval |
+
+On purge: session row deleted, **session pack overrides cleared**, idle game engine destroyed.

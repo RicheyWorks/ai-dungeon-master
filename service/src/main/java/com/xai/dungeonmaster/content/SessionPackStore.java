@@ -17,4 +17,12 @@ public interface SessionPackStore {
 
     /** Set or clear (null removes) an override. */
     void put(String sessionId, String packId, Boolean enabled);
+
+    /** Drop every override for a session (session expiry / logout). */
+    default void clear(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return;
+        for (String packId : all(sessionId).keySet()) {
+            put(sessionId, packId, null);
+        }
+    }
 }

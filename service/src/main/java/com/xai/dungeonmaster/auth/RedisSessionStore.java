@@ -73,6 +73,16 @@ public final class RedisSessionStore implements SessionStore {
         return redis.smembers(indexKey()).size();
     }
 
+    @Override
+    public void delete(String id) {
+        if (id == null || id.isBlank()) return;
+        redis.del(sessionKey(id));
+        try {
+            redis.srem(indexKey(), id);
+        } catch (Exception ignored) {
+        }
+    }
+
     private String sessionKey(String id) {
         return prefix + ":session:" + id;
     }

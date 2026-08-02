@@ -64,6 +64,39 @@ public class SessionService {
         return store.size();
     }
 
+    /** Drop a session from the store (identity gone; client must re-auth). */
+    public void delete(String id) {
+        if (id == null || id.isBlank()) return;
+        store.delete(id);
+    }
+
+    /**
+     * Remove sessions whose {@link Session#lastSeenEpoch()} is older than
+     * {@code idleTtlSeconds}. Returns how many were deleted. TTL ≤ 0 disables.
+     */
+    public int purgeIdle(long idleTtlSeconds) {
+        return purgeIdle(idleTtlSeconds, Instant.now().getEpochSecond());
+    }
+
+    /** Test hook with injectable clock (epoch seconds). */
+    public int purgeIdle(long idleTtlSeconds, long nowEpochSeconds) {
+        if (idleTtlSeconds <= 0) return 0;
+        long cutoff = nowEpochSeconds - idleTtlSeconds;
+        int removed = 0;
+        for (Session s : store.all()) {
+            if (s != null && s.id() != null && s.lastSeenEpoch() < cutoff) {
+                store.delete(s.id());
+                removed++;
+            }
+        }
+        return removed;
+    }
+
+    /** Snapshot of known sessions (for hygiene that pairs with pack cleanup). */
+    public java.util.Collection<Session> allSessions() {
+        return store.all();
+    }
+
     /** A player session. */
     public static final class Session {
         private final String id;
