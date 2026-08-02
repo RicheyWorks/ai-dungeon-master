@@ -12,16 +12,24 @@ import org.springframework.stereotype.Component;
 public class NarrationRateGuard {
 
     private final RateLimitStore store;
+    private final RateLimitMetrics metrics;
     private final boolean enabled;
     private final int perMinute;
 
     public NarrationRateGuard(
             RateLimitStore store,
+            RateLimitMetrics metrics,
             @Value("${game.rate-limit.enabled:true}") boolean enabled,
             @Value("${game.rate-limit.narrate-per-minute:20}") int perMinute) {
         this.store = store;
+        this.metrics = metrics != null ? metrics : new RateLimitMetrics();
         this.enabled = enabled;
         this.perMinute = Math.max(1, perMinute);
+    }
+
+    /** Test helper without metrics bean. */
+    public NarrationRateGuard(RateLimitStore store, boolean enabled, int perMinute) {
+        this(store, new RateLimitMetrics(), enabled, perMinute);
     }
 
     public int limitPerMinute() {
@@ -40,8 +48,10 @@ public class NarrationRateGuard {
         RateLimitStore.Result hit = store.hit(key);
         long n = hit.count();
         if (n > perMinute) {
+            metrics.rejected("narrate_stomp");
             return Decision.deny(perMinute, hit.retryAfterSeconds());
         }
+        metrics.allowed("narrate_stomp");
         return Decision.allow(perMinute, Math.max(0, perMinute - n));
     }
 

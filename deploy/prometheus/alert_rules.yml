@@ -63,3 +63,18 @@ groups:
         annotations:
           summary: "Heap >90% on {{ $labels.instance }}"
           description: "JVM heap used/max is {{ $value | humanizePercentage }} for 5m."
+
+  - name: dm-rate-limits
+    rules:
+      - alert: DmRateLimitSpike
+        expr: |
+          sum by (instance, bucket) (rate(dm_rate_limit_rejected_total[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-dungeon-master
+        annotations:
+          summary: "Rate-limit rejects elevated ({{ $labels.bucket }}) on {{ $labels.instance }}"
+          description: >
+            dm_rate_limit_rejected_total{bucket="{{ $labels.bucket }}"} is rejecting
+            more than ~1 req/s averaged over 5m — possible abuse or mis-tuned limits.

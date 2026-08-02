@@ -305,3 +305,15 @@ Ops: `GET /v2/admin/session-packs?sessionId=…` lists enabled packs + overrides
 
 Already capped by Spring multipart: `spring.servlet.multipart.max-file-size=10MB`
 (request 12MB). Service also caps uncompressed zip contents (~20 MB).
+
+### Rate-limit metrics
+
+`GET /metrics` exposes process counters:
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `dm_rate_limit_rejected_total` | `bucket` | 429 / STOMP deny count |
+| `dm_rate_limit_allowed_total` | `bucket` | checks that passed |
+
+Buckets include: `session`, `logout`, `admin`, `install`, `narrate`, `narrate_stomp`, `metrics`, `verify`.
+Counters reset on process restart.

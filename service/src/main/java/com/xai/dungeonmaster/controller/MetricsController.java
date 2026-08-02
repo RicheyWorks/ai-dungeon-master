@@ -1,5 +1,6 @@
 package com.xai.dungeonmaster.controller;
 
+import com.xai.dungeonmaster.auth.RateLimitMetrics;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.service.AuthDependencyProbe;
 import com.xai.dungeonmaster.service.GameInstanceService;
@@ -24,15 +25,18 @@ public class MetricsController {
     private final SessionService sessions;
     private final GameInstanceService instances;
     private final AuthDependencyProbe dependencies;
+    private final RateLimitMetrics rateLimits;
     private final long startedAtMs;
 
     public MetricsController(
             SessionService sessions,
             GameInstanceService instances,
-            AuthDependencyProbe dependencies) {
+            AuthDependencyProbe dependencies,
+            RateLimitMetrics rateLimits) {
         this.sessions = sessions;
         this.instances = instances;
         this.dependencies = dependencies;
+        this.rateLimits = rateLimits;
         this.startedAtMs = ManagementFactory.getRuntimeMXBean().getStartTime();
     }
 
@@ -79,6 +83,20 @@ public class MetricsController {
             }
             int up = "UP".equals(status.toString()) ? 1 : 0;
             sampleLabeled(out, "dm_dependency_up", "name=\"" + escapeLabel(e.getKey()) + "\"", up);
+        }
+
+        // Rate-limit outcomes (process counters; reset on restart)
+        helpType(out, "dm_rate_limit_rejected_total", "counter",
+                "Requests rejected by rate limiting (HTTP 429 or STOMP narrate deny)");
+        for (Map.Entry<String, Long> e : rateLimits.rejectedSnapshot().entrySet()) {
+            sampleLabeled(out, "dm_rate_limit_rejected_total",
+                    "bucket=\"" + escapeLabel(e.getKey()) + "\"", e.getValue());
+        }
+        helpType(out, "dm_rate_limit_allowed_total", "counter",
+                "Requests that passed a rate-limit bucket check");
+        for (Map.Entry<String, Long> e : rateLimits.allowedSnapshot().entrySet()) {
+            sampleLabeled(out, "dm_rate_limit_allowed_total",
+                    "bucket=\"" + escapeLabel(e.getKey()) + "\"", e.getValue());
         }
 
         Runtime rt = Runtime.getRuntime();
