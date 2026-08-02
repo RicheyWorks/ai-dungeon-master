@@ -38,19 +38,19 @@ class ReadinessResponseTest : ShouldSpec() {
             //modelInstance.probe shouldBe ("TODO")
         }
 
-        // to test the property `sessions`
+        // to test the property `sessions` - Present only with metrics/admin token.
         should("test sessions") {
             // uncomment below to test the property
             //modelInstance.sessions shouldBe ("TODO")
         }
 
-        // to test the property `engines`
+        // to test the property `engines` - Present only with metrics/admin token.
         should("test engines") {
             // uncomment below to test the property
             //modelInstance.engines shouldBe ("TODO")
         }
 
-        // to test the property `dependencies`
+        // to test the property `dependencies` - Present only with metrics/admin token.
         should("test dependencies") {
             // uncomment below to test the property
             //modelInstance.dependencies shouldBe ("TODO")

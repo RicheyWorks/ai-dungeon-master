@@ -61,5 +61,17 @@ class PackInfoTest : ShouldSpec() {
             //modelInstance.enabled shouldBe ("TODO")
         }
 
+        // to test the property `requiredProductIds` - Store SKUs required to enable this pack.
+        should("test requiredProductIds") {
+            // uncomment below to test the property
+            //modelInstance.requiredProductIds shouldBe ("TODO")
+        }
+
+        // to test the property `locked` - True when the caller cannot enable the pack (missing entitlement).
+        should("test locked") {
+            // uncomment below to test the property
+            //modelInstance.locked shouldBe ("TODO")
+        }
+
     }
 }

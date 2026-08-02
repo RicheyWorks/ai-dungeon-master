@@ -5,6 +5,7 @@
 | Name | Type | Description | Notes |
 | ------------ | ------------- | ------------- | ------------- |
 | **status** | [**inline**](#Status) |  |  |
+| **detail** | **kotlin.Boolean** | false for unauthenticated lean responses; true when sessions/engines/ dependencies/memory are included.  |  |
 | **uptimeSeconds** | **kotlin.Long** |  |  [optional] |
 | **sessions** | **kotlin.Int** |  |  [optional] |
 | **engines** | **kotlin.Int** |  |  [optional] |

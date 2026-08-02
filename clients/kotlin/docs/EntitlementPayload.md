@@ -9,6 +9,7 @@
 | **storefront** | **kotlin.String** |  |  [optional] |
 | **reason** | **kotlin.String** |  |  [optional] |
 | **owned** | **kotlin.collections.List&lt;kotlin.String&gt;** |  |  [optional] |
+| **enabledPacks** | **kotlin.collections.List&lt;kotlin.String&gt;** | Content packs auto-enabled because required SKUs are now owned. |  [optional] |
 
 
 

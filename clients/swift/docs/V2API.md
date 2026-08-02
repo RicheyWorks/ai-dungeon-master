@@ -4,14 +4,21 @@ All URIs are relative to *http://localhost:8080*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**cancelMarketplaceInstallJobV2**](V2API.md#cancelmarketplaceinstalljobv2) | **DELETE** /v2/marketplace/jobs/{jobId} | Cancel an async marketplace install.
 [**createSessionV2**](V2API.md#createsessionv2) | **POST** /v2/session | Mint a guest player session and JWT.
+[**deleteSessionV2**](V2API.md#deletesessionv2) | **DELETE** /v2/session | Explicit logout — drop session, pack prefs, and live engine.
 [**disablePackV2**](V2API.md#disablepackv2) | **POST** /v2/catalog/packs/{id}/disable | Disable a content pack; returns the updated catalog.
 [**enablePackV2**](V2API.md#enablepackv2) | **POST** /v2/catalog/packs/{id}/enable | Enable a content pack; returns the updated catalog.
 [**getCatalogV2**](V2API.md#getcatalogv2) | **GET** /v2/catalog | Installed content packs and registered plugins (mod browser).
-[**getHealthV2**](V2API.md#gethealthv2) | **GET** /v2/health | Health metrics envelope (public, no auth).
+[**getHealthV2**](V2API.md#gethealthv2) | **GET** /v2/health | Health envelope (lean public; detail with ops token).
+[**getMarketplaceInstallJobV2**](V2API.md#getmarketplaceinstalljobv2) | **GET** /v2/marketplace/jobs/{jobId} | Poll async marketplace install progress.
+[**getMarketplacePackV2**](V2API.md#getmarketplacepackv2) | **GET** /v2/marketplace/{id} | Marketplace pack detail.
 [**getSessionMeV2**](V2API.md#getsessionmev2) | **GET** /v2/session/me | Echo the authenticated session (no token reflected).
 [**getStatusV2**](V2API.md#getstatusv2) | **GET** /v2/status | Current game status as a typed envelope.
+[**installMarketplacePackV2**](V2API.md#installmarketplacepackv2) | **POST** /v2/marketplace/{id}/install | Install a marketplace pack into the live catalog.
 [**listEntitlementsV2**](V2API.md#listentitlementsv2) | **GET** /v2/entitlements | List the caller&#39;s owned products.
+[**listMarketplaceV2**](V2API.md#listmarketplacev2) | **GET** /v2/marketplace | List local marketplace content packs.
+[**listStorefrontsV2**](V2API.md#liststorefrontsv2) | **GET** /v2/entitlements/storefronts | List registered storefronts and live/sandbox mode.
 [**loadGameV2**](V2API.md#loadgamev2) | **POST** /v2/load | Restore the caller&#39;s game engine from its save file.
 [**narrateV2**](V2API.md#narratev2) | **POST** /v2/narrate | Generate a dungeon-master narration via the active LLM provider.
 [**resetGameV2**](V2API.md#resetgamev2) | **POST** /v2/reset | Start a fresh engine for the caller (new party/quest).
@@ -20,6 +27,58 @@ Method | HTTP request | Description
 [**uploadPackV2**](V2API.md#uploadpackv2) | **POST** /v2/catalog/packs | Upload and install a content-pack zip at runtime; returns the updated catalog.
 [**verifyReceiptV2**](V2API.md#verifyreceiptv2) | **POST** /v2/entitlements/verify | Validate a purchase receipt via its storefront and grant the entitlement.
 
+
+# **cancelMarketplaceInstallJobV2**
+```swift
+    open class func cancelMarketplaceInstallJobV2(jobId: String, xRequestId: String? = nil, completion: @escaping (_ data: MarketplaceInstallJobEnvelope?, _ error: Error?) -> Void)
+```
+
+Cancel an async marketplace install.
+
+Same ownership ACL as poll — only the owning session may cancel. 
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let jobId = "jobId_example" // String | 
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+
+// Cancel an async marketplace install.
+V2API.cancelMarketplaceInstallJobV2(jobId: jobId, xRequestId: xRequestId) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **jobId** | **String** |  | 
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+
+### Return type
+
+[**MarketplaceInstallJobEnvelope**](MarketplaceInstallJobEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **createSessionV2**
 ```swift
@@ -69,6 +128,56 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteSessionV2**
+```swift
+    open class func deleteSessionV2(xRequestId: String? = nil, completion: @escaping (_ data: DeleteSessionV2200Response?, _ error: Error?) -> Void)
+```
+
+Explicit logout — drop session, pack prefs, and live engine.
+
+Requires a valid Bearer token. Clears session identity, session-scoped pack overrides, and the live game engine. Clients should discard the token afterward. 
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+
+// Explicit logout — drop session, pack prefs, and live engine.
+V2API.deleteSessionV2(xRequestId: xRequestId) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+
+### Return type
+
+[**DeleteSessionV2200Response**](DeleteSessionV2200Response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -223,12 +332,12 @@ No authorization required
 
 # **getHealthV2**
 ```swift
-    open class func getHealthV2(xRequestId: String? = nil, completion: @escaping (_ data: HealthEnvelope?, _ error: Error?) -> Void)
+    open class func getHealthV2(xRequestId: String? = nil, xMetricsToken: String? = nil, xAdminToken: String? = nil, completion: @escaping (_ data: HealthEnvelope?, _ error: Error?) -> Void)
 ```
 
-Health metrics envelope (public, no auth).
+Health envelope (lean public; detail with ops token).
 
-Versioned envelope with uptime, session/engine counts, memory, and the same dependency map as `/health/ready`. Excluded from JWT enforcement. 
+Versioned envelope. Unauthenticated callers get `status`, `uptimeSeconds`, and `detail: false`. With `X-Metrics-Token` or `X-Admin-Token`, includes sessions, engines, dependencies, memory, and `detail: true`. Excluded from JWT enforcement. 
 
 ### Example
 ```swift
@@ -236,9 +345,11 @@ Versioned envelope with uptime, session/engine counts, memory, and the same depe
 import AIDungeonMasterClient
 
 let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+let xMetricsToken = "xMetricsToken_example" // String | Metrics scrape token (`game.metrics.scrape-token`). Alternative to `Authorization: Bearer <token>`. Unlocks readiness/v2 health detail fields.  (optional)
+let xAdminToken = "xAdminToken_example" // String | Ops shared secret (`game.admin.token`). During rotation, `game.admin.token.previous` is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
 
-// Health metrics envelope (public, no auth).
-V2API.getHealthV2(xRequestId: xRequestId) { (response, error) in
+// Health envelope (lean public; detail with ops token).
+V2API.getHealthV2(xRequestId: xRequestId, xMetricsToken: xMetricsToken, xAdminToken: xAdminToken) { (response, error) in
     guard error == nil else {
         print(error)
         return
@@ -255,10 +366,114 @@ V2API.getHealthV2(xRequestId: xRequestId) { (response, error) in
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+ **xMetricsToken** | **String** | Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  | [optional] 
+ **xAdminToken** | **String** | Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  | [optional] 
 
 ### Return type
 
 [**HealthEnvelope**](HealthEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getMarketplaceInstallJobV2**
+```swift
+    open class func getMarketplaceInstallJobV2(jobId: String, xRequestId: String? = nil, completion: @escaping (_ data: MarketplaceInstallJobEnvelope?, _ error: Error?) -> Void)
+```
+
+Poll async marketplace install progress.
+
+Jobs are bound to the session that started them (`POST …/install?async=true`). Other sessions receive **403**. Legacy rows with no owner remain open. 
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let jobId = "jobId_example" // String | 
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+
+// Poll async marketplace install progress.
+V2API.getMarketplaceInstallJobV2(jobId: jobId, xRequestId: xRequestId) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **jobId** | **String** |  | 
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+
+### Return type
+
+[**MarketplaceInstallJobEnvelope**](MarketplaceInstallJobEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getMarketplacePackV2**
+```swift
+    open class func getMarketplacePackV2(id: String, xRequestId: String? = nil, completion: @escaping (_ data: MarketplacePackEnvelope?, _ error: Error?) -> Void)
+```
+
+Marketplace pack detail.
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let id = "id_example" // String | 
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+
+// Marketplace pack detail.
+V2API.getMarketplacePackV2(id: id, xRequestId: xRequestId) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **String** |  | 
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+
+### Return type
+
+[**MarketplacePackEnvelope**](MarketplacePackEnvelope.md)
 
 ### Authorization
 
@@ -367,6 +582,60 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **installMarketplacePackV2**
+```swift
+    open class func installMarketplacePackV2(id: String, xRequestId: String? = nil, async: Bool? = nil, completion: @escaping (_ data: Void?, _ error: Error?) -> Void)
+```
+
+Install a marketplace pack into the live catalog.
+
+Sync by default. Pass `async=true` for background download with progress (`GET /v2/marketplace/jobs/{jobId}`). Async jobs bind to the caller session for poll/cancel ACL. 
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let id = "id_example" // String | 
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+let async = true // Bool | When true, returns 202 + job id for progress polling. (optional) (default to false)
+
+// Install a marketplace pack into the live catalog.
+V2API.installMarketplacePackV2(id: id, xRequestId: xRequestId, async: async) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **String** |  | 
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+ **async** | **Bool** | When true, returns 202 + job id for progress polling. | [optional] [default to false]
+
+### Return type
+
+Void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **listEntitlementsV2**
 ```swift
     open class func listEntitlementsV2(xRequestId: String? = nil, completion: @escaping (_ data: EntitlementEnvelope?, _ error: Error?) -> Void)
@@ -412,6 +681,102 @@ No authorization required
 
  - **Content-Type**: Not defined
  - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **listMarketplaceV2**
+```swift
+    open class func listMarketplaceV2(xRequestId: String? = nil, q: String? = nil, completion: @escaping (_ data: MarketplaceEnvelope?, _ error: Error?) -> Void)
+```
+
+List local marketplace content packs.
+
+Discovers local packs under `game.content.packs.dir` plus optional remote index (`game.marketplace.remote-url`) with install/enabled status from the live catalog. 
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+let q = "q_example" // String | Filter by id, name, or description (optional)
+
+// List local marketplace content packs.
+V2API.listMarketplaceV2(xRequestId: xRequestId, q: q) { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+ **q** | **String** | Filter by id, name, or description | [optional] 
+
+### Return type
+
+[**MarketplaceEnvelope**](MarketplaceEnvelope.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **listStorefrontsV2**
+```swift
+    open class func listStorefrontsV2(completion: @escaping (_ data: Void?, _ error: Error?) -> Void)
+```
+
+List registered storefronts and live/sandbox mode.
+
+### Example
+```swift
+// The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
+import AIDungeonMasterClient
+
+
+// List registered storefronts and live/sandbox mode.
+V2API.listStorefrontsV2() { (response, error) in
+    guard error == nil else {
+        print(error)
+        return
+    }
+
+    if (response) {
+        dump(response)
+    }
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+Void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -663,10 +1028,12 @@ No authorization required
 
 # **uploadPackV2**
 ```swift
-    open class func uploadPackV2(file: URL, xRequestId: String? = nil, replace: Bool? = nil, completion: @escaping (_ data: CatalogEnvelope?, _ error: Error?) -> Void)
+    open class func uploadPackV2(file: URL, xRequestId: String? = nil, xAdminToken: String? = nil, replace: Bool? = nil, completion: @escaping (_ data: CatalogEnvelope?, _ error: Error?) -> Void)
 ```
 
 Upload and install a content-pack zip at runtime; returns the updated catalog.
+
+Multipart zip install. In production, `game.catalog.upload.require-admin=true` so callers must send `X-Admin-Token` (current or previous during rotation). When `game.catalog.upload.enabled=false`, always **403**. 
 
 ### Example
 ```swift
@@ -675,10 +1042,11 @@ import AIDungeonMasterClient
 
 let file = URL(string: "https://example.com")! // URL | Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead.
 let xRequestId = "xRequestId_example" // String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted.  (optional)
+let xAdminToken = "xAdminToken_example" // String | Ops shared secret (`game.admin.token`). During rotation, `game.admin.token.previous` is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
 let replace = true // Bool | Overwrite an already-installed pack with the same id. (optional) (default to false)
 
 // Upload and install a content-pack zip at runtime; returns the updated catalog.
-V2API.uploadPackV2(file: file, xRequestId: xRequestId, replace: replace) { (response, error) in
+V2API.uploadPackV2(file: file, xRequestId: xRequestId, xAdminToken: xAdminToken, replace: replace) { (response, error) in
     guard error == nil else {
         print(error)
         return
@@ -696,6 +1064,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **file** | **URL** | Pack zip — pack.yaml plus optional items/, monsters/, strings/, quests/, campaigns/, npcs/, factions/. Pure data; code-bearing mods use the plugin loader instead. | 
  **xRequestId** | **String** | Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  | [optional] 
+ **xAdminToken** | **String** | Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  | [optional] 
  **replace** | **Bool** | Overwrite an already-installed pack with the same id. | [optional] [default to false]
 
 ### Return type

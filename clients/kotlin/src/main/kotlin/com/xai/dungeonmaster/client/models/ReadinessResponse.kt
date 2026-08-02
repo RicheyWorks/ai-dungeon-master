@@ -25,9 +25,9 @@ import com.squareup.moshi.JsonClass
  *
  * @param status 
  * @param probe 
- * @param sessions 
- * @param engines 
- * @param dependencies 
+ * @param sessions Present only with metrics/admin token.
+ * @param engines Present only with metrics/admin token.
+ * @param dependencies Present only with metrics/admin token.
  */
 
 
@@ -39,12 +39,15 @@ data class ReadinessResponse (
     @Json(name = "probe")
     val probe: ReadinessResponse.Probe,
 
+    /* Present only with metrics/admin token. */
     @Json(name = "sessions")
     val sessions: kotlin.Int? = null,
 
+    /* Present only with metrics/admin token. */
     @Json(name = "engines")
     val engines: kotlin.Int? = null,
 
+    /* Present only with metrics/admin token. */
     @Json(name = "dependencies")
     val dependencies: kotlin.collections.Map<kotlin.String, DependencyCheck>? = null
 

@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * AI Dungeon Master API
- * HTTP API for the AI Dungeon Master engine.  The **v2** API (`/v2/_*`) wraps every response in a typed, versioned `Envelope` — `{ type, version, payload, requestId }` — so native clients get a stable, self-describing contract. The legacy `/api/game/_*` endpoints remain for existing clients and are documented under the `legacy` tag.  Public **health** probes (`/health`, `/health/ready`, `/v2/health`) need no auth. 
+ * HTTP API for the AI Dungeon Master engine.  The **v2** API (`/v2/_*`) wraps every response in a typed, versioned `Envelope` — `{ type, version, payload, requestId }` — so native clients get a stable, self-describing contract. The legacy `/api/game/_*` endpoints remain for existing clients and are documented under the `legacy` tag.  Public **health** probes (`/health`, `/health/ready`, `/v2/health`) need no auth for lean status. Session counts, dependency maps, and memory detail require `X-Metrics-Token` or `X-Admin-Token`. `GET /metrics` requires the scrape token when configured (always in production). 
  *
  * The version of the OpenAPI document: 2.0.0
  * 
@@ -49,6 +49,12 @@ export interface EntitlementPayload {
      * @memberof EntitlementPayload
      */
     owned?: Array<string>;
+    /**
+     * Content packs auto-enabled because required SKUs are now owned.
+     * @type {Array<string>}
+     * @memberof EntitlementPayload
+     */
+    enabledPacks?: Array<string>;
 }
 
 /**
@@ -73,6 +79,7 @@ export function EntitlementPayloadFromJSONTyped(json: any, ignoreDiscriminator: 
         'storefront': json['storefront'] == null ? undefined : json['storefront'],
         'reason': json['reason'] == null ? undefined : json['reason'],
         'owned': json['owned'] == null ? undefined : json['owned'],
+        'enabledPacks': json['enabledPacks'] == null ? undefined : json['enabledPacks'],
     };
 }
 
@@ -87,6 +94,7 @@ export function EntitlementPayloadToJSON(value?: EntitlementPayload | null): any
         'storefront': value['storefront'],
         'reason': value['reason'],
         'owned': value['owned'],
+        'enabledPacks': value['enabledPacks'],
     };
 }
 

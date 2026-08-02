@@ -1,8 +1,10 @@
 .gitignore
+.openapi-generator-ignore
 .swiftformat
 AIDungeonMasterClient.podspec
 AIDungeonMasterClient/Classes/OpenAPIs/APIHelper.swift
 AIDungeonMasterClient/Classes/OpenAPIs/APIs.swift
+AIDungeonMasterClient/Classes/OpenAPIs/APIs/AdminAPI.swift
 AIDungeonMasterClient/Classes/OpenAPIs/APIs/HealthAPI.swift
 AIDungeonMasterClient/Classes/OpenAPIs/APIs/LegacyAPI.swift
 AIDungeonMasterClient/Classes/OpenAPIs/APIs/V2API.swift
@@ -15,6 +17,8 @@ AIDungeonMasterClient/Classes/OpenAPIs/Models.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/ActionRequest.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/CatalogEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/CatalogPayload.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/DeleteSessionV2200Response.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/DeleteSessionV2200ResponsePayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/DependencyCheck.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/EntitlementEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/EntitlementPayload.swift
@@ -30,6 +34,12 @@ AIDungeonMasterClient/Classes/OpenAPIs/Models/HealthEnvelope.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/HealthPayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/HealthPayloadMemory.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/LivenessResponse.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/MarketplaceEnvelope.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/MarketplaceInstallJob.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/MarketplaceInstallJobEnvelope.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/MarketplaceListing.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/MarketplacePackEnvelope.swift
+AIDungeonMasterClient/Classes/OpenAPIs/Models/MarketplacePayload.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/MemberState.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrateRequest.swift
 AIDungeonMasterClient/Classes/OpenAPIs/Models/NarrationInfo.swift
@@ -51,8 +61,11 @@ Cartfile
 Package.swift
 README.md
 docs/ActionRequest.md
+docs/AdminAPI.md
 docs/CatalogEnvelope.md
 docs/CatalogPayload.md
+docs/DeleteSessionV2200Response.md
+docs/DeleteSessionV2200ResponsePayload.md
 docs/DependencyCheck.md
 docs/EntitlementEnvelope.md
 docs/EntitlementPayload.md
@@ -70,6 +83,12 @@ docs/HealthPayload.md
 docs/HealthPayloadMemory.md
 docs/LegacyAPI.md
 docs/LivenessResponse.md
+docs/MarketplaceEnvelope.md
+docs/MarketplaceInstallJob.md
+docs/MarketplaceInstallJobEnvelope.md
+docs/MarketplaceListing.md
+docs/MarketplacePackEnvelope.md
+docs/MarketplacePayload.md
 docs/MemberState.md
 docs/NarrateRequest.md
 docs/NarrationInfo.md

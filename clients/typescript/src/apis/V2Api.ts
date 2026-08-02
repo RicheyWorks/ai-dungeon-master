@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * AI Dungeon Master API
- * HTTP API for the AI Dungeon Master engine.  The **v2** API (`/v2/_*`) wraps every response in a typed, versioned `Envelope` — `{ type, version, payload, requestId }` — so native clients get a stable, self-describing contract. The legacy `/api/game/_*` endpoints remain for existing clients and are documented under the `legacy` tag. 
+ * HTTP API for the AI Dungeon Master engine.  The **v2** API (`/v2/_*`) wraps every response in a typed, versioned `Envelope` — `{ type, version, payload, requestId }` — so native clients get a stable, self-describing contract. The legacy `/api/game/_*` endpoints remain for existing clients and are documented under the `legacy` tag.  Public **health** probes (`/health`, `/health/ready`, `/v2/health`) need no auth for lean status. Session counts, dependency maps, and memory detail require `X-Metrics-Token` or `X-Admin-Token`. `GET /metrics` requires the scrape token when configured (always in production). 
  *
  * The version of the OpenAPI document: 2.0.0
  * 
@@ -17,11 +17,19 @@ import * as runtime from '../runtime';
 import type {
   ActionRequest,
   CatalogEnvelope,
+  DeleteSessionV2200Response,
   EntitlementEnvelope,
   ErrorEnvelope,
+  GameSaveEnvelope,
   GameStatusEnvelope,
+  HealthEnvelope,
+  MarketplaceEnvelope,
+  MarketplaceInstallJobEnvelope,
+  MarketplacePackEnvelope,
   NarrateRequest,
   NarrativeEnvelope,
+  SessionEnvelope,
+  SessionRequest,
   VerifyReceiptRequest,
 } from '../models/index';
 import {
@@ -29,19 +37,49 @@ import {
     ActionRequestToJSON,
     CatalogEnvelopeFromJSON,
     CatalogEnvelopeToJSON,
+    DeleteSessionV2200ResponseFromJSON,
+    DeleteSessionV2200ResponseToJSON,
     EntitlementEnvelopeFromJSON,
     EntitlementEnvelopeToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
+    GameSaveEnvelopeFromJSON,
+    GameSaveEnvelopeToJSON,
     GameStatusEnvelopeFromJSON,
     GameStatusEnvelopeToJSON,
+    HealthEnvelopeFromJSON,
+    HealthEnvelopeToJSON,
+    MarketplaceEnvelopeFromJSON,
+    MarketplaceEnvelopeToJSON,
+    MarketplaceInstallJobEnvelopeFromJSON,
+    MarketplaceInstallJobEnvelopeToJSON,
+    MarketplacePackEnvelopeFromJSON,
+    MarketplacePackEnvelopeToJSON,
     NarrateRequestFromJSON,
     NarrateRequestToJSON,
     NarrativeEnvelopeFromJSON,
     NarrativeEnvelopeToJSON,
+    SessionEnvelopeFromJSON,
+    SessionEnvelopeToJSON,
+    SessionRequestFromJSON,
+    SessionRequestToJSON,
     VerifyReceiptRequestFromJSON,
     VerifyReceiptRequestToJSON,
 } from '../models/index';
+
+export interface CancelMarketplaceInstallJobV2Request {
+    jobId: string;
+    xRequestId?: string;
+}
+
+export interface CreateSessionV2Request {
+    xRequestId?: string;
+    sessionRequest?: SessionRequest;
+}
+
+export interface DeleteSessionV2Request {
+    xRequestId?: string;
+}
 
 export interface DisablePackV2Request {
     id: string;
@@ -57,11 +95,46 @@ export interface GetCatalogV2Request {
     xRequestId?: string;
 }
 
+export interface GetHealthV2Request {
+    xRequestId?: string;
+    xMetricsToken?: string;
+    xAdminToken?: string;
+}
+
+export interface GetMarketplaceInstallJobV2Request {
+    jobId: string;
+    xRequestId?: string;
+}
+
+export interface GetMarketplacePackV2Request {
+    id: string;
+    xRequestId?: string;
+}
+
+export interface GetSessionMeV2Request {
+    xRequestId?: string;
+}
+
 export interface GetStatusV2Request {
     xRequestId?: string;
 }
 
+export interface InstallMarketplacePackV2Request {
+    id: string;
+    xRequestId?: string;
+    async?: boolean;
+}
+
 export interface ListEntitlementsV2Request {
+    xRequestId?: string;
+}
+
+export interface ListMarketplaceV2Request {
+    xRequestId?: string;
+    q?: string;
+}
+
+export interface LoadGameV2Request {
     xRequestId?: string;
 }
 
@@ -70,9 +143,24 @@ export interface NarrateV2Request {
     narrateRequest?: NarrateRequest;
 }
 
+export interface ResetGameV2Request {
+    xRequestId?: string;
+}
+
+export interface SaveGameV2Request {
+    xRequestId?: string;
+}
+
 export interface SubmitActionV2Request {
     actionRequest: ActionRequest;
     xRequestId?: string;
+}
+
+export interface UploadPackV2Request {
+    file: Blob;
+    xRequestId?: string;
+    xAdminToken?: string;
+    replace?: boolean;
 }
 
 export interface VerifyReceiptV2Request {
@@ -86,36 +174,110 @@ export interface VerifyReceiptV2Request {
 export class V2Api extends runtime.BaseAPI {
 
     /**
-     * Explicit logout — drop session, pack prefs, and live engine.
-     * DELETE /v2/session
+     * Same ownership ACL as poll — only the owning session may cancel. 
+     * Cancel an async marketplace install.
      */
-    async deleteSessionV2Raw(requestParameters: DeleteSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+    async cancelMarketplaceInstallJobV2Raw(requestParameters: CancelMarketplaceInstallJobV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MarketplaceInstallJobEnvelope>> {
+        if (requestParameters['jobId'] == null) {
+            throw new runtime.RequiredError(
+                'jobId',
+                'Required parameter "jobId" was null or undefined when calling cancelMarketplaceInstallJobV2().'
+            );
+        }
+
         const queryParameters: any = {};
+
         const headerParameters: runtime.HTTPHeaders = {};
+
         if (requestParameters['xRequestId'] != null) {
             headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
         }
-        if (this.configuration && this.configuration.accessToken) {
-            const token = this.configuration.accessToken;
-            const tokenString = await token("bearer", []);
-            if (tokenString) {
-                headerParameters["Authorization"] = `Bearer ${tokenString}`;
-            }
+
+        const response = await this.request({
+            path: `/v2/marketplace/jobs/{jobId}`.replace(`{${"jobId"}}`, encodeURIComponent(String(requestParameters['jobId']))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MarketplaceInstallJobEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Same ownership ACL as poll — only the owning session may cancel. 
+     * Cancel an async marketplace install.
+     */
+    async cancelMarketplaceInstallJobV2(requestParameters: CancelMarketplaceInstallJobV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MarketplaceInstallJobEnvelope> {
+        const response = await this.cancelMarketplaceInstallJobV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Public endpoint. Returns a session id plus a Bearer token used on all subsequent `/v2/_*` calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
+     * Mint a guest player session and JWT.
+     */
+    async createSessionV2Raw(requestParameters: CreateSessionV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SessionEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
         }
+
+        const response = await this.request({
+            path: `/v2/session`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: SessionRequestToJSON(requestParameters['sessionRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SessionEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Public endpoint. Returns a session id plus a Bearer token used on all subsequent `/v2/_*` calls (and as a STOMP CONNECT header for WebSocket). When multi-player isolation is enabled on the server, each session gets its own game engine. 
+     * Mint a guest player session and JWT.
+     */
+    async createSessionV2(requestParameters: CreateSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SessionEnvelope> {
+        const response = await this.createSessionV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Requires a valid Bearer token. Clears session identity, session-scoped pack overrides, and the live game engine. Clients should discard the token afterward. 
+     * Explicit logout — drop session, pack prefs, and live engine.
+     */
+    async deleteSessionV2Raw(requestParameters: DeleteSessionV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<DeleteSessionV2200Response>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
         const response = await this.request({
             path: `/v2/session`,
             method: 'DELETE',
             headers: headerParameters,
             query: queryParameters,
         }, initOverrides);
-        return new runtime.JSONApiResponse<any>(response);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => DeleteSessionV2200ResponseFromJSON(jsonValue));
     }
 
-    async deleteSessionV2(requestParameters: DeleteSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+    /**
+     * Requires a valid Bearer token. Clears session identity, session-scoped pack overrides, and the live game engine. Clients should discard the token afterward. 
+     * Explicit logout — drop session, pack prefs, and live engine.
+     */
+    async deleteSessionV2(requestParameters: DeleteSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<DeleteSessionV2200Response> {
         const response = await this.deleteSessionV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
-
 
     /**
      * Disable a content pack; returns the updated catalog.
@@ -222,6 +384,152 @@ export class V2Api extends runtime.BaseAPI {
     }
 
     /**
+     * Versioned envelope. Unauthenticated callers get `status`, `uptimeSeconds`, and `detail: false`. With `X-Metrics-Token` or `X-Admin-Token`, includes sessions, engines, dependencies, memory, and `detail: true`. Excluded from JWT enforcement. 
+     * Health envelope (lean public; detail with ops token).
+     */
+    async getHealthV2Raw(requestParameters: GetHealthV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<HealthEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        if (requestParameters['xMetricsToken'] != null) {
+            headerParameters['X-Metrics-Token'] = String(requestParameters['xMetricsToken']);
+        }
+
+        if (requestParameters['xAdminToken'] != null) {
+            headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
+        }
+
+        const response = await this.request({
+            path: `/v2/health`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => HealthEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Versioned envelope. Unauthenticated callers get `status`, `uptimeSeconds`, and `detail: false`. With `X-Metrics-Token` or `X-Admin-Token`, includes sessions, engines, dependencies, memory, and `detail: true`. Excluded from JWT enforcement. 
+     * Health envelope (lean public; detail with ops token).
+     */
+    async getHealthV2(requestParameters: GetHealthV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<HealthEnvelope> {
+        const response = await this.getHealthV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Jobs are bound to the session that started them (`POST …/install?async=true`). Other sessions receive **403**. Legacy rows with no owner remain open. 
+     * Poll async marketplace install progress.
+     */
+    async getMarketplaceInstallJobV2Raw(requestParameters: GetMarketplaceInstallJobV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MarketplaceInstallJobEnvelope>> {
+        if (requestParameters['jobId'] == null) {
+            throw new runtime.RequiredError(
+                'jobId',
+                'Required parameter "jobId" was null or undefined when calling getMarketplaceInstallJobV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/marketplace/jobs/{jobId}`.replace(`{${"jobId"}}`, encodeURIComponent(String(requestParameters['jobId']))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MarketplaceInstallJobEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Jobs are bound to the session that started them (`POST …/install?async=true`). Other sessions receive **403**. Legacy rows with no owner remain open. 
+     * Poll async marketplace install progress.
+     */
+    async getMarketplaceInstallJobV2(requestParameters: GetMarketplaceInstallJobV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MarketplaceInstallJobEnvelope> {
+        const response = await this.getMarketplaceInstallJobV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Marketplace pack detail.
+     */
+    async getMarketplacePackV2Raw(requestParameters: GetMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MarketplacePackEnvelope>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling getMarketplacePackV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/marketplace/{id}`.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id']))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MarketplacePackEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Marketplace pack detail.
+     */
+    async getMarketplacePackV2(requestParameters: GetMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MarketplacePackEnvelope> {
+        const response = await this.getMarketplacePackV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Echo the authenticated session (no token reflected).
+     */
+    async getSessionMeV2Raw(requestParameters: GetSessionMeV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SessionEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/session/me`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SessionEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Echo the authenticated session (no token reflected).
+     */
+    async getSessionMeV2(requestParameters: GetSessionMeV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SessionEnvelope> {
+        const response = await this.getSessionMeV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Current game status as a typed envelope.
      */
     async getStatusV2Raw(requestParameters: GetStatusV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GameStatusEnvelope>> {
@@ -249,6 +557,48 @@ export class V2Api extends runtime.BaseAPI {
     async getStatusV2(requestParameters: GetStatusV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameStatusEnvelope> {
         const response = await this.getStatusV2Raw(requestParameters, initOverrides);
         return await response.value();
+    }
+
+    /**
+     * Sync by default. Pass `async=true` for background download with progress (`GET /v2/marketplace/jobs/{jobId}`). Async jobs bind to the caller session for poll/cancel ACL. 
+     * Install a marketplace pack into the live catalog.
+     */
+    async installMarketplacePackV2Raw(requestParameters: InstallMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling installMarketplacePackV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['async'] != null) {
+            queryParameters['async'] = requestParameters['async'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/marketplace/{id}/install`.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * Sync by default. Pass `async=true` for background download with progress (`GET /v2/marketplace/jobs/{jobId}`). Async jobs bind to the caller session for poll/cancel ACL. 
+     * Install a marketplace pack into the live catalog.
+     */
+    async installMarketplacePackV2(requestParameters: InstallMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.installMarketplacePackV2Raw(requestParameters, initOverrides);
     }
 
     /**
@@ -282,6 +632,97 @@ export class V2Api extends runtime.BaseAPI {
     }
 
     /**
+     * Discovers local packs under `game.content.packs.dir` plus optional remote index (`game.marketplace.remote-url`) with install/enabled status from the live catalog. 
+     * List local marketplace content packs.
+     */
+    async listMarketplaceV2Raw(requestParameters: ListMarketplaceV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MarketplaceEnvelope>> {
+        const queryParameters: any = {};
+
+        if (requestParameters['q'] != null) {
+            queryParameters['q'] = requestParameters['q'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/marketplace`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MarketplaceEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Discovers local packs under `game.content.packs.dir` plus optional remote index (`game.marketplace.remote-url`) with install/enabled status from the live catalog. 
+     * List local marketplace content packs.
+     */
+    async listMarketplaceV2(requestParameters: ListMarketplaceV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MarketplaceEnvelope> {
+        const response = await this.listMarketplaceV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * List registered storefronts and live/sandbox mode.
+     */
+    async listStorefrontsV2Raw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/v2/entitlements/storefronts`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * List registered storefronts and live/sandbox mode.
+     */
+    async listStorefrontsV2(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.listStorefrontsV2Raw(initOverrides);
+    }
+
+    /**
+     * Restore the caller\'s game engine from its save file.
+     */
+    async loadGameV2Raw(requestParameters: LoadGameV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GameStatusEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/load`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GameStatusEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Restore the caller\'s game engine from its save file.
+     */
+    async loadGameV2(requestParameters: LoadGameV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameStatusEnvelope> {
+        const response = await this.loadGameV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Generate a dungeon-master narration via the active LLM provider.
      */
     async narrateV2Raw(requestParameters: NarrateV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<NarrativeEnvelope>> {
@@ -311,6 +752,68 @@ export class V2Api extends runtime.BaseAPI {
      */
     async narrateV2(requestParameters: NarrateV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<NarrativeEnvelope> {
         const response = await this.narrateV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Start a fresh engine for the caller (new party/quest).
+     */
+    async resetGameV2Raw(requestParameters: ResetGameV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GameStatusEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/reset`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GameStatusEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Start a fresh engine for the caller (new party/quest).
+     */
+    async resetGameV2(requestParameters: ResetGameV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameStatusEnvelope> {
+        const response = await this.resetGameV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Authenticated callers save under `game.saves.dir/{sessionId}.json`. Unauthenticated callers share the process-default engine and save as `default.json`. Each authenticated session has its own engine instance. 
+     * Persist the caller\'s game engine to a session-scoped save file.
+     */
+    async saveGameV2Raw(requestParameters: SaveGameV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GameSaveEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/save`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GameSaveEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Authenticated callers save under `game.saves.dir/{sessionId}.json`. Unauthenticated callers share the process-default engine and save as `default.json`. Each authenticated session has its own engine instance. 
+     * Persist the caller\'s game engine to a session-scoped save file.
+     */
+    async saveGameV2(requestParameters: SaveGameV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameSaveEnvelope> {
+        const response = await this.saveGameV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -355,6 +858,74 @@ export class V2Api extends runtime.BaseAPI {
     }
 
     /**
+     * Multipart zip install. In production, `game.catalog.upload.require-admin=true` so callers must send `X-Admin-Token` (current or previous during rotation). When `game.catalog.upload.enabled=false`, always **403**. 
+     * Upload and install a content-pack zip at runtime; returns the updated catalog.
+     */
+    async uploadPackV2Raw(requestParameters: UploadPackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CatalogEnvelope>> {
+        if (requestParameters['file'] == null) {
+            throw new runtime.RequiredError(
+                'file',
+                'Required parameter "file" was null or undefined when calling uploadPackV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['replace'] != null) {
+            queryParameters['replace'] = requestParameters['replace'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        if (requestParameters['xAdminToken'] != null) {
+            headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
+        }
+
+        const consumes: runtime.Consume[] = [
+            { contentType: 'multipart/form-data' },
+        ];
+        // @ts-ignore: canConsumeForm may be unused
+        const canConsumeForm = runtime.canConsumeForm(consumes);
+
+        let formParams: { append(param: string, value: any): any };
+        let useForm = false;
+        // use FormData to transmit files using content-type "multipart/form-data"
+        useForm = canConsumeForm;
+        if (useForm) {
+            formParams = new FormData();
+        } else {
+            formParams = new URLSearchParams();
+        }
+
+        if (requestParameters['file'] != null) {
+            formParams.append('file', requestParameters['file'] as any);
+        }
+
+        const response = await this.request({
+            path: `/v2/catalog/packs`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: formParams,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CatalogEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Multipart zip install. In production, `game.catalog.upload.require-admin=true` so callers must send `X-Admin-Token` (current or previous during rotation). When `game.catalog.upload.enabled=false`, always **403**. 
+     * Upload and install a content-pack zip at runtime; returns the updated catalog.
+     */
+    async uploadPackV2(requestParameters: UploadPackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CatalogEnvelope> {
+        const response = await this.uploadPackV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Validate a purchase receipt via its storefront and grant the entitlement.
      */
     async verifyReceiptV2Raw(requestParameters: VerifyReceiptV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<EntitlementEnvelope>> {
@@ -394,9 +965,4 @@ export class V2Api extends runtime.BaseAPI {
         return await response.value();
     }
 
-}
-
-
-export interface DeleteSessionV2Request {
-    xRequestId?: string;
 }

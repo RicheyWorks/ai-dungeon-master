@@ -1,6 +1,8 @@
 package com.xai.dungeonmaster.controller;
 
+import com.xai.dungeonmaster.auth.AdminAudit;
 import com.xai.dungeonmaster.auth.JwtAuthFilter;
+import com.xai.dungeonmaster.auth.RateLimitFilter;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.dto.CatalogPayload;
 import com.xai.dungeonmaster.dto.Envelope;
@@ -21,6 +23,7 @@ import com.xai.dungeonmaster.plugin.StorefrontRegistry;
 import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.service.PackEntitlementGate;
 import com.xai.dungeonmaster.service.PackUploadService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -95,13 +98,18 @@ public class CatalogController {
             @RequestParam(value = "replace", defaultValue = "false") boolean replace,
             @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
             @RequestHeader(value = "X-Admin-Token", required = false) String adminHeader,
-            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        String ip = request == null ? "-" : RateLimitFilter.clientIp(request, false);
         if (!uploadEnabled) {
+            AdminAudit.log("disabled", "/v2/catalog/packs", ip, requestId, "upload_disabled");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                     Envelope.of("error", new ErrorPayload(
                             "Pack upload is disabled (game.catalog.upload.enabled=false)."), requestId));
         }
         if (uploadRequireAdmin && !adminAccepted(adminHeader)) {
+            AdminAudit.log("unauthorized", "/v2/catalog/packs", ip, requestId,
+                    "token=" + AdminAudit.tokenFingerprint(adminHeader));
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                     Envelope.of("error", new ErrorPayload(
                             "Pack upload requires a valid X-Admin-Token."), requestId));
@@ -112,6 +120,10 @@ public class CatalogController {
             if (packGate.isGated(installed.pack().id())) {
                 ContentRegistry.setEnabled(installed.pack().id(), false);
             }
+            AdminAudit.log("ok", "/v2/catalog/packs", ip, requestId,
+                    "packId=" + installed.pack().id()
+                            + " replaced=" + installed.replaced()
+                            + " token=" + AdminAudit.tokenFingerprint(adminHeader));
             return ResponseEntity.status(installed.replaced() ? 200 : 201)
                     .body(Envelope.of("catalog", buildPayload(session == null ? null : session.id()), requestId));
         } catch (PackUploadService.PackUploadException e) {
@@ -200,14 +212,20 @@ public class CatalogController {
         return new CatalogPayload(packs, plugins, narration);
     }
 
+    private static List<String> sorted(Collection<String> ids) {
+        List<String> list = new ArrayList<>(ids);
+        list.sort(String.CASE_INSENSITIVE_ORDER);
+        return list;
+    }
+
     private boolean adminAccepted(String presented) {
         if (presented == null || presented.isBlank()) return false;
         String t = presented.trim();
-        if (tokenEquals(adminToken, t)) return true;
-        return !previousAdminToken.isEmpty() && tokenEquals(previousAdminToken, t);
+        if (tokenOk(adminToken, t)) return true;
+        return !previousAdminToken.isEmpty() && tokenOk(previousAdminToken, t);
     }
 
-    private static boolean tokenEquals(String expected, String actual) {
+    private static boolean tokenOk(String expected, String actual) {
         if (expected == null || expected.isEmpty() || actual == null) return false;
         byte[] a = expected.getBytes(StandardCharsets.UTF_8);
         byte[] b = actual.getBytes(StandardCharsets.UTF_8);
@@ -216,11 +234,5 @@ public class CatalogController {
             return false;
         }
         return MessageDigest.isEqual(a, b);
-    }
-
-    private static List<String> sorted(Collection<String> ids) {
-        List<String> list = new ArrayList<>(ids);
-        list.sort(String.CASE_INSENSITIVE_ORDER);
-        return list;
     }
 }

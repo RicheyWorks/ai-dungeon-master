@@ -48,7 +48,7 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
 
     /**
      * Liveness probe — process is accepting HTTP.
-     * Always returns 200 while the JVM is up. Does **not** check JDBC/Redis. Use &#x60;/health/ready&#x60; for dependency-aware readiness. 
+     * Always returns 200 while the JVM is up. Does **not** check JDBC/Redis. Use &#x60;/health/ready&#x60; for dependency-aware readiness. Always lean (no recon fields). 
      * @return LivenessResponse
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
@@ -78,7 +78,7 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
 
     /**
      * Liveness probe — process is accepting HTTP.
-     * Always returns 200 while the JVM is up. Does **not** check JDBC/Redis. Use &#x60;/health/ready&#x60; for dependency-aware readiness. 
+     * Always returns 200 while the JVM is up. Does **not** check JDBC/Redis. Use &#x60;/health/ready&#x60; for dependency-aware readiness. Always lean (no recon fields). 
      * @return ApiResponse<LivenessResponse?>
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
@@ -115,8 +115,85 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
     }
 
     /**
+     * Prometheus text exposition for scrapers.
+     * Plaintext metrics (&#x60;text/plain&#x60;). When &#x60;game.metrics.scrape-token&#x60; is set (required in production), scrapers must send &#x60;X-Metrics-Token&#x60; or &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Prefer private-network scrape. 
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param authorization Bearer scrape token (alternative to X-Metrics-Token). (optional)
+     * @return kotlin.String
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun getPrometheusMetrics(xMetricsToken: kotlin.String? = null, authorization: kotlin.String? = null) : kotlin.String {
+        val localVarResponse = getPrometheusMetricsWithHttpInfo(xMetricsToken = xMetricsToken, authorization = authorization)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as kotlin.String
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Prometheus text exposition for scrapers.
+     * Plaintext metrics (&#x60;text/plain&#x60;). When &#x60;game.metrics.scrape-token&#x60; is set (required in production), scrapers must send &#x60;X-Metrics-Token&#x60; or &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Prefer private-network scrape. 
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param authorization Bearer scrape token (alternative to X-Metrics-Token). (optional)
+     * @return ApiResponse<kotlin.String?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun getPrometheusMetricsWithHttpInfo(xMetricsToken: kotlin.String?, authorization: kotlin.String?) : ApiResponse<kotlin.String?> {
+        val localVariableConfig = getPrometheusMetricsRequestConfig(xMetricsToken = xMetricsToken, authorization = authorization)
+
+        return request<Unit, kotlin.String>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation getPrometheusMetrics
+     *
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param authorization Bearer scrape token (alternative to X-Metrics-Token). (optional)
+     * @return RequestConfig
+     */
+    fun getPrometheusMetricsRequestConfig(xMetricsToken: kotlin.String?, authorization: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xMetricsToken?.apply { localVariableHeaders["X-Metrics-Token"] = this.toString() }
+        authorization?.apply { localVariableHeaders["Authorization"] = this.toString() }
+        
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/metrics",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
      * Readiness probe — configured auth backends reachable.
-     * Probes JDBC, Redis, and/or file stores only when selected via &#x60;game.auth.*.store&#x60;. Returns **503** when a required dependency is DOWN. 
+     * Probes JDBC, Redis, and/or file stores only when selected via &#x60;game.auth.*.store&#x60;. Returns **503** when a required dependency is DOWN. Public responses are lean (&#x60;status&#x60; + &#x60;probe&#x60;). Session/engine counts and the dependency map require &#x60;X-Metrics-Token&#x60; or &#x60;X-Admin-Token&#x60;. 
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @return ReadinessResponse
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
@@ -126,8 +203,8 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
-    fun getReadiness() : ReadinessResponse {
-        val localVarResponse = getReadinessWithHttpInfo()
+    fun getReadiness(xMetricsToken: kotlin.String? = null, xAdminToken: kotlin.String? = null) : ReadinessResponse {
+        val localVarResponse = getReadinessWithHttpInfo(xMetricsToken = xMetricsToken, xAdminToken = xAdminToken)
 
         return when (localVarResponse.responseType) {
             ResponseType.Success -> (localVarResponse as Success<*>).data as ReadinessResponse
@@ -146,15 +223,17 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
 
     /**
      * Readiness probe — configured auth backends reachable.
-     * Probes JDBC, Redis, and/or file stores only when selected via &#x60;game.auth.*.store&#x60;. Returns **503** when a required dependency is DOWN. 
+     * Probes JDBC, Redis, and/or file stores only when selected via &#x60;game.auth.*.store&#x60;. Returns **503** when a required dependency is DOWN. Public responses are lean (&#x60;status&#x60; + &#x60;probe&#x60;). Session/engine counts and the dependency map require &#x60;X-Metrics-Token&#x60; or &#x60;X-Admin-Token&#x60;. 
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @return ApiResponse<ReadinessResponse?>
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class)
-    fun getReadinessWithHttpInfo() : ApiResponse<ReadinessResponse?> {
-        val localVariableConfig = getReadinessRequestConfig()
+    fun getReadinessWithHttpInfo(xMetricsToken: kotlin.String?, xAdminToken: kotlin.String?) : ApiResponse<ReadinessResponse?> {
+        val localVariableConfig = getReadinessRequestConfig(xMetricsToken = xMetricsToken, xAdminToken = xAdminToken)
 
         return request<Unit, ReadinessResponse>(
             localVariableConfig
@@ -164,12 +243,16 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
     /**
      * To obtain the request config of the operation getReadiness
      *
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @return RequestConfig
      */
-    fun getReadinessRequestConfig() : RequestConfig<Unit> {
+    fun getReadinessRequestConfig(xMetricsToken: kotlin.String?, xAdminToken: kotlin.String?) : RequestConfig<Unit> {
         val localVariableBody = null
         val localVariableQuery: MultiValueMap = mutableMapOf()
         val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xMetricsToken?.apply { localVariableHeaders["X-Metrics-Token"] = this.toString() }
+        xAdminToken?.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
         localVariableHeaders["Accept"] = "application/json"
 
         return RequestConfig(
@@ -185,6 +268,8 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
     /**
      * Alias for &#x60;/health/ready&#x60;.
      * 
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @return ReadinessResponse
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
@@ -194,8 +279,8 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
-    fun getReadinessAlias() : ReadinessResponse {
-        val localVarResponse = getReadinessAliasWithHttpInfo()
+    fun getReadinessAlias(xMetricsToken: kotlin.String? = null, xAdminToken: kotlin.String? = null) : ReadinessResponse {
+        val localVarResponse = getReadinessAliasWithHttpInfo(xMetricsToken = xMetricsToken, xAdminToken = xAdminToken)
 
         return when (localVarResponse.responseType) {
             ResponseType.Success -> (localVarResponse as Success<*>).data as ReadinessResponse
@@ -215,14 +300,16 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
     /**
      * Alias for &#x60;/health/ready&#x60;.
      * 
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @return ApiResponse<ReadinessResponse?>
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
      */
     @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class)
-    fun getReadinessAliasWithHttpInfo() : ApiResponse<ReadinessResponse?> {
-        val localVariableConfig = getReadinessAliasRequestConfig()
+    fun getReadinessAliasWithHttpInfo(xMetricsToken: kotlin.String?, xAdminToken: kotlin.String?) : ApiResponse<ReadinessResponse?> {
+        val localVariableConfig = getReadinessAliasRequestConfig(xMetricsToken = xMetricsToken, xAdminToken = xAdminToken)
 
         return request<Unit, ReadinessResponse>(
             localVariableConfig
@@ -232,12 +319,16 @@ class HealthApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient 
     /**
      * To obtain the request config of the operation getReadinessAlias
      *
+     * @param xMetricsToken Metrics scrape token (&#x60;game.metrics.scrape-token&#x60;). Alternative to &#x60;Authorization: Bearer &lt;token&gt;&#x60;. Unlocks readiness/v2 health detail fields.  (optional)
+     * @param xAdminToken Ops shared secret (&#x60;game.admin.token&#x60;). During rotation, &#x60;game.admin.token.previous&#x60; is also accepted. Required for admin routes and (in prod) catalog pack upload; unlocks health recon detail.  (optional)
      * @return RequestConfig
      */
-    fun getReadinessAliasRequestConfig() : RequestConfig<Unit> {
+    fun getReadinessAliasRequestConfig(xMetricsToken: kotlin.String?, xAdminToken: kotlin.String?) : RequestConfig<Unit> {
         val localVariableBody = null
         val localVariableQuery: MultiValueMap = mutableMapOf()
         val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xMetricsToken?.apply { localVariableHeaders["X-Metrics-Token"] = this.toString() }
+        xAdminToken?.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
         localVariableHeaders["Accept"] = "application/json"
 
         return RequestConfig(

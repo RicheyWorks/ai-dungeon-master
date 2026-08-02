@@ -10,7 +10,10 @@ info:
     a stable, self-describing contract. The legacy `/api/game/*` endpoints remain
     for existing clients and are documented under the `legacy` tag.
 
-    Public **health** probes (`/health`, `/health/ready`, `/v2/health`) need no auth.
+    Public **health** probes (`/health`, `/health/ready`, `/v2/health`) need no auth
+    for lean status. Session counts, dependency maps, and memory detail require
+    `X-Metrics-Token` or `X-Admin-Token`. `GET /metrics` requires the scrape token
+    when configured (always in production).
   license:
     name: Proprietary
 servers:
@@ -28,6 +31,7 @@ paths:
   /v2/admin/session-packs:
     get:
       tags: [admin]
+      operationId: getAdminSessionPacks
       summary: Session pack overrides (ops)
       parameters:
         - in: query
@@ -44,6 +48,7 @@ paths:
   /v2/admin/receipts:
     get:
       tags: [admin]
+      operationId: listAdminReceipts
       summary: List recent redeemed receipts (ops)
       parameters:
         - in: query
@@ -285,8 +290,13 @@ paths:
       tags: [v2]
       operationId: uploadPackV2
       summary: Upload and install a content-pack zip at runtime; returns the updated catalog.
+      description: |
+        Multipart zip install. In production, `game.catalog.upload.require-admin=true`
+        so callers must send `X-Admin-Token` (current or previous during rotation).
+        When `game.catalog.upload.enabled=false`, always **403**.
       parameters:
         - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XAdminToken'
         - name: replace
           in: query
           required: false
@@ -322,6 +332,12 @@ paths:
                 $ref: '#/components/schemas/CatalogEnvelope'
         '400':
           description: Invalid upload (bad zip, unsafe paths, missing/invalid pack.yaml, size limits).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Upload disabled or missing/invalid admin token when require-admin is on.
           content:
             application/json:
               schema:
@@ -431,6 +447,10 @@ paths:
       responses:
         '200':
           description: Marketplace listing envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceEnvelope'
   /v2/marketplace/{id}:
     get:
       tags: [v2]
@@ -446,14 +466,25 @@ paths:
       responses:
         '200':
           description: Pack detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplacePackEnvelope'
         '404':
           description: Unknown pack.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 
   /v2/marketplace/jobs/{jobId}:
     get:
       tags: [v2]
       operationId: getMarketplaceInstallJobV2
       summary: Poll async marketplace install progress.
+      description: |
+        Jobs are bound to the session that started them (`POST …/install?async=true`).
+        Other sessions receive **403**. Legacy rows with no owner remain open.
       parameters:
         - $ref: '#/components/parameters/XRequestId'
         - name: jobId
@@ -463,12 +494,28 @@ paths:
       responses:
         '200':
           description: Install job snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceInstallJobEnvelope'
+        '403':
+          description: Job belongs to another session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Unknown job.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
     delete:
       tags: [v2]
       operationId: cancelMarketplaceInstallJobV2
       summary: Cancel an async marketplace install.
+      description: |
+        Same ownership ACL as poll — only the owning session may cancel.
       parameters:
         - $ref: '#/components/parameters/XRequestId'
         - name: jobId
@@ -478,8 +525,22 @@ paths:
       responses:
         '200':
           description: Job cancelled or already terminal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceInstallJobEnvelope'
+        '403':
+          description: Job belongs to another session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Unknown job.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /v2/marketplace/{id}/install:
     post:
       tags: [v2]
@@ -487,7 +548,8 @@ paths:
       summary: Install a marketplace pack into the live catalog.
       description: |
         Sync by default. Pass `async=true` for background download with progress
-        (`GET /v2/marketplace/jobs/{jobId}`).
+        (`GET /v2/marketplace/jobs/{jobId}`). Async jobs bind to the caller session
+        for poll/cancel ACL.
       parameters:
         - $ref: '#/components/parameters/XRequestId'
         - name: id
@@ -505,8 +567,16 @@ paths:
           description: Already installed.
         '202':
           description: Async install job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceInstallJobEnvelope'
         '404':
           description: Unknown pack.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /v2/entitlements/storefronts:
     get:
       tags: [v2]
@@ -543,11 +613,26 @@ paths:
       operationId: getPrometheusMetrics
       summary: Prometheus text exposition for scrapers.
       description: |
-        Public plaintext metrics (`text/plain`). Prefer private network scrape.
+        Plaintext metrics (`text/plain`). When `game.metrics.scrape-token` is set
+        (required in production), scrapers must send `X-Metrics-Token` or
+        `Authorization: Bearer <token>`. Prefer private-network scrape.
       security: []
+      parameters:
+        - $ref: '#/components/parameters/XMetricsToken'
+        - name: Authorization
+          in: header
+          required: false
+          schema: { type: string }
+          description: Bearer scrape token (alternative to X-Metrics-Token).
       responses:
         '200':
           description: Prometheus exposition format.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          description: Scrape token configured but missing/invalid.
           content:
             text/plain:
               schema:
@@ -559,7 +644,7 @@ paths:
       summary: Liveness probe — process is accepting HTTP.
       description: |
         Always returns 200 while the JVM is up. Does **not** check JDBC/Redis.
-        Use `/health/ready` for dependency-aware readiness.
+        Use `/health/ready` for dependency-aware readiness. Always lean (no recon fields).
       security: []
       responses:
         '200':
@@ -576,7 +661,12 @@ paths:
       description: |
         Probes JDBC, Redis, and/or file stores only when selected via
         `game.auth.*.store`. Returns **503** when a required dependency is DOWN.
+        Public responses are lean (`status` + `probe`). Session/engine counts and
+        the dependency map require `X-Metrics-Token` or `X-Admin-Token`.
       security: []
+      parameters:
+        - $ref: '#/components/parameters/XMetricsToken'
+        - $ref: '#/components/parameters/XAdminToken'
       responses:
         '200':
           description: Ready to serve traffic.
@@ -596,6 +686,9 @@ paths:
       operationId: getReadinessAlias
       summary: Alias for `/health/ready`.
       security: []
+      parameters:
+        - $ref: '#/components/parameters/XMetricsToken'
+        - $ref: '#/components/parameters/XAdminToken'
       responses:
         '200':
           description: Ready.
@@ -613,13 +706,17 @@ paths:
     get:
       tags: [v2]
       operationId: getHealthV2
-      summary: Health metrics envelope (public, no auth).
+      summary: Health envelope (lean public; detail with ops token).
       description: |
-        Versioned envelope with uptime, session/engine counts, memory, and the
-        same dependency map as `/health/ready`. Excluded from JWT enforcement.
+        Versioned envelope. Unauthenticated callers get `status`, `uptimeSeconds`,
+        and `detail: false`. With `X-Metrics-Token` or `X-Admin-Token`, includes
+        sessions, engines, dependencies, memory, and `detail: true`.
+        Excluded from JWT enforcement.
       security: []
       parameters:
         - $ref: '#/components/parameters/XRequestId'
+        - $ref: '#/components/parameters/XMetricsToken'
+        - $ref: '#/components/parameters/XAdminToken'
       responses:
         '200':
           description: Healthy.
@@ -727,6 +824,25 @@ components:
         requestId. A server-generated UUID is used when omitted.
       schema:
         type: string
+    XAdminToken:
+      name: X-Admin-Token
+      in: header
+      required: false
+      description: >
+        Ops shared secret (`game.admin.token`). During rotation,
+        `game.admin.token.previous` is also accepted. Required for admin routes
+        and (in prod) catalog pack upload; unlocks health recon detail.
+      schema:
+        type: string
+    XMetricsToken:
+      name: X-Metrics-Token
+      in: header
+      required: false
+      description: >
+        Metrics scrape token (`game.metrics.scrape-token`). Alternative to
+        `Authorization: Bearer <token>`. Unlocks readiness/v2 health detail fields.
+      schema:
+        type: string
   schemas:
 
     LivenessResponse:
@@ -760,15 +876,18 @@ components:
           enum: [readiness]
         sessions:
           type: integer
+          description: Present only with metrics/admin token.
         engines:
           type: integer
+          description: Present only with metrics/admin token.
         dependencies:
           type: object
+          description: Present only with metrics/admin token.
           additionalProperties:
             $ref: '#/components/schemas/DependencyCheck'
     HealthPayload:
       type: object
-      required: [status]
+      required: [status, detail]
       properties:
         status:
           type: string
@@ -776,6 +895,11 @@ components:
         uptimeSeconds:
           type: integer
           format: int64
+        detail:
+          type: boolean
+          description: >
+            false for unauthenticated lean responses; true when sessions/engines/
+            dependencies/memory are included.
         sessions:
           type: integer
         engines:
@@ -806,6 +930,81 @@ components:
               enum: [health]
             payload:
               $ref: '#/components/schemas/HealthPayload'
+    MarketplaceListing:
+      type: object
+      required: [id, displayName, version, installed, enabled, source]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        version: { type: string }
+        minEngineVersion: { type: string }
+        description: { type: string }
+        installed: { type: boolean }
+        enabled: { type: boolean }
+        sourcePath: { type: string, nullable: true }
+        source:
+          type: string
+          enum: [local, remote]
+        downloadUrl: { type: string, nullable: true }
+        sha256: { type: string, nullable: true }
+    MarketplacePayload:
+      type: object
+      properties:
+        root: { type: string }
+        remoteIndexUrl: { type: string, nullable: true }
+        remoteOk: { type: boolean }
+        remoteError: { type: string, nullable: true }
+        available: { type: integer }
+        installed: { type: integer }
+        packs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceListing'
+    MarketplaceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [marketplace]
+            payload:
+              $ref: '#/components/schemas/MarketplacePayload'
+    MarketplacePackEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [marketplace_pack]
+            payload:
+              $ref: '#/components/schemas/MarketplaceListing'
+    MarketplaceInstallJob:
+      type: object
+      required: [jobId, packId, phase, percent]
+      properties:
+        jobId: { type: string }
+        packId: { type: string }
+        phase:
+          type: string
+          enum: [QUEUED, DOWNLOADING, VERIFYING, INSTALLING, DONE, FAILED, CANCELLED]
+        bytesRead: { type: integer, format: int64 }
+        bytesTotal: { type: integer, format: int64 }
+        percent: { type: integer }
+        message: { type: string, nullable: true }
+        cancelRequested: { type: boolean }
+        error: { type: string, nullable: true }
+    MarketplaceInstallJobEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [marketplace_install_job]
+            payload:
+              $ref: '#/components/schemas/MarketplaceInstallJob'
     Envelope:
       type: object
       description: Base transport envelope. Concrete responses specialize `payload`.

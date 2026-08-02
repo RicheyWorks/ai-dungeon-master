@@ -11,8 +11,9 @@ with [openapi-generator](https://openapi-generator.tech) **7.7.0**.
 | `swift/` | iOS / macOS | `swift5` (URLSession, async/await) | `swift build` or add the SwiftPM package |
 
 All three expose the same surface: a `V2Api`/`V2API` covering every `/v2`
-operation — game status/action/narrate, sessions, catalog and pack toggles, and
-entitlements and health — plus a `HealthApi`/`HealthAPI` and `LegacyApi`/`LegacyAPI`, over the typed
+operation — game status/action/narrate, sessions, catalog and pack toggles,
+marketplace browse/install/jobs, entitlements, and health — plus `HealthApi`/
+`HealthAPI`, `AdminApi`/`AdminAPI`, and `LegacyApi`/`LegacyAPI`, over the typed
 `Envelope { type, version, payload, requestId }` models.
 
 ## Regenerate
