@@ -2,10 +2,12 @@ package com.xai.dungeonmaster.entitlement;
 
 import com.xai.dungeonmaster.plugin.StorefrontIntegration;
 import com.xai.dungeonmaster.plugin.StorefrontRegistry;
+import com.xai.dungeonmaster.service.PackAutoEnabler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -20,6 +22,8 @@ import java.util.Set;
  *
  * Receipts are one-time: a successful redeem is recorded in {@link ReceiptLedger}
  * so the same store payload cannot grant another session (replay protection).
+ *
+ * Optional {@link PackAutoEnabler} turns on content packs gated by the granted SKU.
  */
 @Service
 public class EntitlementService {
@@ -27,47 +31,58 @@ public class EntitlementService {
     private final EntitlementStore store;
     private final ReceiptLedger ledger;
     private final boolean replayProtection;
+    private final PackAutoEnabler packAutoEnabler;
 
     /** Convenience constructor for tests/embedders (in-memory store + ledger). */
     public EntitlementService() {
-        this(new InMemoryEntitlementStore(), new MemoryReceiptLedger(), true);
+        this(new InMemoryEntitlementStore(), new MemoryReceiptLedger(), true, null);
     }
 
     public EntitlementService(EntitlementStore store) {
-        this(store, new MemoryReceiptLedger(), true);
+        this(store, new MemoryReceiptLedger(), true, null);
     }
 
     public EntitlementService(EntitlementStore store, ReceiptLedger ledger) {
-        this(store, ledger, true);
+        this(store, ledger, true, null);
+    }
+
+    public EntitlementService(EntitlementStore store, ReceiptLedger ledger, boolean replayProtection) {
+        this(store, ledger, replayProtection, null);
+    }
+
+    public EntitlementService(EntitlementStore store, ReceiptLedger ledger, PackAutoEnabler packAutoEnabler) {
+        this(store, ledger, true, packAutoEnabler);
     }
 
     @Autowired
     public EntitlementService(
             EntitlementStore store,
             ReceiptLedger ledger,
-            @Value("${game.auth.receipt-ledger.enabled:true}") boolean replayProtection) {
+            @Value("${game.auth.receipt-ledger.enabled:true}") boolean replayProtection,
+            @Autowired(required = false) PackAutoEnabler packAutoEnabler) {
         this.store = (store != null) ? store : new InMemoryEntitlementStore();
         this.ledger = (ledger != null) ? ledger : new MemoryReceiptLedger();
         this.replayProtection = replayProtection;
+        this.packAutoEnabler = packAutoEnabler;
     }
 
     /** Verify a receipt through the named storefront and, if valid, grant the product. */
     public Grant verifyAndGrant(String sessionId, String storefrontId, String productId, String receipt) {
         if (sessionId == null || sessionId.isBlank()) {
-            return new Grant(false, productId, storefrontId, "no session");
+            return new Grant(false, productId, storefrontId, "no session", List.of());
         }
         if (productId == null || productId.isBlank()) {
-            return new Grant(false, productId, storefrontId, "productId is required");
+            return new Grant(false, productId, storefrontId, "productId is required", List.of());
         }
         StorefrontIntegration storefront = (storefrontId == null || storefrontId.isBlank())
                 ? StorefrontRegistry.getActive()
                 : StorefrontRegistry.get(storefrontId);
         if (storefront == null) {
-            return new Grant(false, productId, storefrontId, "unknown storefront '" + storefrontId + "'");
+            return new Grant(false, productId, storefrontId, "unknown storefront '" + storefrontId + "'", List.of());
         }
         String sfId = storefront.id();
         if (receipt == null || receipt.isBlank()) {
-            return new Grant(false, productId, sfId, "receipt is required");
+            return new Grant(false, productId, sfId, "receipt is required", List.of());
         }
 
         String fp = ReceiptLedger.fingerprint(sfId, productId, receipt);
@@ -78,14 +93,15 @@ public class EntitlementService {
                 // Idempotent re-submit for the same session + product is OK.
                 if (sessionId.equals(r.sessionId()) && productId.equals(r.productId())) {
                     store.grant(sessionId, productId);
-                    return new Grant(true, productId, sfId, "already redeemed (idempotent)");
+                    List<String> packs = autoEnable(sessionId, productId);
+                    return new Grant(true, productId, sfId, "already redeemed (idempotent)", packs);
                 }
-                return new Grant(false, productId, sfId, "receipt already redeemed");
+                return new Grant(false, productId, sfId, "receipt already redeemed", List.of());
             }
         }
 
         if (!storefront.verifyReceipt(receipt)) {
-            return new Grant(false, productId, sfId, "receipt failed verification");
+            return new Grant(false, productId, sfId, "receipt failed verification", List.of());
         }
 
         store.grant(sessionId, productId);
@@ -99,7 +115,21 @@ public class EntitlementService {
             System.err.println("[entitlements] afterGrant failed for " + sfId
                     + ": " + e.getMessage());
         }
-        return new Grant(true, productId, sfId, "granted");
+        List<String> packs = autoEnable(sessionId, productId);
+        String reason = packs.isEmpty()
+                ? "granted"
+                : "granted; enabled packs " + packs;
+        return new Grant(true, productId, sfId, reason, packs);
+    }
+
+    private List<String> autoEnable(String sessionId, String productId) {
+        if (packAutoEnabler == null) return List.of();
+        try {
+            return packAutoEnabler.enableForGrant(sessionId, productId);
+        } catch (Exception e) {
+            System.err.println("[entitlements] pack auto-enable failed: " + e.getMessage());
+            return List.of();
+        }
     }
 
     /** Products the session currently owns. */
@@ -112,5 +142,14 @@ public class EntitlementService {
     }
 
     /** Outcome of a verify-and-grant attempt. */
-    public record Grant(boolean granted, String productId, String storefront, String reason) {}
+    public record Grant(
+            boolean granted,
+            String productId,
+            String storefront,
+            String reason,
+            List<String> enabledPacks) {
+        public Grant(boolean granted, String productId, String storefront, String reason) {
+            this(granted, productId, storefront, reason, List.of());
+        }
+    }
 }

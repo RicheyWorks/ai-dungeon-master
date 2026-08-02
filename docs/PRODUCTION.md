@@ -226,3 +226,10 @@ Note: `ContentRegistry` is process-wide; gating protects the **enable** action f
 | `game.auth.receipt-ledger.ttl-seconds` | `7776000` (90d) | Redis key TTL |
 
 Fingerprint = SHA-256(`storefront + productId + receipt`). Same session re-submitting the same receipt is **idempotent**; other sessions get `receipt already redeemed`.
+
+## Auto-enable packs on grant
+
+With `game.content.auto-enable-on-grant=true` (default), a successful
+`POST /v2/entitlements/verify` enables every installed pack whose
+`requiredProductId(s)` are satisfied by the session. Response field
+`enabledPacks` lists pack ids turned on for this call.

@@ -522,11 +522,17 @@ export function App() {
               setProductId(sku);
               setStorefront(minted.storefront);
               if (p.granted) setUnlockHint(null);
+              const packs = (p as { enabledPacks?: string[] }).enabledPacks;
               setInfo(
                 p.granted
-                  ? `Sandbox ${minted.storefront} granted: ${p.productId}`
+                  ? packs && packs.length
+                    ? `Granted ${p.productId}; enabled packs: ${packs.join(", ")}`
+                    : `Sandbox ${minted.storefront} granted: ${p.productId}`
                   : `Failed: ${p.reason}`,
               );
+              if (packs && packs.length) {
+                void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)));
+              }
             })
           }
         />

@@ -972,6 +972,10 @@ components:
         owned:
           type: array
           items: { type: string }
+        enabledPacks:
+          type: array
+          items: { type: string }
+          description: Content packs auto-enabled because required SKUs are now owned.
     VerifyReceiptRequest:
       type: object
       required: [productId, receipt]
