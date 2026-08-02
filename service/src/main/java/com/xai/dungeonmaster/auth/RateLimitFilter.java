@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
  *   <li>{@code POST /v2/catalog/packs} — direct pack zip upload</li>
  *   <li>{@code POST /v2/narrate} — LLM narration (HTTP; STOMP uses {@link NarrationRateGuard})</li>
  *   <li>{@code POST /v2/action} — player actions (HTTP; STOMP uses {@link ActionRateGuard})</li>
+ *   <li>{@code POST /v2/save|/load|/reset} — persistence / adventure restart</li>
  *   <li>{@code GET /metrics} — Prometheus scrapes (generous default)</li>
  *   <li>{@code POST /v2/entitlements/verify} — receipt verification</li>
  * </ul>
@@ -48,6 +49,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final int installPerMinute;
     private final int narratePerMinute;
     private final int actionPerMinute;
+    private final int savePerMinute;
     private final int metricsPerMinute;
     private final int verifyPerMinute;
     private final RateLimitStore store;
@@ -63,6 +65,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             @Value("${game.rate-limit.install-per-minute:15}") int installPerMinute,
             @Value("${game.rate-limit.narrate-per-minute:20}") int narratePerMinute,
             @Value("${game.rate-limit.action-per-minute:60}") int actionPerMinute,
+            @Value("${game.rate-limit.save-per-minute:30}") int savePerMinute,
             @Value("${game.rate-limit.metrics-per-minute:120}") int metricsPerMinute,
             @Value("${game.rate-limit.verify-per-minute:60}") int verifyPerMinute,
             @Value("${game.rate-limit.default-per-minute:120}") int defaultPerMinute) {
@@ -75,6 +78,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         this.installPerMinute = Math.max(1, installPerMinute);
         this.narratePerMinute = Math.max(1, narratePerMinute);
         this.actionPerMinute = Math.max(1, actionPerMinute);
+        this.savePerMinute = Math.max(1, savePerMinute);
         this.metricsPerMinute = Math.max(1, metricsPerMinute);
         this.verifyPerMinute = Math.max(1, verifyPerMinute);
         // defaultPerMinute reserved for future catch-all paths
@@ -88,7 +92,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int metricsPerMinute,
                            int verifyPerMinute, int defaultPerMinute) {
         this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, sessionPerMinute,
-                sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, metricsPerMinute,
+                sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
 
@@ -96,7 +100,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
                            int metricsPerMinute, int verifyPerMinute, int defaultPerMinute) {
         this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, metricsPerMinute,
+                sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, sessionPerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
 
@@ -105,7 +109,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                            int adminPerMinute, int metricsPerMinute, int verifyPerMinute,
                            int defaultPerMinute) {
         this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, adminPerMinute, adminPerMinute, adminPerMinute, metricsPerMinute,
+                adminPerMinute, adminPerMinute, adminPerMinute, adminPerMinute, adminPerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
 
@@ -114,7 +118,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                            int adminPerMinute, int installPerMinute, int metricsPerMinute,
                            int verifyPerMinute, int defaultPerMinute) {
         this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, installPerMinute, installPerMinute, installPerMinute, metricsPerMinute,
+                adminPerMinute, installPerMinute, installPerMinute, installPerMinute, installPerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
 
@@ -123,17 +127,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
                            int adminPerMinute, int installPerMinute, int narratePerMinute,
                            int metricsPerMinute, int verifyPerMinute, int defaultPerMinute) {
         this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, installPerMinute, narratePerMinute, narratePerMinute, metricsPerMinute,
+                adminPerMinute, installPerMinute, narratePerMinute, narratePerMinute, narratePerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
 
-    /** Full test helper including action budget. */
+    /** Full test helper including action budget (save reuses action). */
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
                            int adminPerMinute, int installPerMinute, int narratePerMinute,
                            int actionPerMinute, int metricsPerMinute, int verifyPerMinute,
                            int defaultPerMinute) {
         this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, installPerMinute, narratePerMinute, actionPerMinute, metricsPerMinute,
+                adminPerMinute, installPerMinute, narratePerMinute, actionPerMinute, actionPerMinute, metricsPerMinute,
+                verifyPerMinute, defaultPerMinute);
+    }
+
+    /** Full test helper including save/load/reset budget. */
+    public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
+                           int adminPerMinute, int installPerMinute, int narratePerMinute,
+                           int actionPerMinute, int savePerMinute, int metricsPerMinute,
+                           int verifyPerMinute, int defaultPerMinute) {
+        this(new MemoryRateLimitStore(), new RateLimitMetrics(), enabled, sessionPerMinute, logoutPerMinute,
+                adminPerMinute, installPerMinute, narratePerMinute, actionPerMinute, savePerMinute, metricsPerMinute,
                 verifyPerMinute, defaultPerMinute);
     }
 
@@ -202,6 +216,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if ("POST".equals(method) && (path.equals("/v2/action") || path.equals("/api/game/action"))) {
             return new Limit("action", actionPerMinute);
+        }
+        if ("POST".equals(method) && (
+                path.equals("/v2/save") || path.equals("/v2/load") || path.equals("/v2/reset")
+                || path.equals("/api/game/save") || path.equals("/api/game/load"))) {
+            return new Limit("save", savePerMinute);
         }
         if ("GET".equals(method) && path.equals("/metrics")) {
             return new Limit("metrics", metricsPerMinute);

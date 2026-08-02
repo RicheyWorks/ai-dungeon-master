@@ -172,4 +172,30 @@ class RateLimitFilterTest {
         assertEquals(429, blocked.getStatus());
     }
 
+
+    @Test
+    void saveBucketCoversSaveLoadReset() throws Exception {
+        // session…action=100, save=2, metrics=100, verify=100, default=100
+        RateLimitFilter filter = new RateLimitFilter(true, 100, 100, 100, 100, 100, 100, 2, 100, 100, 100);
+        for (String path : new String[]{"/v2/save", "/v2/load"}) {
+            MockHttpServletRequest req = new MockHttpServletRequest("POST", path);
+            req.setRemoteAddr("203.0.113.70");
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            filter.doFilter(req, res, new MockFilterChain());
+            assertEquals(200, res.getStatus(), path);
+        }
+        MockHttpServletRequest blockedReq = new MockHttpServletRequest("POST", "/v2/reset");
+        blockedReq.setRemoteAddr("203.0.113.70");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(blockedReq, blocked, new MockFilterChain());
+        assertEquals(429, blocked.getStatus());
+
+        // legacy path shares bucket
+        MockHttpServletRequest legacy = new MockHttpServletRequest("POST", "/api/game/save");
+        legacy.setRemoteAddr("203.0.113.70");
+        MockHttpServletResponse legacyRes = new MockHttpServletResponse();
+        filter.doFilter(legacy, legacyRes, new MockFilterChain());
+        assertEquals(429, legacyRes.getStatus());
+    }
+
 }
