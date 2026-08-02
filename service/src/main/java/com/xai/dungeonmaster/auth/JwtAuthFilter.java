@@ -1,5 +1,7 @@
 package com.xai.dungeonmaster.auth;
 
+import com.xai.dungeonmaster.config.RequestIdFilter;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -108,7 +110,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     private static String safeRequestId(HttpServletRequest req) {
-        String id = req.getHeader("X-Request-Id");
+        String id = RequestIdFilter.resolve(req);
         if (id == null || id.isBlank()) {
             return "";
         }
