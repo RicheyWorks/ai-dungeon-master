@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
  *   <li>{@code POST /v2/save|/load|/reset} — persistence / adventure restart</li>
  *   <li>{@code GET /metrics} — Prometheus scrapes (generous default)</li>
  *   <li>{@code POST /v2/entitlements/verify} — receipt verification</li>
+ *   <li>other {@code /v2/**} (except health) — default bucket</li>
  * </ul>
  *
  * Limits come from {@link RateLimitProperties}. Counters come from
@@ -138,6 +139,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if ("POST".equals(method) && path.equals("/v2/entitlements/verify")) {
             return new Limit("verify", props.verifyPerMinute());
+        }
+        // Catch-all for remaining v2 traffic (status, catalog, entitlements list, etc.)
+        if (path.startsWith("/v2/") && !path.equals("/v2/health") && !path.startsWith("/v2/health/")) {
+            return new Limit("default", props.defaultPerMinute());
         }
         return null;
     }
