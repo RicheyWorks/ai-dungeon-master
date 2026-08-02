@@ -78,4 +78,16 @@ class StompAuthChannelInterceptorTest {
         assertEquals("abc", StompAuthChannelInterceptor.sessionIdOf(accessor));
         assertNull(StompAuthChannelInterceptor.sessionIdOf(null));
     }
+
+    @Test
+    void authRequiredRejectsConnectWithoutToken() {
+        StompAuthChannelInterceptor strict = new StompAuthChannelInterceptor(jwt, sessions, true);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setSessionAttributes(new HashMap<>());
+        accessor.setLeaveMutable(true);
+        Message<?> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        assertThrows(org.springframework.messaging.MessageDeliveryException.class,
+                () -> strict.preSend(msg, null));
+    }
+
 }
