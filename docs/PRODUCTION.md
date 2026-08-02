@@ -207,6 +207,38 @@ ALERTMANAGER_CONFIG=alertmanager.active.yml \
 
 See `deploy/alertmanager/alertmanager.receivers.yml` and `templates/dm.tmpl`.
 
+
+## Metrics scrape auth
+
+When `game.metrics.scrape-token` is set (required in production), scrapers must send:
+
+```http
+GET /metrics
+X-Metrics-Token: <token>
+# or Authorization: Bearer <token>
+```
+
+Prometheus config example:
+
+```yaml
+scrape_configs:
+  - job_name: dm-engines
+    authorization:
+      type: Bearer
+      credentials: ${GAME_METRICS_SCRAPE_TOKEN}
+```
+
+## STOMP subscription ACL
+
+With auth on, clients may only `SUBSCRIBE` to `/topic/narrative/{theirSessionId}`.
+Cross-session narrative eavesdropping is rejected by `StompAuthChannelInterceptor`.
+WebSocket frames are size-capped (`game.ws.message-size-limit`, default 256 KiB).
+
+## Marketplace SSRF guard
+
+Remote pack/index downloads only allow `http(s)` URLs that resolve to **public** IPs.
+Loopback, private, link-local, and CGNAT targets are rejected; redirects are disabled.
+
 ## Rate limits
 
 `RateLimitFilter` applies fixed-window per-IP limits (override via env):

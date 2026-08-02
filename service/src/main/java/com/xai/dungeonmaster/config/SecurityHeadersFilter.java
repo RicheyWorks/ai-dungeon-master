@@ -52,6 +52,8 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
         res.setHeader("Referrer-Policy", referrerPolicy);
         res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
         res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+        res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+        res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
         // API is JSON; keep CSP minimal so the SPA can still load its own assets.
         if (!res.containsHeader("Content-Security-Policy")) {
             res.setHeader("Content-Security-Policy",

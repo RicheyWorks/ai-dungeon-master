@@ -8,16 +8,17 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 /**
  * Configures STOMP WebSocket support.
  *
  * Clients connect to:
  *   ws://localhost:8080/ws-stomp     (native WebSocket — mobile / OkHttp)
- *   http://localhost:8080/ws         (SockJS fallback for browsers)
+ *   http://localhost:8080/ws        (SockJS fallback for browsers)
  *
  * They then subscribe to:
- *   /topic/narrative                 (default / unauthenticated stream)
+ *   /topic/narrative                 (default / unauthenticated stream — auth off only)
  *   /topic/narrative/{sessionId}     (authenticated multi-player isolation)
  *
  * And they can send actions to:
@@ -33,12 +34,18 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final StompAuthChannelInterceptor stompAuth;
     private final String[] allowedOriginPatterns;
+    private final int messageSizeLimit;
+    private final int sendBufferSizeLimit;
 
     public WebSocketConfig(
             StompAuthChannelInterceptor stompAuth,
-            @Value("${game.cors.allowed-origins:*}") String allowedOrigins) {
+            @Value("${game.cors.allowed-origins:*}") String allowedOrigins,
+            @Value("${game.ws.message-size-limit:262144}") int messageSizeLimit,
+            @Value("${game.ws.send-buffer-size-limit:524288}") int sendBufferSizeLimit) {
         this.stompAuth = stompAuth;
         this.allowedOriginPatterns = CorsConfig.originPatterns(allowedOrigins);
+        this.messageSizeLimit = Math.max(16 * 1024, messageSizeLimit);
+        this.sendBufferSizeLimit = Math.max(32 * 1024, sendBufferSizeLimit);
     }
 
     @Override
@@ -49,12 +56,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // SockJS for browsers that need the fallback transports.
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns(allowedOriginPatterns)
                 .withSockJS();
 
-        // Native WebSocket for Android (OkHttp) and other non-SockJS clients.
         registry.addEndpoint("/ws-stomp")
                 .setAllowedOriginPatterns(allowedOriginPatterns);
     }
@@ -62,5 +67,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(stompAuth);
+    }
+
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+        registration.setMessageSizeLimit(messageSizeLimit);
+        registration.setSendBufferSizeLimit(sendBufferSizeLimit);
+        registration.setSendTimeLimit(15_000);
     }
 }

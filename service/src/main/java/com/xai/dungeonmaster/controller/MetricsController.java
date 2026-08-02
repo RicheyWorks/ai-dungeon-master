@@ -4,6 +4,9 @@ import com.xai.dungeonmaster.auth.RateLimitMetrics;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.service.AuthDependencyProbe;
 import com.xai.dungeonmaster.service.GameInstanceService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,12 +15,17 @@ import org.springframework.web.bind.annotation.RestController;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Prometheus text exposition ({@code GET /metrics}) for load-balancer scrapers
- * and Grafana. Public, no auth — scrape from a private network or gateway.
+ * Prometheus text exposition ({@code GET /metrics}).
+ *
+ * <p>When {@code game.metrics.scrape-token} is set, scrapers must send
+ * {@code Authorization: Bearer <token>} or {@code X-Metrics-Token: <token>}.
+ * When blank, the endpoint stays open for private-network scrapes (dev default).
  */
 @RestController
 public class MetricsController {
@@ -26,22 +34,40 @@ public class MetricsController {
     private final GameInstanceService instances;
     private final AuthDependencyProbe dependencies;
     private final RateLimitMetrics rateLimits;
+    private final String scrapeToken;
     private final long startedAtMs;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public MetricsController(
+            SessionService sessions,
+            GameInstanceService instances,
+            AuthDependencyProbe dependencies,
+            RateLimitMetrics rateLimits,
+            @Value("${game.metrics.scrape-token:}") String scrapeToken) {
+        this.sessions = sessions;
+        this.instances = instances;
+        this.dependencies = dependencies;
+        this.rateLimits = rateLimits;
+        this.scrapeToken = scrapeToken == null ? "" : scrapeToken.trim();
+        this.startedAtMs = ManagementFactory.getRuntimeMXBean().getStartTime();
+    }
+
+    /** Test helper (open metrics). */
     public MetricsController(
             SessionService sessions,
             GameInstanceService instances,
             AuthDependencyProbe dependencies,
             RateLimitMetrics rateLimits) {
-        this.sessions = sessions;
-        this.instances = instances;
-        this.dependencies = dependencies;
-        this.rateLimits = rateLimits;
-        this.startedAtMs = ManagementFactory.getRuntimeMXBean().getStartTime();
+        this(sessions, instances, dependencies, rateLimits, "");
     }
 
     @GetMapping(value = "/metrics", produces = MediaType.TEXT_PLAIN_VALUE)
-    public ResponseEntity<String> metrics() {
+    public ResponseEntity<String> metrics(HttpServletRequest request) {
+        if (!scrapeToken.isEmpty() && !tokenMatches(request)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("unauthorized\n");
+        }
         StringBuilder out = new StringBuilder(1024);
         AuthDependencyProbe.Result deps = dependencies.probe();
         long uptimeSec = Math.max(0L, (System.currentTimeMillis() - startedAtMs) / 1000L);
@@ -85,7 +111,6 @@ public class MetricsController {
             sampleLabeled(out, "dm_dependency_up", "name=\"" + escapeLabel(e.getKey()) + "\"", up);
         }
 
-        // Rate-limit outcomes (process counters; reset on restart)
         helpType(out, "dm_rate_limit_rejected_total", "counter",
                 "Requests rejected by rate limiting (HTTP 429 or STOMP narrate deny)");
         for (Map.Entry<String, Long> e : rateLimits.rejectedSnapshot().entrySet()) {
@@ -107,8 +132,32 @@ public class MetricsController {
         sample(out, "process_cpu_available_processors", rt.availableProcessors());
 
         return ResponseEntity.ok()
-                .contentType(new MediaType("text", "plain", java.nio.charset.StandardCharsets.UTF_8))
+                .contentType(new MediaType("text", "plain", StandardCharsets.UTF_8))
                 .body(out.toString());
+    }
+
+    private boolean tokenMatches(HttpServletRequest request) {
+        if (request == null) return false;
+        String header = request.getHeader("X-Metrics-Token");
+        if (header != null && constantTimeEquals(scrapeToken, header.trim())) {
+            return true;
+        }
+        String auth = request.getHeader("Authorization");
+        if (auth != null && auth.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return constantTimeEquals(scrapeToken, auth.substring(7).trim());
+        }
+        return false;
+    }
+
+    private static boolean constantTimeEquals(String expected, String actual) {
+        if (expected == null || actual == null) return false;
+        byte[] a = expected.getBytes(StandardCharsets.UTF_8);
+        byte[] b = actual.getBytes(StandardCharsets.UTF_8);
+        if (a.length != b.length) {
+            MessageDigest.isEqual(a, a);
+            return false;
+        }
+        return MessageDigest.isEqual(a, b);
     }
 
     private static void helpType(StringBuilder out, String name, String type, String help) {
