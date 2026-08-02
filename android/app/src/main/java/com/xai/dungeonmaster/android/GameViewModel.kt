@@ -225,7 +225,14 @@ class GameViewModel(
         val token = current.session?.token ?: HttpClients.token()
         if (!token.isNullOrBlank()) {
             try {
-                logoutOnServer(current.baseUrl, token)
+                // Ensure interceptor has the token for generated SDK call.
+                HttpClients.setToken(token)
+                api().deleteSessionV2()
+            } catch (e: ClientException) {
+                if (e.statusCode != 401) {
+                    // Still clear local state; surface non-auth failures as info.
+                    // fall through
+                }
             } catch (_: Exception) {
                 // Still clear local state if the server already forgot us.
             }
@@ -616,20 +623,6 @@ class GameViewModel(
         withSession.copy(status = envelope.payload, info = "New adventure started", error = null)
     }
 
-    private fun logoutOnServer(baseUrl: String, token: String) {
-        val root = baseUrl.trimEnd('/')
-        val req = Request.Builder()
-            .url("$root/v2/session")
-            .delete()
-            .header("Authorization", "Bearer $token")
-            .header("Accept", "application/json")
-            .build()
-        HttpClients.client().newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful && resp.code != 401) {
-                throw IllegalStateException("Logout failed (${resp.code}): ${resp.body?.string().orEmpty()}")
-            }
-        }
-    }
 
     private fun mintSession(displayName: String?): SessionInfo {
         val req = displayName?.takeIf { it.isNotBlank() }?.let { SessionRequest(displayName = it) }

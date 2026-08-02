@@ -78,20 +78,18 @@ export async function validateSession(baseUrl: string, token: string): Promise<b
 
 /** Explicit logout — server drops identity, pack prefs, and live engine. */
 export async function logoutSession(baseUrl: string, token: string): Promise<void> {
-  const root = (baseUrl || "").replace(/\/$/, "");
-  const url = `${root}/v2/session`;
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-  });
-  if (!res.ok && res.status !== 401) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Logout failed (${res.status}): ${text || res.statusText}`);
+  try {
+    await createApi(baseUrl, token).deleteSessionV2();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // Treat unauthorized as already logged out; rethrow other failures.
+    if (!/401|Unauthorized|Authentication/i.test(msg)) {
+      throw e instanceof Error ? e : new Error(msg);
+    }
   }
 }
+
+
 
 export async function getStatus(baseUrl: string, token: string): Promise<GameStatusV2> {
   const env = await createApi(baseUrl, token).getStatusV2();

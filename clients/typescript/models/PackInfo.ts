@@ -55,6 +55,18 @@ export interface PackInfo {
      * @memberof PackInfo
      */
     enabled?: boolean;
+    /**
+     * SKUs required to enable this pack.
+     * @type {Array<string>}
+     * @memberof PackInfo
+     */
+    requiredProductIds?: Array<string>;
+    /**
+     * True when the pack is entitlement-gated and the session does not own required SKUs.
+     * @type {boolean}
+     * @memberof PackInfo
+     */
+    locked?: boolean;
 }
 
 /**
