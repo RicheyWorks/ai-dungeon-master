@@ -65,6 +65,6 @@ public class RequestSizeFilter extends OncePerRequestFilter {
     private static String safeRequestId(HttpServletRequest req) {
         String id = RequestIdFilter.resolve(req);
         if (id == null || id.isBlank()) return "";
-        return id.replace("\"", "").replace("\", "");
+        return id.replace("\"", "").replace("\\", "");
     }
 }
