@@ -9,6 +9,7 @@ import com.xai.dungeonmaster.entitlement.EntitlementStore;
 import com.xai.dungeonmaster.entitlement.FileEntitlementStore;
 import com.xai.dungeonmaster.entitlement.InMemoryEntitlementStore;
 import com.xai.dungeonmaster.entitlement.JdbcEntitlementStore;
+import com.xai.dungeonmaster.entitlement.JdbcReceiptLedger;
 import com.xai.dungeonmaster.entitlement.MemoryReceiptLedger;
 import com.xai.dungeonmaster.entitlement.ReceiptLedger;
 import com.xai.dungeonmaster.entitlement.RedisEntitlementStore;
@@ -68,16 +69,17 @@ public class AuthConfig {
     public DataSource authDataSource(
             @Value("${game.auth.session.store:memory}") String sessionKind,
             @Value("${game.auth.entitlement.store:memory}") String entitlementKind,
+            @Value("${game.auth.receipt-ledger.store:memory}") String receiptLedgerStore,
             @Value("${game.auth.jdbc.url:}") String url,
             @Value("${game.auth.jdbc.username:}") String username,
             @Value("${game.auth.jdbc.password:}") String password,
             @Value("${game.auth.jdbc.driver:}") String driver) {
-        if (!(needsJdbc(sessionKind) || needsJdbc(entitlementKind))) {
+        if (!(needsJdbc(sessionKind) || needsJdbc(entitlementKind) || needsJdbc(receiptLedgerStore))) {
             return new com.xai.dungeonmaster.store.UnusedDataSource();
         }
         if (url == null || url.isBlank()) {
             throw new IllegalStateException(
-                    "game.auth.jdbc.url is required when session/entitlement store is jdbc");
+                    "game.auth.jdbc.url is required when session/entitlement/receipt-ledger store is jdbc");
         }
         HikariConfig cfg = new HikariConfig();
         cfg.setJdbcUrl(url);
@@ -140,11 +142,16 @@ public class AuthConfig {
             @Value("${game.auth.receipt-ledger.store:memory}") String kind,
             @Value("${game.auth.redis.key-prefix:dm}") String redisPrefix,
             @Value("${game.auth.receipt-ledger.ttl-seconds:7776000}") int ttlSeconds,
-            RedisOps redisOps) {
+            RedisOps redisOps,
+            DataSource authDataSource) {
         if ("redis".equalsIgnoreCase(kind)) {
             System.out.println("[auth] receipt ledger: redis (prefix=" + redisPrefix
                     + ", ttl=" + ttlSeconds + "s)");
             return new RedisReceiptLedger(redisOps, redisPrefix, ttlSeconds);
+        }
+        if (needsJdbc(kind)) {
+            System.out.println("[auth] receipt ledger: jdbc (ttl=" + ttlSeconds + "s)");
+            return new JdbcReceiptLedger(authDataSource, ttlSeconds);
         }
         return new MemoryReceiptLedger();
     }

@@ -12,7 +12,7 @@ class ProductionSecurityGuardTest {
 
     @Test
     void skipsWhenNotProduction() {
-        ProductionSecurityGuard g = guard(false, false, "", "memory", "memory", "");
+        ProductionSecurityGuard g = guard(false, false, "", "memory", "memory", "memory", "");
         assertFalse(g.isProductionMode());
         // run must not throw
         g.run(null);
@@ -25,7 +25,7 @@ class ProductionSecurityGuardTest {
         ProductionSecurityGuard g = new ProductionSecurityGuard(
                 env, false, true,
                 "a-strong-production-jwt-secret-32+",
-                "jdbc", "jdbc", "s3cure-db-pass-not-default");
+                "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default");
         assertTrue(g.isProductionMode());
     }
 
@@ -34,7 +34,7 @@ class ProductionSecurityGuardTest {
         ProductionSecurityGuard g = guard(
                 true, false,
                 "compose-dev-secret-change-me-32chars!",
-                "jdbc", "jdbc", "s3cure-db-pass-not-default");
+                "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default");
         List<String> problems = g.validate();
         assertTrue(problems.stream().anyMatch(p -> p.contains("auth.enabled")), problems.toString());
         assertTrue(problems.stream().anyMatch(p -> p.contains("jwt.secret")), problems.toString());
@@ -44,7 +44,7 @@ class ProductionSecurityGuardTest {
     void rejectsShortJwt() {
         ProductionSecurityGuard g = guard(
                 true, true, "too-short",
-                "redis", "redis", "");
+                "redis", "redis", "redis", "");
         List<String> problems = g.validate();
         assertTrue(problems.stream().anyMatch(p -> p.contains("at least 32")), problems.toString());
     }
@@ -54,10 +54,11 @@ class ProductionSecurityGuardTest {
         ProductionSecurityGuard g = guard(
                 true, true,
                 "a-strong-production-jwt-secret-32chars!!",
-                "memory", "memory", "");
+                "memory", "memory", "memory", "");
         List<String> problems = g.validate();
         assertTrue(problems.stream().anyMatch(p -> p.contains("session.store")), problems.toString());
         assertTrue(problems.stream().anyMatch(p -> p.contains("entitlement.store")), problems.toString());
+        assertTrue(problems.stream().anyMatch(p -> p.contains("receipt-ledger.store")), problems.toString());
     }
 
     @Test
@@ -65,7 +66,7 @@ class ProductionSecurityGuardTest {
         ProductionSecurityGuard g = guard(
                 true, true,
                 "a-strong-production-jwt-secret-32chars!!",
-                "jdbc", "jdbc", "dm-dev-password");
+                "jdbc", "jdbc", "jdbc", "dm-dev-password");
         List<String> problems = g.validate();
         assertTrue(problems.stream().anyMatch(p -> p.contains("jdbc.password")), problems.toString());
     }
@@ -77,7 +78,7 @@ class ProductionSecurityGuardTest {
             ProductionSecurityGuard g = guard(
                     true, true,
                     "a-strong-production-jwt-secret-32chars!!",
-                    "jdbc", "jdbc", "s3cure-db-pass-not-default");
+                    "jdbc", "jdbc", "jdbc", "s3cure-db-pass-not-default");
             List<String> problems = g.validate();
             assertEquals(List.of(), problems, problems::toString);
         } finally {
@@ -91,6 +92,7 @@ class ProductionSecurityGuardTest {
             String jwt,
             String sessionStore,
             String entitlementStore,
+            String receiptLedgerStore,
             String jdbcPassword) {
         return new ProductionSecurityGuard(
                 new StandardEnvironment(),
@@ -99,6 +101,7 @@ class ProductionSecurityGuardTest {
                 jwt,
                 sessionStore,
                 entitlementStore,
+                receiptLedgerStore,
                 jdbcPassword);
     }
 }
