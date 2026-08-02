@@ -75,7 +75,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             chain.doFilter(req, res);
             return;
         }
-        String ip = clientIp(req);
+        String ip = clientIp(req, props.trustForwardedHeaders());
         String key = limit.bucket + "|" + ip;
         RateLimitStore.Result hit = store.hit(key);
         long n = hit.count();
@@ -141,14 +141,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     static String clientIp(HttpServletRequest req) {
-        String xff = req.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            int comma = xff.indexOf(',');
-            String first = (comma < 0 ? xff : xff.substring(0, comma)).trim();
-            if (!first.isEmpty()) return first;
+        return clientIp(req, true);
+    }
+
+    static String clientIp(HttpServletRequest req, boolean trustForwarded) {
+        if (trustForwarded) {
+            String xff = req.getHeader("X-Forwarded-For");
+            if (xff != null && !xff.isBlank()) {
+                int comma = xff.indexOf(',');
+                String first = (comma < 0 ? xff : xff.substring(0, comma)).trim();
+                if (!first.isEmpty()) return first;
+            }
+            String real = req.getHeader("X-Real-IP");
+            if (real != null && !real.isBlank()) return real.trim();
         }
-        String real = req.getHeader("X-Real-IP");
-        if (real != null && !real.isBlank()) return real.trim();
         String remote = req.getRemoteAddr();
         return remote == null ? "unknown" : remote;
     }

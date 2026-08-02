@@ -189,4 +189,34 @@ class RateLimitFilterTest {
         filter.doFilter(legacy, legacyRes, new MockFilterChain());
         assertEquals(429, legacyRes.getStatus());
     }
+
+    @Test
+    void trustForwardedFalseIgnoresXff() throws Exception {
+        RateLimitFilter filter = filter(RateLimitProperties.builder()
+                .sessionPerMinute(1).trustForwardedHeaders(false));
+        MockHttpServletRequest a = new MockHttpServletRequest("POST", "/v2/session");
+        a.setRemoteAddr("10.0.0.1");
+        a.addHeader("X-Forwarded-For", "203.0.113.1");
+        MockHttpServletResponse r1 = new MockHttpServletResponse();
+        filter.doFilter(a, r1, new MockFilterChain());
+        assertEquals(200, r1.getStatus());
+
+        // same remote, different spoofed XFF — still same bucket
+        MockHttpServletRequest b = new MockHttpServletRequest("POST", "/v2/session");
+        b.setRemoteAddr("10.0.0.1");
+        b.addHeader("X-Forwarded-For", "203.0.113.99");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(b, blocked, new MockFilterChain());
+        assertEquals(429, blocked.getStatus());
+    }
+
+    @Test
+    void trustForwardedTrueUsesXff() {
+        MockHttpServletRequest req = new MockHttpServletRequest();
+        req.addHeader("X-Forwarded-For", "203.0.113.9, 10.0.0.1");
+        req.setRemoteAddr("10.0.0.1");
+        assertEquals("203.0.113.9", RateLimitFilter.clientIp(req, true));
+        assertEquals("10.0.0.1", RateLimitFilter.clientIp(req, false));
+    }
+
 }
