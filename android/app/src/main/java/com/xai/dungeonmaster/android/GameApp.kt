@@ -78,6 +78,7 @@ fun GameApp() {
             onBaseUrlChange = viewModel::setBaseUrl,
             onRefresh = viewModel::refresh,
             onNewSession = { viewModel.startSession() },
+            onLogout = { viewModel.logout() },
         )
 
         ui.session?.let { session ->
@@ -281,6 +282,7 @@ private fun ServerBar(
     onBaseUrlChange: (String) -> Unit,
     onRefresh: () -> Unit,
     onNewSession: () -> Unit,
+    onLogout: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -301,6 +303,11 @@ private fun ServerBar(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onNewSession, enabled = !busy) {
                 Text(if (session == null) "Start session" else "New session")
+            }
+            if (session != null) {
+                OutlinedButton(onClick = onLogout, enabled = !busy) {
+                    Text("Log out")
+                }
             }
         }
     }
