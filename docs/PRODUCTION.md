@@ -339,3 +339,13 @@ Headers added on every response: `X-Content-Type-Options`, `X-Frame-Options`,
 WebSocket (`/ws`, `/ws-stomp`) uses the same origin allow-list.
 
 Set e.g. `game.cors.allowed-origins=https://play.example.com,https://admin.example.com`.
+
+### HTTP body size limits
+
+| Knob | Dev | Prod |
+|---|---|---|
+| `game.http.max-request-bytes` | 1 MiB | 512 KiB |
+| `server.tomcat.max-http-form-post-size` | 1MB | 512KB |
+| multipart pack upload | 10MB file / 12MB request | same |
+
+Oversized requests with `Content-Length` are rejected early with **413** envelope.
