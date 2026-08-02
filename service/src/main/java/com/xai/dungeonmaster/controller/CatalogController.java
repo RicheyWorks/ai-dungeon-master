@@ -21,10 +21,13 @@ import com.xai.dungeonmaster.plugin.StorefrontRegistry;
 import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.service.PackEntitlementGate;
 import com.xai.dungeonmaster.service.PackUploadService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -46,17 +49,37 @@ public class CatalogController {
     private final PackUploadService uploads;
     private final PackEntitlementGate packGate;
     private final SessionPackService sessionPacks;
+    private final boolean uploadEnabled;
+    private final boolean uploadRequireAdmin;
+    private final String adminToken;
+    private final String previousAdminToken;
 
     @org.springframework.beans.factory.annotation.Autowired
-    public CatalogController(PackUploadService uploads, PackEntitlementGate packGate, SessionPackService sessionPacks) {
+    public CatalogController(
+            PackUploadService uploads,
+            PackEntitlementGate packGate,
+            SessionPackService sessionPacks,
+            @Value("${game.catalog.upload.enabled:true}") boolean uploadEnabled,
+            @Value("${game.catalog.upload.require-admin:false}") boolean uploadRequireAdmin,
+            @Value("${game.admin.token:}") String adminToken,
+            @Value("${game.admin.token.previous:}") String previousAdminToken) {
         this.uploads = uploads;
         this.packGate = packGate;
         this.sessionPacks = sessionPacks != null ? sessionPacks : new SessionPackService();
+        this.uploadEnabled = uploadEnabled;
+        this.uploadRequireAdmin = uploadRequireAdmin;
+        this.adminToken = adminToken == null ? "" : adminToken.trim();
+        this.previousAdminToken = previousAdminToken == null ? "" : previousAdminToken.trim();
     }
 
-    /** Test helper without session pack service. */
+    /** Test helper without session pack service (upload open). */
     public CatalogController(PackUploadService uploads, PackEntitlementGate packGate) {
-        this(uploads, packGate, new SessionPackService());
+        this(uploads, packGate, new SessionPackService(), true, false, "", "");
+    }
+
+    /** Test helper with session packs. */
+    public CatalogController(PackUploadService uploads, PackEntitlementGate packGate, SessionPackService sessionPacks) {
+        this(uploads, packGate, sessionPacks, true, false, "", "");
     }
 
     @GetMapping
@@ -71,7 +94,18 @@ public class CatalogController {
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             @RequestParam(value = "replace", defaultValue = "false") boolean replace,
             @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminHeader,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        if (!uploadEnabled) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    Envelope.of("error", new ErrorPayload(
+                            "Pack upload is disabled (game.catalog.upload.enabled=false)."), requestId));
+        }
+        if (uploadRequireAdmin && !adminAccepted(adminHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    Envelope.of("error", new ErrorPayload(
+                            "Pack upload requires a valid X-Admin-Token."), requestId));
+        }
         try {
             PackUploadService.InstalledPack installed = uploads.install(file.getBytes(), replace);
             // Gated packs stay disabled until the session owns the SKU and enables them.
@@ -164,6 +198,24 @@ public class CatalogController {
                 sorted(LLMProviderRegistry.registeredIds()));
 
         return new CatalogPayload(packs, plugins, narration);
+    }
+
+    private boolean adminAccepted(String presented) {
+        if (presented == null || presented.isBlank()) return false;
+        String t = presented.trim();
+        if (tokenEquals(adminToken, t)) return true;
+        return !previousAdminToken.isEmpty() && tokenEquals(previousAdminToken, t);
+    }
+
+    private static boolean tokenEquals(String expected, String actual) {
+        if (expected == null || expected.isEmpty() || actual == null) return false;
+        byte[] a = expected.getBytes(StandardCharsets.UTF_8);
+        byte[] b = actual.getBytes(StandardCharsets.UTF_8);
+        if (a.length != b.length) {
+            MessageDigest.isEqual(a, a);
+            return false;
+        }
+        return MessageDigest.isEqual(a, b);
     }
 
     private static List<String> sorted(Collection<String> ids) {

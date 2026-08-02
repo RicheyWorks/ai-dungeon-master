@@ -46,6 +46,7 @@ public final class RedisMarketplaceJobStore implements MarketplaceJobStore {
         fields.put("cancelRequested", record.cancelRequested() ? "1" : "0");
         fields.put("error", nullToEmpty(record.error()));
         fields.put("updatedAtMs", Long.toString(record.updatedAtMs()));
+        fields.put("ownerSessionId", nullToEmpty(record.ownerSessionId()));
         String key = jobKey(record.jobId());
         redis.hset(key, fields);
         redis.sadd(indexKey(), record.jobId());
@@ -89,7 +90,8 @@ public final class RedisMarketplaceJobStore implements MarketplaceJobStore {
                 emptyToNull(f.get("message")),
                 "1".equals(f.get("cancelRequested")) || "true".equalsIgnoreCase(f.get("cancelRequested")),
                 emptyToNull(f.get("error")),
-                parseLong(f.get("updatedAtMs"), System.currentTimeMillis()));
+                parseLong(f.get("updatedAtMs"), System.currentTimeMillis()),
+                emptyToNull(f.get("ownerSessionId")));
     }
 
     private String jobKey(String jobId) {

@@ -254,6 +254,14 @@ public class MarketplaceService {
      * Poll {@link #job(String)}; cancel via {@link #cancelJob(String)}.
      */
     public MarketplaceInstallJob startInstallAsync(String id) {
+        return startInstallAsync(id, null);
+    }
+
+    /**
+     * @param ownerSessionId session that started the job; when non-null, only that
+     *                       session may poll or cancel (null = legacy open job)
+     */
+    public MarketplaceInstallJob startInstallAsync(String id, String ownerSessionId) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Missing pack id");
         }
@@ -262,13 +270,29 @@ public class MarketplaceService {
             throw new IllegalArgumentException("Unknown marketplace pack: " + id.trim());
         }
         String jobId = UUID.randomUUID().toString();
-        JobState state = new JobState(jobId, listing.id());
+        String owner = ownerSessionId == null || ownerSessionId.isBlank() ? null : ownerSessionId.trim();
+        JobState state = new JobState(jobId, listing.id(), owner);
         jobs.put(jobId, state);
         state.persist(jobStore);
         Future<?> future = installPool.submit(() -> runJob(state, listing));
         state.future = future;
         pruneJobs();
         return state.snapshot();
+    }
+
+    /** Load job record including ownership metadata (for ACL). */
+    public Optional<MarketplaceJobStore.JobRecord> jobRecord(String jobId) {
+        if (jobId == null || jobId.isBlank()) return Optional.empty();
+        JobState local = jobs.get(jobId);
+        if (local != null) {
+            jobStore.load(jobId).ifPresent(rec -> {
+                if (rec.cancelRequested()) {
+                    local.cancelRequested.set(true);
+                }
+            });
+            return Optional.of(local.toRecord());
+        }
+        return jobStore.load(jobId);
     }
 
     public Optional<MarketplaceInstallJob> job(String jobId) {
@@ -298,7 +322,8 @@ public class MarketplaceService {
                     "Stale install job (no progress)",
                     rec.cancelRequested(),
                     "Stale install job (no progress)",
-                    System.currentTimeMillis());
+                    System.currentTimeMillis(),
+                    rec.ownerSessionId());
             jobStore.save(failed);
             return Optional.of(failed.toDto());
         }
@@ -333,7 +358,7 @@ public class MarketplaceService {
             // sticky cancel bit still useful for clients
             jobStore.save(new MarketplaceJobStore.JobRecord(
                     rec.jobId(), rec.packId(), rec.phase(), rec.bytesRead(), rec.bytesTotal(),
-                    rec.message(), true, rec.error(), System.currentTimeMillis()));
+                    rec.message(), true, rec.error(), System.currentTimeMillis(), rec.ownerSessionId()));
             return true;
         }
         jobStore.save(new MarketplaceJobStore.JobRecord(
@@ -345,7 +370,8 @@ public class MarketplaceService {
                 "Cancel requested",
                 true,
                 rec.error(),
-                System.currentTimeMillis()));
+                System.currentTimeMillis(),
+                rec.ownerSessionId()));
         return true;
     }
 
@@ -791,6 +817,7 @@ public class MarketplaceService {
     private static final class JobState {
         final String jobId;
         final String packId;
+        final String ownerSessionId;
         final AtomicReference<String> phase = new AtomicReference<>("QUEUED");
         final AtomicLong bytesRead = new AtomicLong(0);
         final AtomicLong bytesTotal = new AtomicLong(0);
@@ -800,9 +827,10 @@ public class MarketplaceService {
         volatile Future<?> future;
         volatile long updatedAtMs = System.currentTimeMillis();
 
-        JobState(String jobId, String packId) {
+        JobState(String jobId, String packId, String ownerSessionId) {
             this.jobId = jobId;
             this.packId = packId;
+            this.ownerSessionId = ownerSessionId;
         }
 
         boolean terminal() {
@@ -822,9 +850,8 @@ public class MarketplaceService {
                     error.get());
         }
 
-        void persist(MarketplaceJobStore store) {
-            updatedAtMs = System.currentTimeMillis();
-            store.save(new MarketplaceJobStore.JobRecord(
+        MarketplaceJobStore.JobRecord toRecord() {
+            return new MarketplaceJobStore.JobRecord(
                     jobId,
                     packId,
                     phase.get(),
@@ -833,7 +860,13 @@ public class MarketplaceService {
                     message.get(),
                     cancelRequested.get(),
                     error.get(),
-                    updatedAtMs));
+                    updatedAtMs,
+                    ownerSessionId);
+        }
+
+        void persist(MarketplaceJobStore store) {
+            updatedAtMs = System.currentTimeMillis();
+            store.save(toRecord());
         }
     }
 

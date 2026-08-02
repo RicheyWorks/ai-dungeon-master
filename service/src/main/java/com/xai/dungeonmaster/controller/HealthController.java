@@ -4,6 +4,8 @@ import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.service.AuthDependencyProbe;
 import com.xai.dungeonmaster.service.GameInstanceService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,17 +13,23 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Load-balancer health probes (public, no auth).
+ * Load-balancer health probes.
  *
  * <ul>
- *   <li>{@code GET /health} — liveness (process up)</li>
- *   <li>{@code GET /health/ready} — readiness (auth backends reachable)</li>
- *   <li>{@code GET /v2/health} — richer metrics + dependency checks</li>
+ *   <li>{@code GET /health} — liveness (always lean)</li>
+ *   <li>{@code GET /health/ready} — readiness (lean by default; detail with scrape/admin token)</li>
+ *   <li>{@code GET /v2/health} — versioned health (detail gated the same way)</li>
  * </ul>
+ *
+ * Unauthenticated callers only see status/probe (and uptime on v2). Session counts,
+ * engine counts, dependency maps, and memory stats require {@code X-Metrics-Token},
+ * Bearer metrics token, or {@code X-Admin-Token}.
  */
 @RestController
 public class HealthController {
@@ -29,16 +37,34 @@ public class HealthController {
     private final SessionService sessions;
     private final GameInstanceService instances;
     private final AuthDependencyProbe dependencies;
+    private final String metricsScrapeToken;
+    private final String adminToken;
+    private final String previousAdminToken;
     private final long startedAtMs;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public HealthController(
+            SessionService sessions,
+            GameInstanceService instances,
+            AuthDependencyProbe dependencies,
+            @Value("${game.metrics.scrape-token:}") String metricsScrapeToken,
+            @Value("${game.admin.token:}") String adminToken,
+            @Value("${game.admin.token.previous:}") String previousAdminToken) {
+        this.sessions = sessions;
+        this.instances = instances;
+        this.dependencies = dependencies;
+        this.metricsScrapeToken = metricsScrapeToken == null ? "" : metricsScrapeToken.trim();
+        this.adminToken = adminToken == null ? "" : adminToken.trim();
+        this.previousAdminToken = previousAdminToken == null ? "" : previousAdminToken.trim();
+        this.startedAtMs = ManagementFactory.getRuntimeMXBean().getStartTime();
+    }
+
+    /** Test helper (no detail tokens). */
     public HealthController(
             SessionService sessions,
             GameInstanceService instances,
             AuthDependencyProbe dependencies) {
-        this.sessions = sessions;
-        this.instances = instances;
-        this.dependencies = dependencies;
-        this.startedAtMs = ManagementFactory.getRuntimeMXBean().getStartTime();
+        this(sessions, instances, dependencies, "", "", "");
     }
 
     /** Liveness: 200 when the JVM is accepting HTTP. */
@@ -52,39 +78,79 @@ public class HealthController {
 
     /**
      * Readiness: 200 when configured auth stores respond; 503 when a required
-     * dependency is down (JDBC/Redis/file).
+     * dependency is down (JDBC/Redis/file). Detail fields only with ops token.
      */
     @GetMapping({"/health/ready", "/ready"})
-    public ResponseEntity<Map<String, Object>> ready() {
+    public ResponseEntity<Map<String, Object>> ready(HttpServletRequest request) {
         AuthDependencyProbe.Result deps = dependencies.probe();
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("status", deps.ready() ? "UP" : "DOWN");
         body.put("probe", "readiness");
-        body.put("sessions", sessions.activeCount());
-        body.put("engines", instances.sessionCount());
-        body.put("dependencies", deps.checks());
+        if (detailAllowed(request)) {
+            body.put("sessions", sessions.activeCount());
+            body.put("engines", instances.sessionCount());
+            body.put("dependencies", deps.checks());
+        }
         HttpStatus code = deps.ready() ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
         return ResponseEntity.status(code).body(body);
     }
 
-    /** Versioned health + metrics + dependency snapshot (public). */
+    /** Versioned health. Public lean; ops token unlocks recon-style detail. */
     @GetMapping("/v2/health")
     public ResponseEntity<Envelope<Map<String, Object>>> healthV2(
-            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
         AuthDependencyProbe.Result deps = dependencies.probe();
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("status", deps.ready() ? "UP" : "DOWN");
         payload.put("uptimeSeconds", (System.currentTimeMillis() - startedAtMs) / 1000L);
-        payload.put("sessions", sessions.activeCount());
-        payload.put("engines", instances.sessionCount());
-        payload.put("dependencies", deps.checks());
-        Runtime rt = Runtime.getRuntime();
-        Map<String, Object> mem = new LinkedHashMap<>();
-        mem.put("maxBytes", rt.maxMemory());
-        mem.put("totalBytes", rt.totalMemory());
-        mem.put("freeBytes", rt.freeMemory());
-        payload.put("memory", mem);
+        if (detailAllowed(request)) {
+            payload.put("sessions", sessions.activeCount());
+            payload.put("engines", instances.sessionCount());
+            payload.put("dependencies", deps.checks());
+            Runtime rt = Runtime.getRuntime();
+            Map<String, Object> mem = new LinkedHashMap<>();
+            mem.put("maxBytes", rt.maxMemory());
+            mem.put("totalBytes", rt.totalMemory());
+            mem.put("freeBytes", rt.freeMemory());
+            payload.put("memory", mem);
+            payload.put("detail", true);
+        } else {
+            payload.put("detail", false);
+        }
         HttpStatus code = deps.ready() ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
         return ResponseEntity.status(code).body(Envelope.of("health", payload, requestId));
+    }
+
+    private boolean detailAllowed(HttpServletRequest request) {
+        if (request == null) return false;
+        String metricsHeader = request.getHeader("X-Metrics-Token");
+        if (metricsHeader != null && tokenOk(metricsScrapeToken, metricsHeader.trim())) {
+            return true;
+        }
+        String auth = request.getHeader("Authorization");
+        if (auth != null && auth.regionMatches(true, 0, "Bearer ", 0, 7)
+                && tokenOk(metricsScrapeToken, auth.substring(7).trim())) {
+            return true;
+        }
+        String admin = request.getHeader("X-Admin-Token");
+        if (admin != null) {
+            String t = admin.trim();
+            if (tokenOk(adminToken, t) || tokenOk(previousAdminToken, t)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean tokenOk(String expected, String actual) {
+        if (expected == null || expected.isEmpty() || actual == null) return false;
+        byte[] a = expected.getBytes(StandardCharsets.UTF_8);
+        byte[] b = actual.getBytes(StandardCharsets.UTF_8);
+        if (a.length != b.length) {
+            MessageDigest.isEqual(a, a);
+            return false;
+        }
+        return MessageDigest.isEqual(a, b);
     }
 }
