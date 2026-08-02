@@ -7,6 +7,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -95,6 +97,37 @@ public final class JdbcReceiptLedger implements ReceiptLedger {
             if (find(record.fingerprint()).isPresent()) return;
             throw new IllegalStateException("JdbcReceiptLedger.record failed", e);
         }
+    }
+
+    @Override
+    public List<RedeemRecord> listRecent(int limit) {
+        int n = Math.max(1, Math.min(limit, 500));
+        long cutoff = System.currentTimeMillis() - ttlMs;
+        List<RedeemRecord> out = new ArrayList<>();
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
+                     SELECT fingerprint, session_id, product_id, storefront, redeemed_at_ms
+                     FROM dm_receipts
+                     WHERE redeemed_at_ms >= ?
+                     ORDER BY redeemed_at_ms DESC
+                     LIMIT ?
+                     """)) {
+            ps.setLong(1, cutoff);
+            ps.setInt(2, n);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new RedeemRecord(
+                            rs.getString("fingerprint"),
+                            rs.getString("session_id"),
+                            rs.getString("product_id"),
+                            rs.getString("storefront"),
+                            rs.getLong("redeemed_at_ms")));
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("JdbcReceiptLedger.listRecent failed", e);
+        }
+        return List.copyOf(out);
     }
 
     private void delete(String fingerprint) {

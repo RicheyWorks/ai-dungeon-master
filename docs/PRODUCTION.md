@@ -237,3 +237,17 @@ With `game.content.auto-enable-on-grant=true` (default), a successful
 ### JDBC receipt ledger
 
 Set `game.auth.receipt-ledger.store=jdbc` with the same `game.auth.jdbc.*` pool used for sessions/entitlements. Table `dm_receipts` is auto-created (`fingerprint` PK). TTL is enforced lazily on read.
+
+## Admin receipt inventory
+
+| Property | Default | Meaning |
+|---|---|---|
+| `game.admin.token` | empty (disabled) | Shared secret for ops routes |
+
+```http
+GET /v2/admin/receipts?limit=50
+X-Admin-Token: <game.admin.token>
+```
+
+Returns fingerprint + sessionId + productId + storefront + redeemedAt (never raw receipts).
+Disabled with 404 when token is blank. JWT is not required (`/v2/admin/**` is public to session auth).

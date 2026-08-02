@@ -24,6 +24,26 @@ tags:
   - name: legacy
     description: Original unversioned API (kept for backward compatibility).
 paths:
+
+  /v2/admin/receipts:
+    get:
+      tags: [admin]
+      summary: List recent redeemed receipts (ops)
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, maximum: 500 }
+        - in: header
+          name: X-Admin-Token
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Recent receipt fingerprints
+        '401':
+          description: Bad admin token
+        '404':
+          description: Admin API disabled
   /v2/status:
     get:
       tags: [v2]
