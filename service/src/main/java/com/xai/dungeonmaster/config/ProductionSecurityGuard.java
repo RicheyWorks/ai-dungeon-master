@@ -65,6 +65,8 @@ public class ProductionSecurityGuard implements ApplicationRunner {
     private final String sessionPacksStore;
     private final String jdbcPassword;
     private final String corsAllowedOrigins;
+    private final String adminToken;
+    private final String rateLimitStore;
 
     public ProductionSecurityGuard(
             Environment env,
@@ -76,7 +78,9 @@ public class ProductionSecurityGuard implements ApplicationRunner {
             @Value("${game.auth.receipt-ledger.store:memory}") String receiptLedgerStore,
             @Value("${game.content.session-packs.store:memory}") String sessionPacksStore,
             @Value("${game.auth.jdbc.password:}") String jdbcPassword,
-            @Value("${game.cors.allowed-origins:*}") String corsAllowedOrigins) {
+            @Value("${game.cors.allowed-origins:*}") String corsAllowedOrigins,
+            @Value("${game.admin.token:}") String adminToken,
+            @Value("${game.rate-limit.store:memory}") String rateLimitStore) {
         this.env = env;
         this.productionFlag = productionFlag;
         this.authEnabled = authEnabled;
@@ -87,6 +91,8 @@ public class ProductionSecurityGuard implements ApplicationRunner {
         this.sessionPacksStore = sessionPacksStore == null ? "memory" : sessionPacksStore;
         this.jdbcPassword = jdbcPassword == null ? "" : jdbcPassword;
         this.corsAllowedOrigins = corsAllowedOrigins == null ? "" : corsAllowedOrigins.trim();
+        this.adminToken = adminToken == null ? "" : adminToken.trim();
+        this.rateLimitStore = rateLimitStore == null ? "memory" : rateLimitStore.trim();
     }
 
     /** True when production mode is active (explicit flag or {@code prod} profile). */
@@ -157,6 +163,16 @@ public class ProductionSecurityGuard implements ApplicationRunner {
                 || corsAllowedOrigins.contains("*")) {
             problems.add("game.cors.allowed-origins must be an explicit allow-list in production "
                     + "(no wildcards; got '" + corsAllowedOrigins + "')");
+        }
+
+        if (adminToken.isBlank() || adminToken.length() < 24
+                || "change-me".equalsIgnoreCase(adminToken)
+                || "admin".equalsIgnoreCase(adminToken)) {
+            problems.add("game.admin.token must be set to a strong secret (>= 24 chars) in production");
+        }
+
+        if ("memory".equalsIgnoreCase(rateLimitStore)) {
+            problems.add("game.rate-limit.store=memory is not multi-node safe; use redis");
         }
 
         // Storefront sandbox secrets — only fail if still default AND no live credentials.
