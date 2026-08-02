@@ -129,4 +129,28 @@ class RateLimitFilterTest {
         assertEquals(429, blocked.getStatus());
     }
 
+
+    @Test
+    void installBucketCoversMarketplaceAndUpload() throws Exception {
+        // session 100, logout 100, admin 100, install 2, metrics 100, verify 100, default 100
+        RateLimitFilter filter = new RateLimitFilter(true, 100, 100, 100, 2, 100, 100, 100);
+        MockHttpServletRequest m1 = new MockHttpServletRequest("POST", "/v2/marketplace/cool-pack/install");
+        m1.setRemoteAddr("198.51.100.77");
+        MockHttpServletResponse r1 = new MockHttpServletResponse();
+        filter.doFilter(m1, r1, new MockFilterChain());
+        assertEquals(200, r1.getStatus());
+
+        MockHttpServletRequest m2 = new MockHttpServletRequest("POST", "/v2/catalog/packs");
+        m2.setRemoteAddr("198.51.100.77");
+        MockHttpServletResponse r2 = new MockHttpServletResponse();
+        filter.doFilter(m2, r2, new MockFilterChain());
+        assertEquals(200, r2.getStatus());
+
+        MockHttpServletRequest blockedReq = new MockHttpServletRequest("POST", "/v2/marketplace/other/install");
+        blockedReq.setRemoteAddr("198.51.100.77");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilter(blockedReq, blocked, new MockFilterChain());
+        assertEquals(429, blocked.getStatus());
+    }
+
 }

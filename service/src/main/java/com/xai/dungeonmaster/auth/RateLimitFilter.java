@@ -12,6 +12,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
  * Fixed-window per-IP rate limits for public / abuse-prone endpoints.
@@ -20,6 +21,8 @@ import java.util.Locale;
  *   <li>{@code POST /v2/session} — session minting</li>
  *   <li>{@code DELETE /v2/session} — logout</li>
  *   <li>{@code /v2/admin/**} — admin token brute-force protection</li>
+ *   <li>{@code POST /v2/marketplace/{id}/install} — marketplace pack install</li>
+ *   <li>{@code POST /v2/catalog/packs} — direct pack zip upload</li>
  *   <li>{@code GET /metrics} — Prometheus scrapes (generous default)</li>
  *   <li>{@code POST /v2/entitlements/verify} — receipt verification</li>
  * </ul>
@@ -33,10 +36,14 @@ import java.util.Locale;
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    private static final Pattern MARKETPLACE_INSTALL =
+            Pattern.compile("^/v2/marketplace/[^/]+/install$");
+
     private final boolean enabled;
     private final int sessionPerMinute;
     private final int logoutPerMinute;
     private final int adminPerMinute;
+    private final int installPerMinute;
     private final int metricsPerMinute;
     private final int verifyPerMinute;
     private final RateLimitStore store;
@@ -47,6 +54,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             @Value("${game.rate-limit.session-per-minute:30}") int sessionPerMinute,
             @Value("${game.rate-limit.logout-per-minute:20}") int logoutPerMinute,
             @Value("${game.rate-limit.admin-per-minute:30}") int adminPerMinute,
+            @Value("${game.rate-limit.install-per-minute:15}") int installPerMinute,
             @Value("${game.rate-limit.metrics-per-minute:120}") int metricsPerMinute,
             @Value("${game.rate-limit.verify-per-minute:60}") int verifyPerMinute,
             @Value("${game.rate-limit.default-per-minute:120}") int defaultPerMinute) {
@@ -55,6 +63,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         this.sessionPerMinute = Math.max(1, sessionPerMinute);
         this.logoutPerMinute = Math.max(1, logoutPerMinute);
         this.adminPerMinute = Math.max(1, adminPerMinute);
+        this.installPerMinute = Math.max(1, installPerMinute);
         this.metricsPerMinute = Math.max(1, metricsPerMinute);
         this.verifyPerMinute = Math.max(1, verifyPerMinute);
         // defaultPerMinute reserved for future catch-all paths
@@ -62,28 +71,36 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     /**
      * Test helper: memory store + limits.
-     * Argument order: session, metrics, verify, default (legacy) — logout/admin
+     * Argument order: session, metrics, verify, default (legacy) — logout/admin/install
      * reuse the session cap for simple tests.
      */
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int metricsPerMinute,
                            int verifyPerMinute, int defaultPerMinute) {
         this(new MemoryRateLimitStore(), enabled, sessionPerMinute, sessionPerMinute,
-                sessionPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
+                sessionPerMinute, sessionPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
     }
 
-    /** Test helper with distinct logout budget (admin reuses session cap). */
+    /** Test helper with distinct logout budget (admin/install reuse session cap). */
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
                            int metricsPerMinute, int verifyPerMinute, int defaultPerMinute) {
         this(new MemoryRateLimitStore(), enabled, sessionPerMinute, logoutPerMinute,
-                sessionPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
+                sessionPerMinute, sessionPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
     }
 
-    /** Full test helper including admin budget. */
+    /** Full test helper including admin budget (install reuses admin cap). */
     public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
                            int adminPerMinute, int metricsPerMinute, int verifyPerMinute,
                            int defaultPerMinute) {
         this(new MemoryRateLimitStore(), enabled, sessionPerMinute, logoutPerMinute,
-                adminPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
+                adminPerMinute, adminPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
+    }
+
+    /** Full test helper including a distinct install budget. */
+    public RateLimitFilter(boolean enabled, int sessionPerMinute, int logoutPerMinute,
+                           int adminPerMinute, int installPerMinute, int metricsPerMinute,
+                           int verifyPerMinute, int defaultPerMinute) {
+        this(new MemoryRateLimitStore(), enabled, sessionPerMinute, logoutPerMinute,
+                adminPerMinute, installPerMinute, metricsPerMinute, verifyPerMinute, defaultPerMinute);
     }
 
     @Override
@@ -126,6 +143,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private Limit limitFor(HttpServletRequest req) {
         String path = req.getRequestURI();
         if (path == null) return null;
+        // strip trailing slash for matching
+        if (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
         String method = req.getMethod() == null ? "" : req.getMethod().toUpperCase(Locale.ROOT);
         if ("POST".equals(method) && path.equals("/v2/session")) {
             return new Limit("session", sessionPerMinute);
@@ -135,6 +156,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if (path.startsWith("/v2/admin")) {
             return new Limit("admin", adminPerMinute);
+        }
+        if ("POST".equals(method) && (MARKETPLACE_INSTALL.matcher(path).matches()
+                || path.equals("/v2/catalog/packs"))) {
+            return new Limit("install", installPerMinute);
         }
         if ("GET".equals(method) && path.equals("/metrics")) {
             return new Limit("metrics", metricsPerMinute);
