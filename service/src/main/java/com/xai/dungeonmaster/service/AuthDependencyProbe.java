@@ -27,6 +27,7 @@ public class AuthDependencyProbe {
     private final String sessionFile;
     private final String entitlementFile;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AuthDependencyProbe(
             DataSource authDataSource,
             RedisOps redisOps,

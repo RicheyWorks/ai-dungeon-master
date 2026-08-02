@@ -108,3 +108,28 @@ docker compose -f deploy/docker-compose.yml \
 Scrapes `app1` + `app2` at `/metrics`. Dashboard auto-loads under
 *AI Dungeon Master*. Details: [`prometheus/README.md`](prometheus/README.md).
 
+## Production launch pack
+
+```bash
+cp deploy/.env.example deploy/.env
+./scripts/gen-secrets.sh >> deploy/.env
+# set GAME_CORS_ALLOWED_ORIGINS=https://your.domain and DOMAIN=
+./scripts/verify-prod-env.sh deploy/.env
+
+mkdir -p deploy/certs   # fullchain.pem + privkey.pem
+docker compose --env-file deploy/.env \
+  -f deploy/docker-compose.yml \
+  -f deploy/docker-compose.prod.yml \
+  up --build -d
+
+BASE_URL=https://$DOMAIN ADMIN_TOKEN=$GAME_ADMIN_TOKEN ./scripts/launch-smoke.sh
+```
+
+Green gate (no Docker; boots local jar + smoke):
+
+```bash
+./scripts/launch-check.sh
+```
+
+Content packs are baked into the image at `/data/packs` and also bind-mounted from `content-packs/` in compose.
+See [`docs/PRODUCTION.md`](../docs/PRODUCTION.md) for the full go-live checklist.

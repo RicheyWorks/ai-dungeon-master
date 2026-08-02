@@ -35,6 +35,7 @@ public class AdminController {
     private final SessionPackService sessionPacks;
     private final String adminToken;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AdminController(
             ReceiptLedger ledger,
             SessionPackService sessionPacks,

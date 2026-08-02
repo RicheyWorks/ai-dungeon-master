@@ -19,6 +19,7 @@ public class PackEntitlementGate {
     private final EntitlementService entitlements;
     private final boolean enabled;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public PackEntitlementGate(
             EntitlementService entitlements,
             @Value("${game.content.entitlement-gates:true}") boolean enabled) {

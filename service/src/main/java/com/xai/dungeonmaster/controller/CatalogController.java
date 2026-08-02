@@ -47,6 +47,7 @@ public class CatalogController {
     private final PackEntitlementGate packGate;
     private final SessionPackService sessionPacks;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public CatalogController(PackUploadService uploads, PackEntitlementGate packGate, SessionPackService sessionPacks) {
         this.uploads = uploads;
         this.packGate = packGate;

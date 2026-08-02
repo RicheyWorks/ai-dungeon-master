@@ -15,6 +15,7 @@ public class NarrationRateGuard {
     private final boolean enabled;
     private final int perMinute;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public NarrationRateGuard(RateLimitStore store, RateLimitMetrics metrics, RateLimitProperties props) {
         this.store = store;
         this.metrics = metrics != null ? metrics : new RateLimitMetrics();

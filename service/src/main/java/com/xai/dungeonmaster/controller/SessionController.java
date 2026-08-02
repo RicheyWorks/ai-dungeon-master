@@ -31,6 +31,7 @@ public class SessionController {
     private final SessionService sessions;
     private final SessionLogoutService logout;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public SessionController(SessionService sessions, SessionLogoutService logout) {
         this.sessions = sessions;
         this.logout = logout;

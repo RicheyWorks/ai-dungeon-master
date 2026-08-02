@@ -35,6 +35,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private final SessionService sessions;
     private final boolean authRequired;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public StompAuthChannelInterceptor(
             JwtService jwt,
             SessionService sessions,

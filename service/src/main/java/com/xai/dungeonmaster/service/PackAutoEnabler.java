@@ -22,6 +22,7 @@ public class PackAutoEnabler {
     private final SessionPackService sessionPacks;
     private final boolean enabled;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public PackAutoEnabler(
             EntitlementStore entitlementStore,
             SessionPackService sessionPacks,
