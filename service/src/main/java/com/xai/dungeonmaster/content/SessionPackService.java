@@ -22,6 +22,7 @@ public class SessionPackService {
     private final SessionPackStore store;
     private final boolean sessionScoped;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public SessionPackService(
             SessionPackStore store,
             @Value("${game.content.session-scoped-enable:true}") boolean sessionScoped) {

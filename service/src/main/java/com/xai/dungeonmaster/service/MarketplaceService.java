@@ -97,6 +97,7 @@ public class MarketplaceService {
         return t;
     });
 
+    @org.springframework.beans.factory.annotation.Autowired
     public MarketplaceService(
             @Value("${game.content.packs.dir:content-packs}") String contentPacksDir,
             @Value("${game.marketplace.remote-url:}") String remoteUrl,

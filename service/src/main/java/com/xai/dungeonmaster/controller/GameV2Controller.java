@@ -50,6 +50,7 @@ public class GameV2Controller {
 
     private final GameInstanceService games;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public GameV2Controller(GameInstanceService games) {
         this.games = games;
     }

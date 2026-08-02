@@ -21,11 +21,14 @@ RUN apt-get update \
  && chown -R dm:dm /data /app
 
 COPY --from=build /src/service/target/ai-dungeon-master-service-*.jar /app/app.jar
+COPY --from=build /src/content-packs /data/packs
+RUN chown -R dm:dm /data /app
 
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0" \
     GAME_GUI_ENABLED=false \
     SERVER_PORT=8080 \
-    GAME_SAVES_DIR=/data/saves
+    GAME_SAVES_DIR=/data/saves \
+    GAME_CONTENT_PACKS_DIR=/data/packs
 
 USER dm
 EXPOSE 8080
@@ -34,4 +37,5 @@ VOLUME ["/data"]
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar \
   --server.port=${SERVER_PORT} \
   --game.gui.enabled=${GAME_GUI_ENABLED} \
-  --game.saves.dir=${GAME_SAVES_DIR}"]
+  --game.saves.dir=${GAME_SAVES_DIR} \
+  --game.content.packs.dir=${GAME_CONTENT_PACKS_DIR}"]

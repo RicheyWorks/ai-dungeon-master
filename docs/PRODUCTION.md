@@ -1,5 +1,86 @@
 # Production deploy checklist
 
+## Launch checklist (go-live)
+
+Ordered path from zero to verified multiplayer backend.
+
+### 0. Pre-flight
+
+- [ ] `cp deploy/.env.example deploy/.env`
+- [ ] `./scripts/gen-secrets.sh >> deploy/.env`
+- [ ] Set `GAME_CORS_ALLOWED_ORIGINS` (your public origin(s), no `*`)
+- [ ] Set `DOMAIN` and place TLS PEMs under `deploy/certs/`
+- [ ] `./scripts/verify-prod-env.sh deploy/.env`
+- [ ] Confirm content packs present under `content-packs/` (image + compose mount)
+
+### 1. Deploy
+
+```bash
+# Core multi-node + prod secrets + TLS
+docker compose --env-file deploy/.env \
+  -f deploy/docker-compose.yml \
+  -f deploy/docker-compose.prod.yml \
+  up --build -d
+
+# Optional observability
+docker compose --env-file deploy/.env \
+  -f deploy/docker-compose.yml \
+  -f deploy/docker-compose.prod.yml \
+  -f deploy/docker-compose.metrics.yml \
+  up -d
+```
+
+### 2. Smoke (required)
+
+```bash
+# Against the public/proxy URL
+BASE_URL=https://$DOMAIN ADMIN_TOKEN=$GAME_ADMIN_TOKEN ./scripts/launch-smoke.sh
+
+# Full green gate (tests + local engine + smoke) — no Docker required
+./scripts/launch-check.sh
+```
+
+Play path covered by `launch-smoke.sh`:
+
+1. `POST /v2/session` (mint)
+2. `GET /v2/session/me`
+3. `GET /v2/catalog` + optional pack enable
+4. `GET /v2/status` → `POST /v2/action`
+5. `POST /v2/narrate`
+6. `POST /v2/save` → `POST /v2/load`
+7. `GET /v2/entitlements`
+8. Optional `GET /v2/admin/receipts` with admin token
+9. `DELETE /v2/session` (logout) + confirm 401 after
+
+### 3. Ops after go-live
+
+| Task | How |
+|---|---|
+| Rotate JWT | set new `GAME_AUTH_JWT_SECRET`, rolling restart app1 then app2 (sessions invalidate) |
+| Rotate admin token | set `GAME_ADMIN_TOKEN`, restart apps |
+| Rate-limit spike (`DmRateLimitSpike`) | check Grafana rate-limit panels; temporarily raise `game.rate-limit.*-per-minute` or block abusive IP at nginx |
+| Inspect receipts | `GET /v2/admin/receipts?limit=50` + `X-Admin-Token` |
+| Inspect session packs | `GET /v2/admin/session-packs?sessionId=…` + `X-Admin-Token` |
+| Rollback | redeploy previous image tag; keep Postgres + `saves` volumes |
+
+### 4. Abuse surface (prod defaults)
+
+| Control | Prod default |
+|---|---|
+| JSON body cap | 512 KiB |
+| XFF trust | on (behind nginx only) |
+| STOMP JWT | required when `game.auth.enabled` |
+| Legacy `/api/game` | **410 disabled** |
+| Marketplace download cap | 12 MiB |
+| Rate-limit store | redis (shared) |
+
+### 5. Client parity
+
+Web (`web/src/api.ts`) uses the generated TS SDK for session/action/narrate/save/load/logout/catalog/entitlements.
+Marketplace list/install still uses raw `fetch` until OpenAPI regen adds those ops to `V2Api`.
+Kotlin/Swift SDKs expose the same OpenAPI operations under `clients/kotlin` and `clients/swift`.
+
+---
 ## Fail-fast security guard
 
 When `game.production=true` **or** Spring profile `prod` is active, the service
@@ -9,7 +90,10 @@ runs `ProductionSecurityGuard` at boot and **refuses to start** if:
 |---|---|
 | Auth | `game.auth.enabled=true` |
 | JWT secret | set, ≥ 32 chars, not a known dev default |
-| Session / entitlement store | not `memory` (use `jdbc`, `redis`, or `file`) |
+| Session / entitlement / receipt / session-packs store | not `memory` |
+| Rate-limit store | not `memory` (use `redis`) |
+| Admin token | `game.admin.token` / `GAME_ADMIN_TOKEN` ≥ 24 chars |
+| CORS | `game.cors.allowed-origins` explicit allow-list (no `*`) |
 | JDBC password | not a known default when store is jdbc |
 | Storefronts | strong sandbox secrets **or** live vendor credentials |
 
