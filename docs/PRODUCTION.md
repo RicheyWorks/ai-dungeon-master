@@ -284,3 +284,15 @@ Set `false` to restore legacy process-wide toggles (single-player / single-tenan
 | `game.auth.session.hygiene-interval-ms` | `300000` | Reaper interval |
 
 On purge: session row deleted, **session pack overrides cleared**, idle game engine destroyed.
+
+## Explicit logout
+
+```http
+DELETE /v2/session
+Authorization: Bearer <token>
+```
+
+Drops the session, clears session pack overrides, and destroys the live game engine.
+Clients should discard the token and mint a new session to continue.
+
+Ops: `GET /v2/admin/session-packs?sessionId=…` lists enabled packs + overrides (`X-Admin-Token`).

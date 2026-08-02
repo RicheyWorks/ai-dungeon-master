@@ -244,6 +244,37 @@ export function App() {
         <button type="button" onClick={startSession} disabled={busy}>
           {session ? "New session" : "Start session"}
         </button>
+        {session ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  if (session) {
+                    await api.logoutSession(baseUrl, session.token);
+                  }
+                } catch (e) {
+                  // still clear local state if server already forgot us
+                  console.warn(e);
+                } finally {
+                  disconnectStomp();
+                  sessionStore.clearSession();
+                  setSession(null);
+                  setCatalog(null);
+                  setEntitlements(null);
+                  setStatus(null);
+                  setInfo("Logged out");
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            Log out
+          </button>
+        ) : null}
       </header>
 
       {session && (
