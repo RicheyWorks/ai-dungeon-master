@@ -150,4 +150,62 @@ class StompAuthChannelInterceptorTest {
                 () -> strict.preSend(msg, null));
     }
 
+    @Test
+    void sendActionAndNarrateAllowedWhenAuthOn() {
+        SessionService.Issued issued = sessions.createSession("A");
+        StompAuthChannelInterceptor strict = new StompAuthChannelInterceptor(jwt, sessions, true);
+        for (String dest : new String[]{"/app/action", "/app/narrate"}) {
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+            Map<String, Object> attrs = new HashMap<>();
+            attrs.put(StompAuthChannelInterceptor.SESSION_ID_ATTR, issued.session().id());
+            accessor.setSessionAttributes(attrs);
+            accessor.setDestination(dest);
+            accessor.setLeaveMutable(true);
+            Message<?> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+            assertDoesNotThrow(() -> strict.preSend(msg, null), dest);
+        }
+    }
+
+    @Test
+    void sendActionDeniedWithoutSessionWhenAuthOn() {
+        StompAuthChannelInterceptor strict = new StompAuthChannelInterceptor(jwt, sessions, true);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+        accessor.setSessionAttributes(new HashMap<>());
+        accessor.setDestination("/app/action");
+        accessor.setLeaveMutable(true);
+        Message<?> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        assertThrows(org.springframework.messaging.MessageDeliveryException.class,
+                () -> strict.preSend(msg, null));
+    }
+
+    @Test
+    void subscribePathTraversalDenied() {
+        SessionService.Issued issued = sessions.createSession("A");
+        StompAuthChannelInterceptor strict = new StompAuthChannelInterceptor(jwt, sessions, true);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put(StompAuthChannelInterceptor.SESSION_ID_ATTR, issued.session().id());
+        accessor.setSessionAttributes(attrs);
+        accessor.setDestination("/topic/narrative/../admin");
+        accessor.setLeaveMutable(true);
+        Message<?> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        assertThrows(org.springframework.messaging.MessageDeliveryException.class,
+                () -> strict.preSend(msg, null));
+    }
+
+    @Test
+    void authOffBoundSessionStillCannotCrossSubscribe() {
+        SessionService.Issued a = sessions.createSession("A");
+        SessionService.Issued b = sessions.createSession("B");
+        // interceptor with authRequired=false (default in setUp)
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put(StompAuthChannelInterceptor.SESSION_ID_ATTR, a.session().id());
+        accessor.setSessionAttributes(attrs);
+        accessor.setDestination("/topic/narrative/" + b.session().id());
+        accessor.setLeaveMutable(true);
+        Message<?> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        assertThrows(org.springframework.messaging.MessageDeliveryException.class,
+                () -> interceptor.preSend(msg, null));
+    }
 }
