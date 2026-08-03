@@ -117,6 +117,7 @@ Full contract: [`docs/api/openapi.yaml`](docs/api/openapi.yaml) ·
 | `POST /v2/action` | Apply a choice |
 | `POST /v2/narrate` | DM narration (active LLM) |
 | `POST /v2/save` · `/load` · `/reset` | Session-scoped save lifecycle |
+| `GET /v2/save` · `DELETE /v2/save` | Save presence / clear slot |
 | `GET /v2/marketplace` | Discover local + remote packs |
 | `POST /v2/marketplace/{id}/install` | Install (`?async=true` → job + poll) |
 | `GET/DELETE /v2/marketplace/jobs/{jobId}` | Progress / cancel (**owner session only**) |

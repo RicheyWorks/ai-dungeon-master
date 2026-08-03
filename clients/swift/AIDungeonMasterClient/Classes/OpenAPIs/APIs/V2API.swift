@@ -93,6 +93,41 @@ open class V2API {
     }
 
     /**
+     Delete the caller's save file (idempotent).
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: GameSaveDeleteEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func deleteSaveV2(xRequestId: String? = nil) async throws -> GameSaveDeleteEnvelope {
+        return try await deleteSaveV2WithRequestBuilder(xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Delete the caller's save file (idempotent).
+     - DELETE /v2/save
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<GameSaveDeleteEnvelope> 
+     */
+    open class func deleteSaveV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<GameSaveDeleteEnvelope> {
+        let localVariablePath = "/v2/save"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<GameSaveDeleteEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "DELETE", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Explicit logout — drop session, pack prefs, and live engine.
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
@@ -362,6 +397,42 @@ open class V2API {
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
         let localVariableRequestBuilder: RequestBuilder<MarketplacePackEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Save file presence and metadata (does not load the engine).
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: GameSaveMetaEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func getSaveMetaV2(xRequestId: String? = nil) async throws -> GameSaveMetaEnvelope {
+        return try await getSaveMetaV2WithRequestBuilder(xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Save file presence and metadata (does not load the engine).
+     - GET /v2/save
+     - Returns whether a save exists for the caller, byte size, and last-modified time. Useful for UI enable/disable of Load without attempting restore. 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<GameSaveMetaEnvelope> 
+     */
+    open class func getSaveMetaV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<GameSaveMetaEnvelope> {
+        let localVariablePath = "/v2/save"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<GameSaveMetaEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }

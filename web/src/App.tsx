@@ -75,6 +75,7 @@ export function App() {
   const [healthAt, setHealthAt] = useState<string | null>(null);
   const [serverOpen, setServerOpen] = useState(() => sessionStore.loadServerOpen());
   const [copied, setCopied] = useState(false);
+  const [saveMeta, setSaveMeta] = useState<api.SaveMeta | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const [adminToken, setAdminToken] = useState(() => sessionStore.loadAdminToken());
   const [metricsToken, setMetricsToken] = useState(() => sessionStore.loadMetricsToken());
@@ -270,6 +271,7 @@ export function App() {
     [baseUrl, disconnectStomp],
   );
 
+
   // Online / offline banner.
   useEffect(() => {
     const on = () => setOnline(true);
@@ -317,6 +319,27 @@ export function App() {
       }
     })();
   }, [session, nowTick, online, baseUrl, disconnectStomp, connectStomp]);
+
+  const refreshSaveMeta = useCallback(
+    async (s: SessionInfo) => {
+      try {
+        const meta = await api.getSaveMeta(baseUrl, s.token);
+        setSaveMeta(meta);
+      } catch {
+        setSaveMeta(null);
+      }
+    },
+    [baseUrl],
+  );
+
+  // Save slot meta when session is available.
+  useEffect(() => {
+    if (!session || isExpired(session)) {
+      setSaveMeta(null);
+      return;
+    }
+    void refreshSaveMeta(session);
+  }, [session, refreshSaveMeta]);
 
   const ensureSession = useCallback(async (): Promise<SessionInfo> => {
     let candidate = session;
@@ -740,14 +763,25 @@ export function App() {
             void run(async (s) => {
               const p = await api.saveGame(baseUrl, s.token);
               setInfo(p.saved ? (p.sessionScoped ? "Saved (session)" : "Saved") : "Save failed");
+              await refreshSaveMeta(s);
             })
           }
           onLoad={() =>
             void run(async (s) => {
               setStatus(await api.loadGame(baseUrl, s.token));
               setInfo("Loaded save");
+              await refreshSaveMeta(s);
             })
           }
+          onDeleteSave={() =>
+            void run(async (s) => {
+              if (!window.confirm("Delete this session's save file?")) return;
+              const p = await api.deleteSave(baseUrl, s.token);
+              setInfo(p.deleted ? "Save deleted" : "No save to delete");
+              await refreshSaveMeta(s);
+            })
+          }
+          saveMeta={saveMeta}
           onReset={() =>
             void run(async (s) => {
               setStatus(await api.resetGame(baseUrl, s.token));
@@ -1167,6 +1201,8 @@ function GameTab(props: {
   onClearPrompt: () => void;
   onSave: () => void;
   onLoad: () => void;
+  onDeleteSave: () => void;
+  saveMeta: api.SaveMeta | null;
   onReset: () => void;
 }) {
   const { status } = props;
@@ -1232,8 +1268,28 @@ function GameTab(props: {
         <button type="button" onClick={props.onSave} disabled={props.busy}>
           Save
         </button>
-        <button type="button" onClick={props.onLoad} disabled={props.busy}>
-          Load
+        <button
+          type="button"
+          onClick={props.onLoad}
+          disabled={props.busy || props.saveMeta?.exists === false}
+          title={
+            props.saveMeta?.exists
+              ? props.saveMeta.bytes != null
+                ? `Load save (${props.saveMeta.bytes} bytes)`
+                : "Load save"
+              : "No save for this session"
+          }
+        >
+          Load{props.saveMeta?.exists === false ? " · none" : ""}
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          onClick={props.onDeleteSave}
+          disabled={props.busy || !props.saveMeta?.exists}
+          title="Delete session save file"
+        >
+          Clear save
         </button>
         <button type="button" className="ghost" onClick={props.onReset} disabled={props.busy}>
           Reset

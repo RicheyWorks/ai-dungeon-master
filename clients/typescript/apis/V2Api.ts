@@ -20,7 +20,9 @@ import type {
   DeleteSessionV2200Response,
   EntitlementEnvelope,
   ErrorEnvelope,
+  GameSaveDeleteEnvelope,
   GameSaveEnvelope,
+  GameSaveMetaEnvelope,
   GameStatusEnvelope,
   HealthEnvelope,
   MarketplaceEnvelope,
@@ -44,8 +46,12 @@ import {
     EntitlementEnvelopeToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
+    GameSaveDeleteEnvelopeFromJSON,
+    GameSaveDeleteEnvelopeToJSON,
     GameSaveEnvelopeFromJSON,
     GameSaveEnvelopeToJSON,
+    GameSaveMetaEnvelopeFromJSON,
+    GameSaveMetaEnvelopeToJSON,
     GameStatusEnvelopeFromJSON,
     GameStatusEnvelopeToJSON,
     HealthEnvelopeFromJSON,
@@ -80,6 +86,10 @@ export interface CreateSessionV2Request {
     sessionRequest?: SessionRequest;
 }
 
+export interface DeleteSaveV2Request {
+    xRequestId?: string;
+}
+
 export interface DeleteSessionV2Request {
     xRequestId?: string;
 }
@@ -111,6 +121,10 @@ export interface GetMarketplaceInstallJobV2Request {
 
 export interface GetMarketplacePackV2Request {
     id: string;
+    xRequestId?: string;
+}
+
+export interface GetSaveMetaV2Request {
     xRequestId?: string;
 }
 
@@ -261,6 +275,36 @@ export class V2Api extends runtime.BaseAPI {
      */
     async createSessionV2(requestParameters: CreateSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SessionEnvelope> {
         const response = await this.createSessionV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Delete the caller\'s save file (idempotent).
+     */
+    async deleteSaveV2Raw(requestParameters: DeleteSaveV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GameSaveDeleteEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/save`,
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GameSaveDeleteEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Delete the caller\'s save file (idempotent).
+     */
+    async deleteSaveV2(requestParameters: DeleteSaveV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameSaveDeleteEnvelope> {
+        const response = await this.deleteSaveV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -513,6 +557,38 @@ export class V2Api extends runtime.BaseAPI {
      */
     async getMarketplacePackV2(requestParameters: GetMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MarketplacePackEnvelope> {
         const response = await this.getMarketplacePackV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Returns whether a save exists for the caller, byte size, and last-modified time. Useful for UI enable/disable of Load without attempting restore. 
+     * Save file presence and metadata (does not load the engine).
+     */
+    async getSaveMetaV2Raw(requestParameters: GetSaveMetaV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GameSaveMetaEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/save`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GameSaveMetaEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Returns whether a save exists for the caller, byte size, and last-modified time. Useful for UI enable/disable of Load without attempting restore. 
+     * Save file presence and metadata (does not load the engine).
+     */
+    async getSaveMetaV2(requestParameters: GetSaveMetaV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameSaveMetaEnvelope> {
+        const response = await this.getSaveMetaV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 

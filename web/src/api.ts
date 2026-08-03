@@ -227,6 +227,26 @@ export async function saveGame(baseUrl: string, token: string) {
   return (await createApi(baseUrl, token).saveGameV2()).payload;
 }
 
+export type SaveMeta = {
+  exists?: boolean;
+  path?: string;
+  sessionScoped?: boolean;
+  bytes?: number;
+  modifiedAtEpochMs?: number | null;
+};
+
+export async function getSaveMeta(baseUrl: string, token: string): Promise<SaveMeta> {
+  const p = (await createApi(baseUrl, token).getSaveMetaV2()).payload;
+  return p ?? { exists: false };
+}
+
+export async function deleteSave(
+  baseUrl: string,
+  token: string,
+): Promise<{ deleted?: boolean; exists?: boolean }> {
+  return (await createApi(baseUrl, token).deleteSaveV2()).payload ?? { deleted: false };
+}
+
 export async function loadGame(baseUrl: string, token: string): Promise<GameStatusV2> {
   return (await createApi(baseUrl, token).loadGameV2()).payload;
 }

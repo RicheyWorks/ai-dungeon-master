@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.nio.file.Path;
 
 import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -67,6 +68,38 @@ class GameV2SessionIsolationTest {
         mvc.perform(post("/v2/load").requestAttr(JwtAuthFilter.SESSION_ATTR, alice))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type").value("game_status"));
+    }
+
+    @Test
+    void saveMetaAndDelete() throws Exception {
+        mvc.perform(get("/v2/save").requestAttr(JwtAuthFilter.SESSION_ATTR, alice))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("game_save_meta"))
+                .andExpect(jsonPath("$.payload.exists").value(false));
+
+        mvc.perform(post("/v2/save").requestAttr(JwtAuthFilter.SESSION_ATTR, alice))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/v2/save").requestAttr(JwtAuthFilter.SESSION_ATTR, alice))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.exists").value(true))
+                .andExpect(jsonPath("$.payload.bytes").isNumber())
+                .andExpect(jsonPath("$.payload.sessionScoped").value(true));
+
+        mvc.perform(delete("/v2/save").requestAttr(JwtAuthFilter.SESSION_ATTR, alice))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("game_save_delete"))
+                .andExpect(jsonPath("$.payload.deleted").value(true))
+                .andExpect(jsonPath("$.payload.exists").value(false));
+
+        // Idempotent second delete
+        mvc.perform(delete("/v2/save").requestAttr(JwtAuthFilter.SESSION_ATTR, alice))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.deleted").value(false))
+                .andExpect(jsonPath("$.payload.exists").value(false));
+
+        mvc.perform(post("/v2/load").requestAttr(JwtAuthFilter.SESSION_ATTR, alice))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

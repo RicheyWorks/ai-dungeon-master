@@ -305,6 +305,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GameSaveEnvelope'
+    get:
+      tags: [v2]
+      operationId: getSaveMetaV2
+      summary: Save file presence and metadata (does not load the engine).
+      description: |
+        Returns whether a save exists for the caller, byte size, and last-modified
+        time. Useful for UI enable/disable of Load without attempting restore.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Save metadata envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSaveMetaEnvelope'
+    delete:
+      tags: [v2]
+      operationId: deleteSaveV2
+      summary: Delete the caller's save file (idempotent).
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Delete acknowledgement envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSaveDeleteEnvelope'
   /v2/load:
     post:
       tags: [v2]
@@ -1440,6 +1469,40 @@ components:
                 saved: { type: boolean }
                 path: { type: string }
                 sessionScoped: { type: boolean }
+
+    GameSaveMetaEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: game_save_meta
+            payload:
+              type: object
+              properties:
+                exists: { type: boolean }
+                path: { type: string }
+                sessionScoped: { type: boolean }
+                bytes: { type: integer, format: int64 }
+                modifiedAtEpochMs: { type: integer, format: int64, nullable: true }
+
+    GameSaveDeleteEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: game_save_delete
+            payload:
+              type: object
+              properties:
+                deleted: { type: boolean }
+                exists: { type: boolean }
+                path: { type: string }
+                sessionScoped: { type: boolean }
+                error: { type: string, nullable: true }
 
     SessionEnvelope:
       allOf:
