@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  AdminSessionRow,
+  AdminSessionsPayload,
   CatalogPayload,
   EntitlementPayload,
   GameStatusV2,
@@ -18,6 +20,7 @@ import { steamBridge, steamReceipt } from "./steamPurchase";
 
 import {
   isExpired,
+  relativeEpoch,
   sessionStore,
   shortId,
   type SessionInfo,
@@ -65,9 +68,19 @@ export function App() {
   const [healthOk, setHealthOk] = useState<boolean | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [healthAt, setHealthAt] = useState<string | null>(null);
-  const [serverOpen, setServerOpen] = useState(false);
+  const [serverOpen, setServerOpen] = useState(() => sessionStore.loadServerOpen());
   const [copied, setCopied] = useState(false);
   const [dropActive, setDropActive] = useState(false);
+  const [adminToken, setAdminToken] = useState(() => sessionStore.loadAdminToken());
+  const [metricsToken, setMetricsToken] = useState(() => sessionStore.loadMetricsToken());
+  const [adminSessions, setAdminSessions] = useState<AdminSessionsPayload | null>(null);
+  const [metricsProbe, setMetricsProbe] = useState<{
+    ok: boolean;
+    status: number;
+    bytes: number;
+    sample?: string;
+  } | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const stompRef = useRef<StompClient | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
 
@@ -82,13 +95,16 @@ export function App() {
 
   const pollHealth = useCallback(async (url = baseUrl) => {
     const ready = await api.fetchReadiness(url);
-    const v2 = await api.fetchHealthV2(url);
+    const v2 = await api.fetchHealthV2(url, {
+      adminToken: adminToken || undefined,
+      metricsToken: metricsToken || undefined,
+    });
     setReadiness(ready.body);
     setHealth(v2.payload);
     setHealthOk(ready.ok && v2.ok);
     setHealthError(ready.error ?? v2.error ?? null);
     setHealthAt(new Date().toLocaleTimeString());
-  }, [baseUrl]);
+  }, [baseUrl, adminToken, metricsToken]);
 
   useEffect(() => {
     void pollHealth();
@@ -102,6 +118,24 @@ export function App() {
     const t = window.setTimeout(() => setInfo(null), 5500);
     return () => window.clearTimeout(t);
   }, [info]);
+
+  // ? opens keyboard help (ignore when typing).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName?.toLowerCase();
+      const inField =
+        tag === "input" || tag === "textarea" || tag === "select" || t?.isContentEditable;
+      if (inField) return;
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setHelpOpen((v) => !v);
+      }
+      if (e.key === "Escape") setHelpOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const goTab = useCallback((next: Tab) => {
     setTab(next);
@@ -309,7 +343,11 @@ export function App() {
       <details
         className="server-details"
         open={serverOpen}
-        onToggle={(e) => setServerOpen((e.target as HTMLDetailsElement).open)}
+        onToggle={(e) => {
+          const open = (e.target as HTMLDetailsElement).open;
+          setServerOpen(open);
+          sessionStore.saveServerOpen(open);
+        }}
       >
         <summary>Server connection</summary>
         <div className="bar">
@@ -680,7 +718,73 @@ export function App() {
           healthError={healthError}
           healthAt={healthAt}
           baseUrl={baseUrl}
+          adminToken={adminToken}
+          setAdminToken={(t) => {
+            setAdminToken(t);
+            sessionStore.saveAdminToken(t);
+          }}
+          metricsToken={metricsToken}
+          setMetricsToken={(t) => {
+            setMetricsToken(t);
+            sessionStore.saveMetricsToken(t);
+          }}
+          adminSessions={adminSessions}
+          metricsProbe={metricsProbe}
+          busy={busy}
+          currentSessionId={session?.sessionId ?? null}
           onRefresh={() => void pollHealth()}
+          onLoadSessions={() =>
+            void (async () => {
+              try {
+                setError(null);
+                const p = await api.listAdminSessions(baseUrl, adminToken, 100);
+                setAdminSessions(p);
+                setInfo(`Loaded ${p.count ?? p.sessions?.length ?? 0} sessions`);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onRevokeSession={(id) =>
+            void (async () => {
+              try {
+                setError(null);
+                const r = await api.revokeAdminSession(baseUrl, adminToken, id);
+                setInfo(
+                  r.revoked
+                    ? `Revoked ${id.slice(0, 8)}…${r.existed === false ? " (was unknown)" : ""}`
+                    : "Revoke failed",
+                );
+                setAdminSessions(await api.listAdminSessions(baseUrl, adminToken, 100));
+                if (session?.sessionId === id) {
+                  disconnectStomp();
+                  sessionStore.clearSession();
+                  setSession(null);
+                  setStatus(null);
+                }
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onProbeMetrics={() =>
+            void (async () => {
+              try {
+                const r = await api.probeMetrics(baseUrl, metricsToken || undefined);
+                setMetricsProbe(r);
+                setInfo(r.ok ? `Metrics OK (${r.bytes} B)` : `Metrics HTTP ${r.status}`);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onCopyBase={() => {
+            const u = baseUrl.trim() || window.location.origin;
+            void navigator.clipboard?.writeText(u).then(
+              () => setInfo(`Copied ${u}`),
+              () => setError("Clipboard unavailable"),
+            );
+          }}
         />
       )}
 
@@ -689,10 +793,51 @@ export function App() {
 
       <footer className="app-footer">
         <span className="subtle">
-          Game: keys <kbd>1</kbd>–<kbd>9</kbd> choose · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> narrate
+          Game: keys <kbd>1</kbd>–<kbd>9</kbd> choose · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> narrate ·{" "}
+          <button type="button" className="linkish" onClick={() => setHelpOpen(true)}>
+            ?
+          </button>{" "}
+          help
         </span>
         <span className="subtle">SPA · /app</span>
       </footer>
+
+      {helpOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setHelpOpen(false)}>
+          <div
+            className="modal card stack"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Keyboard shortcuts"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="row between">
+              <h3>Keyboard shortcuts</h3>
+              <button type="button" className="ghost compact" onClick={() => setHelpOpen(false)}>
+                Close
+              </button>
+            </div>
+            <ul className="help-list">
+              <li>
+                <kbd>1</kbd>–<kbd>9</kbd> — pick a choice (Game tab)
+              </li>
+              <li>
+                <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd> — send narrate
+              </li>
+              <li>
+                <kbd>?</kbd> — toggle this help
+              </li>
+              <li>
+                <kbd>Esc</kbd> — close dialogs
+              </li>
+            </ul>
+            <p className="muted" style={{ margin: 0 }}>
+              Ops: System tab stores admin / metrics tokens locally (this browser only) for health
+              detail, session list/revoke, and metrics probe.
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1587,11 +1732,25 @@ function SystemTab(props: {
   healthError: string | null;
   healthAt: string | null;
   baseUrl: string;
+  adminToken: string;
+  setAdminToken: (v: string) => void;
+  metricsToken: string;
+  setMetricsToken: (v: string) => void;
+  adminSessions: AdminSessionsPayload | null;
+  metricsProbe: { ok: boolean; status: number; bytes: number; sample?: string } | null;
+  busy: boolean;
+  currentSessionId: string | null;
   onRefresh: () => void;
+  onLoadSessions: () => void;
+  onRevokeSession: (id: string) => void;
+  onProbeMetrics: () => void;
+  onCopyBase: () => void;
 }) {
   const deps = props.readiness?.dependencies ?? props.health?.dependencies ?? {};
   const depEntries = Object.entries(deps as Record<string, { status?: string; detail?: string }>);
   const mem = props.health?.memory;
+  const detail = props.health?.detail === true;
+  const sessions = props.adminSessions?.sessions ?? [];
 
   return (
     <div className="stack">
@@ -1602,8 +1761,8 @@ function SystemTab(props: {
         </button>
       </div>
       <p className="muted">
-        Public probes via <code>/health/ready</code> and <code>/v2/health</code> (no session
-        required). Detail fields may be redacted without an ops token. Auto-refresh every 15s.
+        Public probes via <code>/health/ready</code> and <code>/v2/health</code>. Detail fields
+        unlock with metrics or admin token below. Auto-refresh every 15s.
       </p>
 
       <div className="card stack">
@@ -1616,16 +1775,70 @@ function SystemTab(props: {
           >
             {props.healthOk === true ? "UP" : props.healthOk === false ? "DOWN" : "…"}
           </span>
+          <span className={detail ? "pill up" : "pill muted-pill"}>
+            {detail ? "DETAIL" : "LEAN"}
+          </span>
           {props.healthAt && <span className="muted">as of {props.healthAt}</span>}
         </div>
         {props.healthError && <div className="banner error">{props.healthError}</div>}
-        <div className="subtle">
-          Base URL: {props.baseUrl.trim() || "(same origin)"}
+        <div className="row">
+          <span className="subtle">
+            Base URL: {props.baseUrl.trim() || "(same origin)"}
+          </span>
+          <button type="button" className="ghost compact" onClick={props.onCopyBase}>
+            Copy URL
+          </button>
         </div>
       </div>
 
+      <div className="card stack">
+        <strong>Ops tokens</strong>
+        <p className="muted" style={{ margin: 0 }}>
+          Stored in this browser only (<code>localStorage</code>). Used for health detail, admin
+          sessions, and metrics probe — never sent unless you use those actions.
+        </p>
+        <label className="field">
+          <span>X-Admin-Token</span>
+          <input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            value={props.adminToken}
+            onChange={(e) => props.setAdminToken(e.target.value)}
+            placeholder="game.admin.token"
+            aria-label="Admin token"
+          />
+        </label>
+        <label className="field">
+          <span>X-Metrics-Token</span>
+          <input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            value={props.metricsToken}
+            onChange={(e) => props.setMetricsToken(e.target.value)}
+            placeholder="game.metrics.scrape-token"
+            aria-label="Metrics scrape token"
+          />
+        </label>
+        <div className="row">
+          <button type="button" onClick={props.onRefresh} disabled={props.busy}>
+            Refresh health (with tokens)
+          </button>
+          <button type="button" onClick={props.onProbeMetrics} disabled={props.busy}>
+            Probe /metrics
+          </button>
+        </div>
+        {props.metricsProbe ? (
+          <div className="subtle">
+            Metrics HTTP {props.metricsProbe.status} · {props.metricsProbe.bytes} B
+            {props.metricsProbe.sample ? ` · ${props.metricsProbe.sample}` : ""}
+          </div>
+        ) : null}
+      </div>
+
       <div className="card">
-        <strong>Metrics</strong>
+        <strong>Runtime</strong>
         <div className="stat-row">
           <span className="stat">
             Sessions <b>{props.health?.sessions ?? props.readiness?.sessions ?? "—"}</b>
@@ -1667,12 +1880,21 @@ function SystemTab(props: {
             ) : null}
           </div>
         )}
+        {!detail && (
+          <p className="muted">
+            Lean view — add an ops token and Refresh to unlock sessions/engines/memory.
+          </p>
+        )}
       </div>
 
       <div className="card">
         <strong>Dependencies</strong>
         {depEntries.length === 0 ? (
-          <p className="muted">No dependency data yet — hit Refresh.</p>
+          <p className="muted">
+            {detail
+              ? "No dependency data yet — hit Refresh."
+              : "Hidden in lean health — unlock detail with ops tokens."}
+          </p>
         ) : (
           depEntries.map(([name, check]) => (
             <div key={name} className="dep-row">
@@ -1692,6 +1914,99 @@ function SystemTab(props: {
             </div>
           ))
         )}
+      </div>
+
+      <div className="card stack">
+        <div className="section-head">
+          <strong>Admin sessions</strong>
+          <button
+            type="button"
+            className="primary"
+            disabled={props.busy || !props.adminToken.trim()}
+            onClick={props.onLoadSessions}
+          >
+            Load sessions
+          </button>
+        </div>
+        <p className="muted" style={{ margin: 0 }}>
+          <code>GET /v2/admin/sessions</code> · revoke uses{" "}
+          <code>DELETE /v2/admin/sessions/&#123;id&#125;</code>
+        </p>
+        {!props.adminToken.trim() ? (
+          <div className="empty">Enter an admin token above to manage sessions.</div>
+        ) : null}
+        {props.adminSessions && sessions.length === 0 ? (
+          <div className="empty">No sessions in inventory.</div>
+        ) : null}
+        {sessions.length > 0 ? (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Session</th>
+                  <th>Name</th>
+                  <th>Last seen</th>
+                  <th>Engine</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((s: AdminSessionRow) => {
+                  const id = s.sessionId ?? "";
+                  const mine = props.currentSessionId && id === props.currentSessionId;
+                  return (
+                    <tr key={id} className={mine ? "is-mine" : undefined}>
+                      <td>
+                        <code title={id}>{id ? id.slice(0, 8) : "—"}</code>
+                        {mine ? <span className="pill muted-pill">you</span> : null}
+                      </td>
+                      <td>{s.displayName ?? "—"}</td>
+                      <td>{relativeEpoch(s.lastSeenEpochSeconds)}</td>
+                      <td>
+                        {s.hasEngine ? (
+                          <span className="pill up">yes</span>
+                        ) : (
+                          <span className="pill muted-pill">no</span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="ghost compact danger-text"
+                          disabled={props.busy || !id}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Revoke session ${id.slice(0, 8)}…? Client must re-auth.`,
+                              )
+                            ) {
+                              props.onRevokeSession(id);
+                            }
+                          }}
+                        >
+                          Revoke
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="subtle">
+              Showing {props.adminSessions?.count ?? sessions.length} of{" "}
+              {props.adminSessions?.total ?? "?"}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="card">
+        <strong>Audit logs</strong>
+        <p className="muted" style={{ margin: 0 }}>
+          Server emits <code>dm.admin.audit</code> and <code>dm.security.audit</code> lines (job ACL
+          denials, rate limits, oversize bodies, bad ops tokens). Tail process logs in ops — not
+          exposed in this SPA.
+        </p>
       </div>
     </div>
   );

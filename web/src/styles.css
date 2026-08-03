@@ -1094,3 +1094,97 @@ summary:focus-visible,
   .brand-actions button { flex: 1; }
   .app-footer { flex-direction: column; }
 }
+
+/* —— Admin system / help modal —— */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.field input {
+  width: 100%;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  margin-top: var(--space-2);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.admin-table th {
+  color: var(--subtle);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-table tr.is-mine {
+  background: color-mix(in oklab, var(--accent) 8%, transparent);
+}
+
+.admin-table code {
+  font-size: 0.8em;
+}
+
+.danger-text {
+  color: var(--danger) !important;
+}
+
+button.linkish {
+  display: inline;
+  min-height: 0;
+  padding: 0 0.15rem;
+  border: none;
+  background: transparent;
+  color: var(--accent-dim);
+  text-decoration: underline;
+  font: inherit;
+  cursor: pointer;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: color-mix(in oklab, #000 55%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.modal {
+  width: min(420px, 100%);
+  max-height: min(80vh, 560px);
+  overflow-y: auto;
+  box-shadow: var(--shadow-card);
+}
+
+.help-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.help-list li {
+  margin-bottom: 0.35rem;
+}
