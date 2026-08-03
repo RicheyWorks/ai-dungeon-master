@@ -122,6 +122,11 @@ export interface GetStatusV2Request {
     xRequestId?: string;
 }
 
+export interface InstallMarketplacePackAsyncV2Request {
+    id: string;
+    xRequestId?: string;
+}
+
 export interface InstallMarketplacePackV2Request {
     id: string;
     xRequestId?: string;
@@ -559,6 +564,45 @@ export class V2Api extends runtime.BaseAPI {
      */
     async getStatusV2(requestParameters: GetStatusV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GameStatusEnvelope> {
         const response = await this.getStatusV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Background download with progress polling via `GET /v2/marketplace/jobs/{jobId}`. Jobs bind to the caller session for poll/cancel ACL. Equivalent to `POST /v2/marketplace/{id}/install?async=true`. 
+     * Start an async marketplace pack install (always 202 + job).
+     */
+    async installMarketplacePackAsyncV2Raw(requestParameters: InstallMarketplacePackAsyncV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MarketplaceInstallJobEnvelope>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling installMarketplacePackAsyncV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/marketplace/{id}/install-async`.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MarketplaceInstallJobEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Background download with progress polling via `GET /v2/marketplace/jobs/{jobId}`. Jobs bind to the caller session for poll/cancel ACL. Equivalent to `POST /v2/marketplace/{id}/install?async=true`. 
+     * Start an async marketplace pack install (always 202 + job).
+     */
+    async installMarketplacePackAsyncV2(requestParameters: InstallMarketplacePackAsyncV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MarketplaceInstallJobEnvelope> {
+        const response = await this.installMarketplacePackAsyncV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 

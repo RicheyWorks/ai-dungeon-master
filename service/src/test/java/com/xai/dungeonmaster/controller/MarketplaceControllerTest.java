@@ -123,4 +123,15 @@ class MarketplaceControllerTest {
         mvc.perform(get("/v2/marketplace/jobs/" + jobId))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void installAsyncPathReturns202Job() throws Exception {
+        SessionService.Session owner = sessions.createSession("AsyncOwner").session();
+        mvc.perform(post("/v2/marketplace/demo-pack/install-async")
+                        .requestAttr(JwtAuthFilter.SESSION_ATTR, owner))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.type", equalTo("marketplace_install_job")))
+                .andExpect(jsonPath("$.payload.jobId").isNotEmpty())
+                .andExpect(jsonPath("$.payload.packId", equalTo("demo-pack")));
+    }
 }

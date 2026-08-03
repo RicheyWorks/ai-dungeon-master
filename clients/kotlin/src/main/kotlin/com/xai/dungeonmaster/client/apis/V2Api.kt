@@ -881,6 +881,81 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
     }
 
     /**
+     * Start an async marketplace pack install (always 202 + job).
+     * Background download with progress polling via &#x60;GET /v2/marketplace/jobs/{jobId}&#x60;. Jobs bind to the caller session for poll/cancel ACL. Equivalent to &#x60;POST /v2/marketplace/{id}/install?async&#x3D;true&#x60;. 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return MarketplaceInstallJobEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun installMarketplacePackAsyncV2(id: kotlin.String, xRequestId: kotlin.String? = null) : MarketplaceInstallJobEnvelope {
+        val localVarResponse = installMarketplacePackAsyncV2WithHttpInfo(id = id, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as MarketplaceInstallJobEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Start an async marketplace pack install (always 202 + job).
+     * Background download with progress polling via &#x60;GET /v2/marketplace/jobs/{jobId}&#x60;. Jobs bind to the caller session for poll/cancel ACL. Equivalent to &#x60;POST /v2/marketplace/{id}/install?async&#x3D;true&#x60;. 
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<MarketplaceInstallJobEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun installMarketplacePackAsyncV2WithHttpInfo(id: kotlin.String, xRequestId: kotlin.String?) : ApiResponse<MarketplaceInstallJobEnvelope?> {
+        val localVariableConfig = installMarketplacePackAsyncV2RequestConfig(id = id, xRequestId = xRequestId)
+
+        return request<Unit, MarketplaceInstallJobEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation installMarketplacePackAsyncV2
+     *
+     * @param id 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun installMarketplacePackAsyncV2RequestConfig(id: kotlin.String, xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.POST,
+            path = "/v2/marketplace/{id}/install-async".replace("{"+"id"+"}", encodeURIComponent(id.toString())),
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
      * Install a marketplace pack into the live catalog.
      * Sync by default. Pass &#x60;async&#x3D;true&#x60; for background download with progress (&#x60;GET /v2/marketplace/jobs/{jobId}&#x60;). Async jobs bind to the caller session for poll/cancel ACL. 
      * @param id 

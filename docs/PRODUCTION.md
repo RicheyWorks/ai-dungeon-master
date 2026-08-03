@@ -321,6 +321,7 @@ Sign index files with `scripts/sign-marketplace-index.sh` (header form preferred
 
 ```http
 POST /v2/marketplace/{id}/install?async=true   → 202 { jobId, phase, percent, … }
+POST /v2/marketplace/{id}/install-async        → same (typed SDK path)
 GET  /v2/marketplace/jobs/{jobId}              → progress (owner session only)
 DELETE /v2/marketplace/jobs/{jobId}            → cancel (owner session only)
 ```
@@ -330,6 +331,11 @@ Phases: `QUEUED` → `DOWNLOADING` → `VERIFYING` → `INSTALLING` → `DONE` |
 **Job ownership:** async installs bind to the caller's session id (JWT). Poll and
 cancel return **403** for other sessions. Jobs with no owner (legacy / unauthenticated
 start) remain open. Multi-node Redis snapshots store `ownerSessionId`.
+
+**Security audit:** foreign job poll/cancel emits
+`security_audit outcome=forbidden` on logger `dm.security.audit` (caller + owner
+session ids, no JWTs). Metrics scrape failures emit
+`security_audit outcome=unauthorized path=/metrics`.
 
 ### Marketplace install job store
 
