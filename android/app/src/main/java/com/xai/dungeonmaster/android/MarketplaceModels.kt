@@ -1,6 +1,10 @@
 package com.xai.dungeonmaster.android
 
-/** Soft JSON models for /v2/marketplace (Moshi reflect). */
+import com.xai.dungeonmaster.client.models.MarketplaceInstallJob as SdkInstallJob
+import com.xai.dungeonmaster.client.models.MarketplaceListing as SdkListing
+import com.xai.dungeonmaster.client.models.MarketplacePayload as SdkPayload
+
+/** Soft JSON models for marketplace UI (mapped from generated SDK types). */
 data class MarketplaceListing(
     val id: String,
     val displayName: String? = null,
@@ -28,32 +32,6 @@ data class MarketplacePayload(
     val packs: List<MarketplaceListing>? = null,
 )
 
-data class MarketplaceEnvelope(
-    val type: String? = null,
-    val version: Int? = null,
-    val requestId: String? = null,
-    val payload: MarketplacePayload? = null,
-)
-
-data class MarketplaceInstallPayload(
-    val packId: String? = null,
-    val alreadyInstalled: Boolean? = null,
-    val message: String? = null,
-)
-
-data class MarketplaceInstallEnvelope(
-    val type: String? = null,
-    val payload: MarketplaceInstallPayload? = null,
-)
-
-data class ErrorEnvelopePayload(
-    val message: String? = null,
-)
-
-data class ErrorEnvelope(
-    val payload: ErrorEnvelopePayload? = null,
-)
-
 data class MarketplaceInstallJob(
     val jobId: String,
     val packId: String? = null,
@@ -66,7 +44,39 @@ data class MarketplaceInstallJob(
     val error: String? = null,
 )
 
-data class MarketplaceInstallJobEnvelope(
-    val type: String? = null,
-    val payload: MarketplaceInstallJob? = null,
+/** Map generated SDK marketplace payload → UI model. */
+fun SdkPayload.toUi(): MarketplacePayload = MarketplacePayload(
+    root = root,
+    remoteIndexUrl = remoteIndexUrl,
+    remoteOk = remoteOk,
+    remoteError = remoteError,
+    available = available,
+    installed = installed,
+    packs = packs?.map { it.toUi() },
+)
+
+fun SdkListing.toUi(): MarketplaceListing = MarketplaceListing(
+    id = id,
+    displayName = displayName,
+    version = version,
+    minEngineVersion = minEngineVersion,
+    description = description,
+    installed = installed,
+    enabled = enabled,
+    sourcePath = sourcePath,
+    source = source.value,
+    downloadUrl = downloadUrl,
+    sha256 = sha256,
+)
+
+fun SdkInstallJob.toUi(): MarketplaceInstallJob = MarketplaceInstallJob(
+    jobId = jobId,
+    packId = packId,
+    phase = phase.value,
+    bytesRead = bytesRead,
+    bytesTotal = bytesTotal,
+    percent = percent,
+    message = message,
+    cancelRequested = cancelRequested,
+    error = error,
 )

@@ -442,10 +442,10 @@ open class V2API {
      - parameter id: (path)  
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
      - parameter async: (query) When true, returns 202 + job id for progress polling. (optional, default to false)
-     - returns: Void
+     - returns: MarketplaceInstallEnvelope
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func installMarketplacePackV2(id: String, xRequestId: String? = nil, async: Bool? = nil) async throws {
+    open class func installMarketplacePackV2(id: String, xRequestId: String? = nil, async: Bool? = nil) async throws -> MarketplaceInstallEnvelope {
         return try await installMarketplacePackV2WithRequestBuilder(id: id, xRequestId: xRequestId, async: async).execute().body
     }
 
@@ -456,9 +456,9 @@ open class V2API {
      - parameter id: (path)  
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
      - parameter async: (query) When true, returns 202 + job id for progress polling. (optional, default to false)
-     - returns: RequestBuilder<Void> 
+     - returns: RequestBuilder<MarketplaceInstallEnvelope> 
      */
-    open class func installMarketplacePackV2WithRequestBuilder(id: String, xRequestId: String? = nil, async: Bool? = nil) -> RequestBuilder<Void> {
+    open class func installMarketplacePackV2WithRequestBuilder(id: String, xRequestId: String? = nil, async: Bool? = nil) -> RequestBuilder<MarketplaceInstallEnvelope> {
         var localVariablePath = "/v2/marketplace/{id}/install"
         let idPreEscape = "\(APIHelper.mapValueToPathItem(id))"
         let idPostEscape = idPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
@@ -477,7 +477,7 @@ open class V2API {
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
-        let localVariableRequestBuilder: RequestBuilder<Void>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getNonDecodableBuilder()
+        let localVariableRequestBuilder: RequestBuilder<MarketplaceInstallEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }

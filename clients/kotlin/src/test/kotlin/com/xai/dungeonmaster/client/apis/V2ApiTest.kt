@@ -28,6 +28,7 @@ import com.xai.dungeonmaster.client.models.GameSaveEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
 import com.xai.dungeonmaster.client.models.HealthEnvelope
 import com.xai.dungeonmaster.client.models.MarketplaceEnvelope
+import com.xai.dungeonmaster.client.models.MarketplaceInstallEnvelope
 import com.xai.dungeonmaster.client.models.MarketplaceInstallJobEnvelope
 import com.xai.dungeonmaster.client.models.MarketplacePackEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
@@ -143,7 +144,8 @@ class V2ApiTest : ShouldSpec() {
             //val id : kotlin.String = id_example // kotlin.String | 
             //val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
             //val async : kotlin.Boolean = true // kotlin.Boolean | When true, returns 202 + job id for progress polling.
-            //apiInstance.installMarketplacePackV2(id, xRequestId, async)
+            //val result : MarketplaceInstallEnvelope = apiInstance.installMarketplacePackV2(id, xRequestId, async)
+            //result shouldBe ("TODO")
         }
 
         // to test listEntitlementsV2

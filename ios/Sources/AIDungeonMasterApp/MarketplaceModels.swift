@@ -1,4 +1,5 @@
 import Foundation
+import AIDungeonMasterClient
 
 struct MarketplaceListing: Codable, Identifiable, Hashable {
     let id: String
@@ -27,27 +28,6 @@ struct MarketplacePayload: Codable {
     let packs: [MarketplaceListing]?
 }
 
-struct MarketplaceEnvelope: Codable {
-    let type: String?
-    let payload: MarketplacePayload?
-}
-
-struct MarketplaceInstallPayload: Codable {
-    let packId: String?
-    let alreadyInstalled: Bool?
-    let message: String?
-}
-
-struct MarketplaceInstallEnvelope: Codable {
-    let type: String?
-    let payload: MarketplaceInstallPayload?
-}
-
-struct ErrorPayloadEnvelope: Codable {
-    struct Payload: Codable { let message: String? }
-    let payload: Payload?
-}
-
 struct MarketplaceInstallJob: Codable, Hashable {
     let jobId: String
     let packId: String?
@@ -60,7 +40,54 @@ struct MarketplaceInstallJob: Codable, Hashable {
     let error: String?
 }
 
-struct MarketplaceInstallJobEnvelope: Codable {
-    let type: String?
-    let payload: MarketplaceInstallJob?
+// MARK: - Map generated SDK models → app UI models
+
+extension AIDungeonMasterClient.MarketplacePayload {
+    func toApp() -> MarketplacePayload {
+        MarketplacePayload(
+            root: root,
+            remoteIndexUrl: remoteIndexUrl,
+            remoteOk: remoteOk,
+            remoteError: remoteError,
+            available: available,
+            installed: installed,
+            packs: packs?.map { $0.toApp() }
+        )
+    }
+}
+
+extension AIDungeonMasterClient.MarketplaceListing {
+    func toApp() -> MarketplaceListing {
+        MarketplaceListing(
+            id: id,
+            displayName: displayName,
+            version: version,
+            minEngineVersion: minEngineVersion,
+            description: description,
+            installed: installed,
+            enabled: enabled,
+            requiredProductIds: nil,
+            locked: nil,
+            sourcePath: sourcePath,
+            source: source.rawValue,
+            downloadUrl: downloadUrl,
+            sha256: sha256
+        )
+    }
+}
+
+extension AIDungeonMasterClient.MarketplaceInstallJob {
+    func toApp() -> MarketplaceInstallJob {
+        MarketplaceInstallJob(
+            jobId: jobId,
+            packId: packId,
+            phase: phase.rawValue,
+            bytesRead: bytesRead,
+            bytesTotal: bytesTotal,
+            percent: percent,
+            message: message,
+            cancelRequested: cancelRequested,
+            error: error
+        )
+    }
 }

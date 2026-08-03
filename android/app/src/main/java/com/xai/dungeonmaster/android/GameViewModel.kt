@@ -309,7 +309,9 @@ class GameViewModel(
         viewModelScope.launch {
             val q = query ?: _state.value.marketQuery
             try {
-                val payload = withContext(Dispatchers.IO) { fetchMarketplace(base(), q) }
+                val payload = withContext(Dispatchers.IO) {
+                    api().listMarketplaceV2(q = q.ifBlank { null }).payload.toUi()
+                }
                 publish {
                     it.copy(
                         marketplace = payload,
@@ -327,10 +329,10 @@ class GameViewModel(
     fun installMarketplacePack(id: String) {
         viewModelScope.launch {
             try {
-                val started = withContext(Dispatchers.IO) { postInstallAsync(base(), id) }
+                val started = withContext(Dispatchers.IO) { postInstallAsync(id) }
                 publish { it.copy(installJob = started, info = "Installing $id…", error = null) }
                 val done = withContext(Dispatchers.IO) {
-                    pollInstallJob(base(), started.jobId) { job ->
+                    pollInstallJob(started.jobId) { job ->
                         publish { it.copy(installJob = job) }
                     }
                 }
@@ -338,7 +340,8 @@ class GameViewModel(
                 when (done.phase) {
                     "DONE" -> {
                         val payload = withContext(Dispatchers.IO) {
-                            fetchMarketplace(base(), _state.value.marketQuery)
+                            api().listMarketplaceV2(q = _state.value.marketQuery.ifBlank { null })
+                                .payload.toUi()
                         }
                         val catalog = try {
                             withContext(Dispatchers.IO) {
@@ -372,7 +375,9 @@ class GameViewModel(
         val jobId = _state.value.installJob?.jobId ?: return
         viewModelScope.launch {
             try {
-                val j = withContext(Dispatchers.IO) { deleteInstallJob(base(), jobId) }
+                val j = withContext(Dispatchers.IO) {
+                    api().cancelMarketplaceInstallJobV2(jobId).payload.toUi()
+                }
                 publish { it.copy(installJob = j, info = "Cancel requested") }
             } catch (e: Exception) {
                 publish { it.copy(error = e.message ?: e.javaClass.simpleName) }
@@ -380,24 +385,13 @@ class GameViewModel(
         }
     }
 
-    private fun fetchMarketplace(baseUrl: String, query: String): MarketplacePayload {
-        val qs = if (query.isBlank()) "" else "?q=${java.net.URLEncoder.encode(query.trim(), "UTF-8")}"
+    /**
+     * Async install returns HTTP 202 + job envelope; generated install method is typed
+     * for the sync [MarketplaceInstallEnvelope]. Decode the job body with Moshi.
+     */
+    private fun postInstallAsync(id: String): MarketplaceInstallJob {
         val req = okhttp3.Request.Builder()
-            .url("$baseUrl/v2/marketplace$qs")
-            .header("Accept", "application/json")
-            .get()
-            .build()
-        HttpClients.client().newCall(req).execute().use { res ->
-            val body = res.body?.string().orEmpty()
-            if (!res.isSuccessful) throw IllegalStateException("marketplace HTTP ${res.code}")
-            val env = moshi.adapter(MarketplaceEnvelope::class.java).fromJson(body)
-            return env?.payload ?: MarketplacePayload(packs = emptyList())
-        }
-    }
-
-    private fun postInstallAsync(baseUrl: String, id: String): MarketplaceInstallJob {
-        val req = okhttp3.Request.Builder()
-            .url("$baseUrl/v2/marketplace/${java.net.URLEncoder.encode(id, "UTF-8")}/install?async=true")
+            .url("$base()/v2/marketplace/${java.net.URLEncoder.encode(id, "UTF-8")}/install?async=true")
             .header("Accept", "application/json")
             .post(okhttp3.RequestBody.create(ByteArray(0), null))
             .build()
@@ -405,53 +399,35 @@ class GameViewModel(
             val body = res.body?.string().orEmpty()
             if (!res.isSuccessful) {
                 val err = try {
-                    moshi.adapter(ErrorEnvelope::class.java).fromJson(body)?.payload?.message
+                    com.xai.dungeonmaster.client.infrastructure.Serializer.moshi
+                        .adapter(com.xai.dungeonmaster.client.models.ErrorEnvelope::class.java)
+                        .fromJson(body)?.payload?.message
                 } catch (_: Exception) {
                     null
                 }
                 throw IllegalStateException(err ?: "install async HTTP ${res.code}")
             }
-            val env = moshi.adapter(MarketplaceInstallJobEnvelope::class.java).fromJson(body)
-            return env?.payload ?: throw IllegalStateException("missing job payload")
+            val env = com.xai.dungeonmaster.client.infrastructure.Serializer.moshi
+                .adapter(com.xai.dungeonmaster.client.models.MarketplaceInstallJobEnvelope::class.java)
+                .fromJson(body)
+            val job = env?.payload ?: throw IllegalStateException("missing job payload")
+            return job.toUi()
+
         }
     }
 
-    private fun getInstallJob(baseUrl: String, jobId: String): MarketplaceInstallJob {
-        val req = okhttp3.Request.Builder()
-            .url("$baseUrl/v2/marketplace/jobs/${java.net.URLEncoder.encode(jobId, "UTF-8")}")
-            .header("Accept", "application/json")
-            .get()
-            .build()
-        HttpClients.client().newCall(req).execute().use { res ->
-            val body = res.body?.string().orEmpty()
-            if (!res.isSuccessful) throw IllegalStateException("job HTTP ${res.code}")
-            val env = moshi.adapter(MarketplaceInstallJobEnvelope::class.java).fromJson(body)
-            return env?.payload ?: throw IllegalStateException("empty job")
-        }
-    }
-
-    private fun deleteInstallJob(baseUrl: String, jobId: String): MarketplaceInstallJob? {
-        val req = okhttp3.Request.Builder()
-            .url("$baseUrl/v2/marketplace/jobs/${java.net.URLEncoder.encode(jobId, "UTF-8")}")
-            .header("Accept", "application/json")
-            .delete()
-            .build()
-        HttpClients.client().newCall(req).execute().use { res ->
-            val body = res.body?.string().orEmpty()
-            if (!res.isSuccessful) throw IllegalStateException("cancel HTTP ${res.code}")
-            return moshi.adapter(MarketplaceInstallJobEnvelope::class.java).fromJson(body)?.payload
-        }
+    private fun getInstallJob(jobId: String): MarketplaceInstallJob {
+        return api().getMarketplaceInstallJobV2(jobId).payload.toUi()
     }
 
     private suspend fun pollInstallJob(
-        baseUrl: String,
         jobId: String,
         onProgress: (MarketplaceInstallJob) -> Unit,
     ): MarketplaceInstallJob {
         val deadline = System.currentTimeMillis() + 120_000
         var last: MarketplaceInstallJob? = null
         while (System.currentTimeMillis() < deadline) {
-            last = withContext(Dispatchers.IO) { getInstallJob(baseUrl, jobId) }
+            last = withContext(Dispatchers.IO) { getInstallJob(jobId) }
             withContext(Dispatchers.Main) { onProgress(last!!) }
             when (last.phase) {
                 "DONE", "FAILED", "CANCELLED" -> return last

@@ -584,7 +584,7 @@ No authorization required
 
 # **installMarketplacePackV2**
 ```swift
-    open class func installMarketplacePackV2(id: String, xRequestId: String? = nil, async: Bool? = nil, completion: @escaping (_ data: Void?, _ error: Error?) -> Void)
+    open class func installMarketplacePackV2(id: String, xRequestId: String? = nil, async: Bool? = nil, completion: @escaping (_ data: MarketplaceInstallEnvelope?, _ error: Error?) -> Void)
 ```
 
 Install a marketplace pack into the live catalog.
@@ -623,7 +623,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-Void (empty response body)
+[**MarketplaceInstallEnvelope**](MarketplaceInstallEnvelope.md)
 
 ### Authorization
 
