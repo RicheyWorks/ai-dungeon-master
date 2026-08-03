@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
  *   <li>{@code POST /v2/session} — session minting</li>
  *   <li>{@code DELETE /v2/session} — logout</li>
  *   <li>{@code /v2/admin/**} — admin token brute-force protection</li>
- *   <li>{@code POST /v2/marketplace/{id}/install} — marketplace pack install</li>
+ *   <li>{@code POST /v2/marketplace/{id}/install[|-async]} — marketplace pack install</li>
  *   <li>{@code POST /v2/catalog/packs} — direct pack zip upload</li>
  *   <li>{@code POST /v2/catalog/packs/{id}/enable|disable} — pack toggles</li>
  *   <li>{@code POST /v2/narrate} — LLM narration (HTTP; STOMP uses {@link NarrationRateGuard})</li>
@@ -43,7 +43,7 @@ import java.util.regex.Pattern;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final Pattern MARKETPLACE_INSTALL =
-            Pattern.compile("^/v2/marketplace/[^/]+/install$");
+            Pattern.compile("^/v2/marketplace/[^/]+/install(-async)?$");
     private static final Pattern CATALOG_PACK_TOGGLE =
             Pattern.compile("^/v2/catalog/packs/[^/]+/(enable|disable)$");
 
@@ -89,6 +89,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (n > limit.maxPerMinute) {
             metrics.rejected(limit.bucket);
             long retryAfterSec = hit.retryAfterSeconds();
+            SecurityAudit.log(
+                    "rate_limited",
+                    pathForAudit(req),
+                    ip,
+                    safeRequestId(req),
+                    "bucket=" + limit.bucket
+                            + " count=" + n
+                            + " limit=" + limit.maxPerMinute
+                            + " retryAfterSec=" + retryAfterSec);
             res.setStatus(429);
             res.setHeader("Retry-After", Long.toString(retryAfterSec));
             res.setHeader("X-RateLimit-Limit", Integer.toString(limit.maxPerMinute));
@@ -171,9 +180,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return remote == null ? "unknown" : remote;
     }
 
+    private static String pathForAudit(HttpServletRequest req) {
+        if (req == null) return "-";
+        String uri = req.getRequestURI();
+        return uri == null || uri.isBlank() ? "-" : uri;
+    }
+
     private static String safeRequestId(HttpServletRequest req) {
         String id = RequestIdFilter.resolve(req);
-        if (id == null || id.isBlank()) return "";
+        if (id == null || id.isBlank() || "null".equals(id)) return "";
         return id.replace("\"", "").replace("\\", "");
     }
 

@@ -1,5 +1,7 @@
 package com.xai.dungeonmaster.controller;
 
+import com.xai.dungeonmaster.auth.RateLimitFilter;
+import com.xai.dungeonmaster.auth.SecurityAudit;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.service.AuthDependencyProbe;
@@ -30,6 +32,10 @@ import java.util.Map;
  * Unauthenticated callers only see status/probe (and uptime on v2). Session counts,
  * engine counts, dependency maps, and memory stats require {@code X-Metrics-Token},
  * Bearer metrics token, or {@code X-Admin-Token}.
+ *
+ * <p>Failed ops-token attempts (wrong {@code X-Metrics-Token} / {@code X-Admin-Token})
+ * emit {@code security_audit} lines. Session JWT on {@code Authorization} is not treated
+ * as a detail attempt.
  */
 @RestController
 public class HealthController {
@@ -90,6 +96,8 @@ public class HealthController {
             body.put("sessions", sessions.activeCount());
             body.put("engines", instances.sessionCount());
             body.put("dependencies", deps.checks());
+        } else {
+            auditFailedDetailAttempt(request, pathOf(request, "/health/ready"), null);
         }
         HttpStatus code = deps.ready() ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
         return ResponseEntity.status(code).body(body);
@@ -117,6 +125,7 @@ public class HealthController {
             payload.put("detail", true);
         } else {
             payload.put("detail", false);
+            auditFailedDetailAttempt(request, "/v2/health", requestId);
         }
         HttpStatus code = deps.ready() ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
         return ResponseEntity.status(code).body(Envelope.of("health", payload, requestId));
@@ -141,6 +150,42 @@ public class HealthController {
             }
         }
         return false;
+    }
+
+    /**
+     * Audit only explicit ops-token attempts that failed (not plain public probes,
+     * and not session JWT on {@code Authorization}).
+     */
+    private void auditFailedDetailAttempt(HttpServletRequest request, String path, String requestId) {
+        if (request == null) return;
+        String metricsHeader = request.getHeader("X-Metrics-Token");
+        if (metricsHeader != null && !metricsHeader.isBlank()
+                && !tokenOk(metricsScrapeToken, metricsHeader.trim())) {
+            SecurityAudit.log(
+                    "unauthorized",
+                    path,
+                    RateLimitFilter.clientIp(request, false),
+                    requestId,
+                    "bad_metrics_token");
+            return;
+        }
+        String admin = request.getHeader("X-Admin-Token");
+        if (admin != null && !admin.isBlank()
+                && !tokenOk(adminToken, admin.trim())
+                && !tokenOk(previousAdminToken, admin.trim())) {
+            SecurityAudit.log(
+                    "unauthorized",
+                    path,
+                    RateLimitFilter.clientIp(request, false),
+                    requestId,
+                    "bad_admin_token");
+        }
+    }
+
+    private static String pathOf(HttpServletRequest request, String fallback) {
+        if (request == null) return fallback;
+        String uri = request.getRequestURI();
+        return uri == null || uri.isBlank() ? fallback : uri;
     }
 
     private static boolean tokenOk(String expected, String actual) {

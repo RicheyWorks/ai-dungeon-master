@@ -386,34 +386,12 @@ class GameViewModel(
     }
 
     /**
-     * Async install returns HTTP 202 + job envelope; generated install method is typed
-     * for the sync [MarketplaceInstallEnvelope]. Decode the job body with Moshi.
+     * Async install via typed [V2Api.installMarketplacePackAsyncV2] (HTTP 202 + job envelope).
      */
     private fun postInstallAsync(id: String): MarketplaceInstallJob {
-        val req = okhttp3.Request.Builder()
-            .url("$base()/v2/marketplace/${java.net.URLEncoder.encode(id, "UTF-8")}/install?async=true")
-            .header("Accept", "application/json")
-            .post(okhttp3.RequestBody.create(ByteArray(0), null))
-            .build()
-        HttpClients.client().newCall(req).execute().use { res ->
-            val body = res.body?.string().orEmpty()
-            if (!res.isSuccessful) {
-                val err = try {
-                    com.xai.dungeonmaster.client.infrastructure.Serializer.moshi
-                        .adapter(com.xai.dungeonmaster.client.models.ErrorEnvelope::class.java)
-                        .fromJson(body)?.payload?.message
-                } catch (_: Exception) {
-                    null
-                }
-                throw IllegalStateException(err ?: "install async HTTP ${res.code}")
-            }
-            val env = com.xai.dungeonmaster.client.infrastructure.Serializer.moshi
-                .adapter(com.xai.dungeonmaster.client.models.MarketplaceInstallJobEnvelope::class.java)
-                .fromJson(body)
-            val job = env?.payload ?: throw IllegalStateException("missing job payload")
-            return job.toUi()
-
-        }
+        val job = api().installMarketplacePackAsyncV2(id).payload
+            ?: throw IllegalStateException("missing job payload")
+        return job.toUi()
     }
 
     private fun getInstallJob(jobId: String): MarketplaceInstallJob {
