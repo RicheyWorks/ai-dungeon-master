@@ -1,4 +1,5 @@
 import {
+  AdminApi,
   Configuration,
   HealthApi,
   ResponseError,
@@ -381,16 +382,24 @@ export async function fetchReadiness(baseUrl: string): Promise<{
 }
 
 /** Soft v2 health metrics envelope (works with 503 bodies). */
-export async function fetchHealthV2(baseUrl: string): Promise<{
+export async function fetchHealthV2(
+  baseUrl: string,
+  opts?: { adminToken?: string; metricsToken?: string },
+): Promise<{
   ok: boolean;
   payload: HealthPayload | null;
   error?: string;
 }> {
   const base = resolveBase(baseUrl);
   try {
-    const res = await fetch(`${base}/v2/health`, {
-      headers: { Accept: "application/json" },
-    });
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (opts?.metricsToken?.trim()) {
+      headers["X-Metrics-Token"] = opts.metricsToken.trim();
+    }
+    if (opts?.adminToken?.trim()) {
+      headers["X-Admin-Token"] = opts.adminToken.trim();
+    }
+    const res = await fetch(`${base}/v2/health`, { headers });
     const env = (await res.json()) as { payload?: HealthPayload };
     return { ok: res.ok, payload: env.payload ?? null };
   } catch (e) {
@@ -400,6 +409,82 @@ export async function fetchHealthV2(baseUrl: string): Promise<{
       error: e instanceof Error ? e.message : String(e),
     };
   }
+}
+
+export type AdminSessionRow = {
+  sessionId?: string;
+  displayName?: string;
+  createdAtEpochSeconds?: number;
+  lastSeenEpochSeconds?: number;
+  hasEngine?: boolean;
+};
+
+export type AdminSessionsPayload = {
+  count?: number;
+  total?: number;
+  limit?: number;
+  sessions?: AdminSessionRow[];
+};
+
+function createAdminApi(baseUrl: string, adminToken: string): AdminApi {
+  return new AdminApi(
+    new Configuration({
+      basePath: resolveBase(baseUrl),
+      headers: { "X-Admin-Token": adminToken },
+    }),
+  );
+}
+
+export async function listAdminSessions(
+  baseUrl: string,
+  adminToken: string,
+  limit = 100,
+): Promise<AdminSessionsPayload> {
+  try {
+    const env = await createAdminApi(baseUrl, adminToken).listAdminSessions({
+      xAdminToken: adminToken,
+      limit,
+    });
+    return (env.payload as AdminSessionsPayload) ?? { sessions: [] };
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "admin sessions"));
+  }
+}
+
+export async function revokeAdminSession(
+  baseUrl: string,
+  adminToken: string,
+  sessionId: string,
+): Promise<{ sessionId?: string; revoked?: boolean; existed?: boolean }> {
+  try {
+    const env = await createAdminApi(baseUrl, adminToken).revokeAdminSession({
+      xAdminToken: adminToken,
+      sessionId,
+    });
+    return (env.payload as { sessionId?: string; revoked?: boolean; existed?: boolean }) ?? {};
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "admin revoke"));
+  }
+}
+
+/** Probe metrics endpoint (token optional when scrape open). */
+export async function probeMetrics(
+  baseUrl: string,
+  metricsToken?: string,
+): Promise<{ ok: boolean; status: number; bytes: number; sample?: string }> {
+  const base = resolveBase(baseUrl);
+  const headers: Record<string, string> = { Accept: "text/plain" };
+  if (metricsToken?.trim()) {
+    headers["X-Metrics-Token"] = metricsToken.trim();
+  }
+  const res = await fetch(`${base}/metrics`, { headers });
+  const text = await res.text();
+  return {
+    ok: res.ok,
+    status: res.status,
+    bytes: text.length,
+    sample: text.slice(0, 120).replace(/\s+/g, " "),
+  };
 }
 
 /** Catalog pack fields added for entitlement gates (extra JSON on PackInfo). */

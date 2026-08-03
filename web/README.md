@@ -12,7 +12,8 @@ fat jar at `/app/`.
 
 | **Mods** | Marketplace list/search/async install, catalog, enable/disable, zip upload |
 | **Store** | Entitlements, sandbox receipts, Steam order verify |
-| **System** | Readiness + lean health probes (auto-refresh) |
+| **System** | Health (lean/detail), ops tokens, metrics probe, **admin session list/revoke** |
+ Readiness + lean health probes (auto-refresh) |
 
 - Guest session via `createSessionV2` + Bearer on every `/v2/*` call
 - Session restore from `localStorage` (validated with `/v2/session/me`)

@@ -61,9 +61,24 @@ paths:
           schema: { type: string }
         - $ref: '#/components/parameters/XRequestId'
       responses:
-        '200': { description: Session inventory }
-        '401': { description: Invalid admin token }
-        '404': { description: Admin API disabled }
+        '200':
+          description: Session inventory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSessionsEnvelope'
+        '401':
+          description: Invalid admin token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Admin API disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /v2/admin/sessions/{sessionId}:
     delete:
       tags: [admin]
@@ -81,9 +96,24 @@ paths:
           schema: { type: string }
         - $ref: '#/components/parameters/XRequestId'
       responses:
-        '200': { description: Session revoked }
-        '401': { description: Invalid admin token }
-        '404': { description: Admin API disabled }
+        '200':
+          description: Session revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSessionRevokedEnvelope'
+        '401':
+          description: Invalid admin token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Admin API disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 
   /v2/admin/receipts:
     get:
@@ -1012,6 +1042,50 @@ components:
               enum: [health]
             payload:
               $ref: '#/components/schemas/HealthPayload'
+
+    AdminSessionRow:
+      type: object
+      properties:
+        sessionId: { type: string }
+        displayName: { type: string }
+        createdAtEpochSeconds: { type: integer, format: int64 }
+        lastSeenEpochSeconds: { type: integer, format: int64 }
+        hasEngine: { type: boolean }
+    AdminSessionsPayload:
+      type: object
+      properties:
+        count: { type: integer }
+        total: { type: integer }
+        limit: { type: integer }
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminSessionRow'
+    AdminSessionsEnvelope:
+      type: object
+      required: [type, version, payload, requestId]
+      properties:
+        type: { type: string, example: admin.sessions }
+        version: { type: integer, example: 1 }
+        payload:
+          $ref: '#/components/schemas/AdminSessionsPayload'
+        requestId: { type: string }
+    AdminSessionRevokedPayload:
+      type: object
+      properties:
+        sessionId: { type: string }
+        revoked: { type: boolean }
+        existed: { type: boolean }
+    AdminSessionRevokedEnvelope:
+      type: object
+      required: [type, version, payload, requestId]
+      properties:
+        type: { type: string, example: admin.session.revoked }
+        version: { type: integer, example: 1 }
+        payload:
+          $ref: '#/components/schemas/AdminSessionRevokedPayload'
+        requestId: { type: string }
+
     MarketplaceListing:
       type: object
       required: [id, displayName, version, installed, enabled, source]

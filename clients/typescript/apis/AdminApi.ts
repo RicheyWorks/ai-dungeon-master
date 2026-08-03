@@ -14,6 +14,19 @@
 
 
 import * as runtime from '../runtime';
+import type {
+  AdminSessionRevokedEnvelope,
+  AdminSessionsEnvelope,
+  ErrorEnvelope,
+} from '../models/index';
+import {
+    AdminSessionRevokedEnvelopeFromJSON,
+    AdminSessionRevokedEnvelopeToJSON,
+    AdminSessionsEnvelopeFromJSON,
+    AdminSessionsEnvelopeToJSON,
+    ErrorEnvelopeFromJSON,
+    ErrorEnvelopeToJSON,
+} from '../models/index';
 
 export interface GetAdminSessionPacksRequest {
     sessionId: string;
@@ -28,6 +41,18 @@ export interface ListAdminReceiptsRequest {
     sessionId?: string;
     since?: number;
     until?: number;
+}
+
+export interface ListAdminSessionsRequest {
+    xAdminToken: string;
+    limit?: number;
+    xRequestId?: string;
+}
+
+export interface RevokeAdminSessionRequest {
+    sessionId: string;
+    xAdminToken: string;
+    xRequestId?: string;
 }
 
 /**
@@ -140,6 +165,103 @@ export class AdminApi extends runtime.BaseAPI {
      */
     async listAdminReceipts(requestParameters: ListAdminReceiptsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
         await this.listAdminReceiptsRaw(requestParameters, initOverrides);
+    }
+
+    /**
+     * Identity only — no JWTs. Newest last-seen first.
+     * List active sessions (ops)
+     */
+    async listAdminSessionsRaw(requestParameters: ListAdminSessionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AdminSessionsEnvelope>> {
+        if (requestParameters['xAdminToken'] == null) {
+            throw new runtime.RequiredError(
+                'xAdminToken',
+                'Required parameter "xAdminToken" was null or undefined when calling listAdminSessions().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xAdminToken'] != null) {
+            headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
+        }
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/admin/sessions`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AdminSessionsEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Identity only — no JWTs. Newest last-seen first.
+     * List active sessions (ops)
+     */
+    async listAdminSessions(requestParameters: ListAdminSessionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminSessionsEnvelope> {
+        const response = await this.listAdminSessionsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Deletes session identity and destroys its game engine (save-on-evict).
+     * Revoke a session (ops)
+     */
+    async revokeAdminSessionRaw(requestParameters: RevokeAdminSessionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AdminSessionRevokedEnvelope>> {
+        if (requestParameters['sessionId'] == null) {
+            throw new runtime.RequiredError(
+                'sessionId',
+                'Required parameter "sessionId" was null or undefined when calling revokeAdminSession().'
+            );
+        }
+
+        if (requestParameters['xAdminToken'] == null) {
+            throw new runtime.RequiredError(
+                'xAdminToken',
+                'Required parameter "xAdminToken" was null or undefined when calling revokeAdminSession().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xAdminToken'] != null) {
+            headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
+        }
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/admin/sessions/{sessionId}`.replace(`{${"sessionId"}}`, encodeURIComponent(String(requestParameters['sessionId']))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AdminSessionRevokedEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Deletes session identity and destroys its game engine (save-on-evict).
+     * Revoke a session (ops)
+     */
+    async revokeAdminSession(requestParameters: RevokeAdminSessionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminSessionRevokedEnvelope> {
+        const response = await this.revokeAdminSessionRaw(requestParameters, initOverrides);
+        return await response.value();
     }
 
 }

@@ -154,12 +154,52 @@ expect 200 "POST /v2/load"
 http GET /v2/entitlements "$TOKEN"
 expect 200 "GET /v2/entitlements"
 
+# Typed async install path (202 job) when marketplace has a local pack.
+http GET /v2/marketplace "$TOKEN"
+if [[ "$HTTP_CODE" == "200" ]]; then
+  PACK_ID="$(python3 -c "
+import json,sys
+o=json.loads(sys.argv[1])
+packs=(o.get('payload') or {}).get('packs') or []
+for p in packs:
+    if isinstance(p, dict) and p.get('id') and not p.get('installed'):
+        print(p['id']); break
+else:
+    for p in packs:
+        if isinstance(p, dict) and p.get('id'):
+            print(p['id']); break
+" "$BODY")"
+  if [[ -n "$PACK_ID" ]]; then
+    info "async install path pack=$PACK_ID"
+    http POST "/v2/marketplace/${PACK_ID}/install-async" "$TOKEN"
+    if [[ "$HTTP_CODE" == "202" ]]; then
+      green "OK  POST install-async (HTTP 202)"
+      JOB_ID="$(json_get payload.jobId)"
+      if [[ -n "$JOB_ID" ]]; then
+        http GET "/v2/marketplace/jobs/${JOB_ID}" "$TOKEN"
+        expect 200 "GET install job (owner)"
+      fi
+    else
+      info "install-async returned HTTP $HTTP_CODE (pack may already be installing / gated) — non-fatal"
+    fi
+  fi
+fi
+
+
 if [[ -n "${ADMIN_TOKEN:-}" ]]; then
   tmp="$(mktemp)"
   HTTP_CODE="$(curl -sS -m "$TIMEOUT" -H "X-Admin-Token: $ADMIN_TOKEN" -H "X-Request-Id: $REQUEST_ID" \
     -o "$tmp" -w "%{http_code}" "${BASE_URL}/v2/admin/receipts?limit=5" || echo 000)"
   BODY="$(cat "$tmp")"; rm -f "$tmp"
   expect 200 "GET /v2/admin/receipts"
+
+  tmp="$(mktemp)"
+  HTTP_CODE="$(curl -sS -m "$TIMEOUT" -H "X-Admin-Token: $ADMIN_TOKEN" -H "X-Request-Id: $REQUEST_ID" \
+    -o "$tmp" -w "%{http_code}" "${BASE_URL}/v2/admin/sessions?limit=20" || echo 000)"
+  BODY="$(cat "$tmp")"; rm -f "$tmp"
+  expect 200 "GET /v2/admin/sessions"
+  SESS_TOTAL="$(json_get payload.total)"
+  info "admin sessions total=${SESS_TOTAL:-?}"
 fi
 
 # STOMP JWT CONNECT + subscription ACL (requires Node 22+ WebSocket).

@@ -106,4 +106,92 @@ open class AdminAPI {
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
+
+    /**
+     List active sessions (ops)
+     
+     - parameter xAdminToken: (header)  
+     - parameter limit: (query)  (optional, default to 100)
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: AdminSessionsEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func listAdminSessions(xAdminToken: String, limit: Int? = nil, xRequestId: String? = nil) async throws -> AdminSessionsEnvelope {
+        return try await listAdminSessionsWithRequestBuilder(xAdminToken: xAdminToken, limit: limit, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     List active sessions (ops)
+     - GET /v2/admin/sessions
+     - Identity only — no JWTs. Newest last-seen first.
+     - parameter xAdminToken: (header)  
+     - parameter limit: (query)  (optional, default to 100)
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<AdminSessionsEnvelope> 
+     */
+    open class func listAdminSessionsWithRequestBuilder(xAdminToken: String, limit: Int? = nil, xRequestId: String? = nil) -> RequestBuilder<AdminSessionsEnvelope> {
+        let localVariablePath = "/v2/admin/sessions"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "limit": (wrappedValue: limit?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Admin-Token": xAdminToken.encodeToJSON(),
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AdminSessionsEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Revoke a session (ops)
+     
+     - parameter sessionId: (path)  
+     - parameter xAdminToken: (header)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: AdminSessionRevokedEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func revokeAdminSession(sessionId: String, xAdminToken: String, xRequestId: String? = nil) async throws -> AdminSessionRevokedEnvelope {
+        return try await revokeAdminSessionWithRequestBuilder(sessionId: sessionId, xAdminToken: xAdminToken, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Revoke a session (ops)
+     - DELETE /v2/admin/sessions/{sessionId}
+     - Deletes session identity and destroys its game engine (save-on-evict).
+     - parameter sessionId: (path)  
+     - parameter xAdminToken: (header)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<AdminSessionRevokedEnvelope> 
+     */
+    open class func revokeAdminSessionWithRequestBuilder(sessionId: String, xAdminToken: String, xRequestId: String? = nil) -> RequestBuilder<AdminSessionRevokedEnvelope> {
+        var localVariablePath = "/v2/admin/sessions/{sessionId}"
+        let sessionIdPreEscape = "\(APIHelper.mapValueToPathItem(sessionId))"
+        let sessionIdPostEscape = sessionIdPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{sessionId}", with: sessionIdPostEscape, options: .literal, range: nil)
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Admin-Token": xAdminToken.encodeToJSON(),
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AdminSessionRevokedEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "DELETE", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
 }

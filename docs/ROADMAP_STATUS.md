@@ -26,7 +26,7 @@ and web/Android/iOS marketplace wiring to generated SDKs. See
 | 1 — Headless core + plugin SPI | core module, SPIs, registries, loaders, signing, sandbox | ✅ Done |
 | 2 — API v2 + LLM provider | envelope, PartyState, LLM stack + keyed providers, streaming, specs, SDKs, auth, sessions, entitlements | ✅ Done |
 | 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ v1 under `android/` — session+Bearer, STOMP live narrate, marketplace jobs via SDK, Mods (upload), Store; Play Billing remains |
-| 4 — Steam + iOS | Tauri, SwiftUI on the generated Swift SDK, storefronts | ◐ SwiftUI + web SPA on main; engine hosts `/app/`; game tab keys 1–9 + live stream polish; `desktop/launch.sh`; Tauri scaffold under `desktop/tauri/` (full bundle later) |
+| 4 — Steam + iOS | Tauri, SwiftUI on the generated Swift SDK, storefronts | ◐ SwiftUI + web SPA on main; engine hosts `/app/`; game polish + System admin sessions; `desktop/launch.sh`; Tauri scaffold under `desktop/tauri/` (full bundle later) |
 | 5 — Content packs & mods | packs, mod browser, signing, sandboxing | ✅ 4 packs + signing + sandbox + catalog + marketplace async install + web mod-browser w/ enable-disable + runtime pack upload (`POST /v2/catalog/packs`) |
 
 ## Phase 1 — Headless core + plugin SPI ✅
