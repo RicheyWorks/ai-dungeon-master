@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
  * POST /v2/action   — apply a choice; returns the updated game_status envelope
  * POST /v2/narrate  — LLM narration for the caller's engine
  * POST /v2/save     — persist the caller's engine to a session-scoped file
+ * GET  /v2/save     — save file presence / size / mtime (no engine load)
+ * DELETE /v2/save   — delete the caller's save file
  * POST /v2/load     — restore the caller's engine from its save file
  * POST /v2/reset    — mint a fresh engine (or restart the default)
  *
@@ -147,6 +149,58 @@ public class GameV2Controller {
         payload.put("path", path.toString());
         payload.put("sessionScoped", session != null);
         return Envelope.of("game_save", payload, requestId);
+    }
+
+    /**
+     * Metadata for the caller's save slot — does not load the engine.
+     * {@code exists=false} when no file is present.
+     */
+    @GetMapping("/save")
+    public Envelope<Map<String, Object>> saveMeta(
+            HttpServletRequest request,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        SessionService.Session session = session(request);
+        Path path = games.savePath(session);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        boolean exists = Files.isRegularFile(path);
+        payload.put("exists", exists);
+        payload.put("path", path.toString());
+        payload.put("sessionScoped", session != null);
+        if (exists) {
+            try {
+                payload.put("bytes", Files.size(path));
+                payload.put("modifiedAtEpochMs", Files.getLastModifiedTime(path).toMillis());
+            } catch (Exception e) {
+                payload.put("bytes", 0L);
+            }
+        } else {
+            payload.put("bytes", 0L);
+        }
+        return Envelope.of("game_save_meta", payload, requestId);
+    }
+
+    /** Delete the caller's save file. Idempotent when no file exists. */
+    @DeleteMapping("/save")
+    public Envelope<Map<String, Object>> deleteSave(
+            HttpServletRequest request,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        SessionService.Session session = session(request);
+        Path path = games.savePath(session);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("path", path.toString());
+        payload.put("sessionScoped", session != null);
+        boolean deleted = false;
+        if (Files.isRegularFile(path)) {
+            try {
+                deleted = Files.deleteIfExists(path);
+            } catch (Exception e) {
+                deleted = false;
+                payload.put("error", e.getMessage() == null ? "delete failed" : e.getMessage());
+            }
+        }
+        payload.put("deleted", deleted);
+        payload.put("exists", Files.isRegularFile(path));
+        return Envelope.of("game_save_delete", payload, requestId);
     }
 
     // POST /v2/load

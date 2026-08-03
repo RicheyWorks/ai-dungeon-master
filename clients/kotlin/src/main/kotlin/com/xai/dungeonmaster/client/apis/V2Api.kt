@@ -24,7 +24,9 @@ import com.xai.dungeonmaster.client.models.CatalogEnvelope
 import com.xai.dungeonmaster.client.models.DeleteSessionV2200Response
 import com.xai.dungeonmaster.client.models.EntitlementEnvelope
 import com.xai.dungeonmaster.client.models.ErrorEnvelope
+import com.xai.dungeonmaster.client.models.GameSaveDeleteEnvelope
 import com.xai.dungeonmaster.client.models.GameSaveEnvelope
+import com.xai.dungeonmaster.client.models.GameSaveMetaEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
 import com.xai.dungeonmaster.client.models.HealthEnvelope
 import com.xai.dungeonmaster.client.models.MarketplaceEnvelope
@@ -205,6 +207,78 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         return RequestConfig(
             method = RequestMethod.POST,
             path = "/v2/session",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Delete the caller&#39;s save file (idempotent).
+     * 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return GameSaveDeleteEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun deleteSaveV2(xRequestId: kotlin.String? = null) : GameSaveDeleteEnvelope {
+        val localVarResponse = deleteSaveV2WithHttpInfo(xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as GameSaveDeleteEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Delete the caller&#39;s save file (idempotent).
+     * 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<GameSaveDeleteEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun deleteSaveV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<GameSaveDeleteEnvelope?> {
+        val localVariableConfig = deleteSaveV2RequestConfig(xRequestId = xRequestId)
+
+        return request<Unit, GameSaveDeleteEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation deleteSaveV2
+     *
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun deleteSaveV2RequestConfig(xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.DELETE,
+            path = "/v2/save",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,
@@ -729,6 +803,78 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         return RequestConfig(
             method = RequestMethod.GET,
             path = "/v2/marketplace/{id}".replace("{"+"id"+"}", encodeURIComponent(id.toString())),
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Save file presence and metadata (does not load the engine).
+     * Returns whether a save exists for the caller, byte size, and last-modified time. Useful for UI enable/disable of Load without attempting restore. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return GameSaveMetaEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun getSaveMetaV2(xRequestId: kotlin.String? = null) : GameSaveMetaEnvelope {
+        val localVarResponse = getSaveMetaV2WithHttpInfo(xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as GameSaveMetaEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Save file presence and metadata (does not load the engine).
+     * Returns whether a save exists for the caller, byte size, and last-modified time. Useful for UI enable/disable of Load without attempting restore. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<GameSaveMetaEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun getSaveMetaV2WithHttpInfo(xRequestId: kotlin.String?) : ApiResponse<GameSaveMetaEnvelope?> {
+        val localVariableConfig = getSaveMetaV2RequestConfig(xRequestId = xRequestId)
+
+        return request<Unit, GameSaveMetaEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation getSaveMetaV2
+     *
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun getSaveMetaV2RequestConfig(xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/save",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,

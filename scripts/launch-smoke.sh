@@ -174,8 +174,25 @@ expect 200 "POST /v2/narrate"
 
 http POST /v2/save "$TOKEN"
 expect 200 "POST /v2/save"
+http GET /v2/save "$TOKEN"
+expect 200 "GET /v2/save (meta)"
+if [[ "$(json_get payload.exists)" != "true" ]]; then
+  red "FAIL save meta exists not true"
+  exit 1
+fi
+green "OK  save meta"
 http POST /v2/load "$TOKEN"
 expect 200 "POST /v2/load"
+http DELETE /v2/save "$TOKEN"
+expect 200 "DELETE /v2/save"
+if [[ "$(json_get payload.exists)" == "true" ]]; then
+  red "FAIL save still exists after delete"
+  exit 1
+fi
+green "OK  save deleted"
+# re-save so later steps that assume a save still work if any
+http POST /v2/save "$TOKEN"
+expect 200 "POST /v2/save (restore slot)"
 
 http GET /v2/entitlements "$TOKEN"
 expect 200 "GET /v2/entitlements"
