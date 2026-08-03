@@ -61,6 +61,24 @@ public class SessionService {
         return Optional.of(new Issued(session, token.value(), token.expiresAtEpochSeconds()));
     }
 
+    /**
+     * Rename a session and re-issue a JWT with the new display name claim.
+     * Empty if the session is unknown.
+     */
+    public Optional<Issued> renameSession(String sessionId, String displayName) {
+        if (sessionId == null || sessionId.isBlank()) return Optional.empty();
+        Optional<Session> found = store.load(sessionId.trim());
+        if (found.isEmpty()) return Optional.empty();
+        String name = (displayName == null || displayName.isBlank()) ? "Adventurer" : displayName.trim();
+        if (name.length() > 64) name = name.substring(0, 64);
+        Session session = found.get();
+        session.rename(name);
+        session.markSeen();
+        store.save(session);
+        JwtService.Token token = jwt.issue(session.id(), Map.of("name", session.displayName()));
+        return Optional.of(new Issued(session, token.value(), token.expiresAtEpochSeconds()));
+    }
+
     public Optional<Session> find(String id) {
         return store.load(id);
     }
@@ -115,7 +133,7 @@ public class SessionService {
     /** A player session. */
     public static final class Session {
         private final String id;
-        private final String displayName;
+        private volatile String displayName;
         private final long createdAtEpoch;
         private volatile long lastSeenEpoch;
 
@@ -133,6 +151,10 @@ public class SessionService {
 
         void markSeen() {
             this.lastSeenEpoch = Instant.now().getEpochSecond();
+        }
+
+        void rename(String displayName) {
+            this.displayName = displayName;
         }
 
         public String id() { return id; }

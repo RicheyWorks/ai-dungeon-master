@@ -593,8 +593,24 @@ class GameViewModel(
         )
     }
 
+    /** Re-issue JWT for the current session (same id) via generated SDK. */
+    private fun refreshSessionToken(current: SessionInfo): SessionInfo {
+        HttpClients.setToken(current.token)
+        val envelope = api().refreshSessionV2()
+        val p = envelope.payload
+        val token = p.token ?: throw IllegalStateException("Session token missing from refreshSessionV2")
+        return SessionInfo(
+            sessionId = p.sessionId,
+            token = token,
+            displayName = p.displayName ?: current.displayName,
+            expiresAtEpochSeconds = p.expiresAtEpochSeconds ?: 0L,
+            createdAtEpochSeconds = p.createdAtEpochSeconds ?: current.createdAtEpochSeconds,
+        )
+    }
+
     /**
-     * Prefer in-memory session, then disk. Validate with `/v2/session/me`; on
+     * Prefer in-memory session, then disk. Near-expiry sessions call
+     * {@code POST /v2/session/refresh}. Validate with `/v2/session/me`; on
      * failure mint a fresh guest session and persist it.
      */
     private fun ensureSession(current: UiState): UiState {
@@ -607,13 +623,33 @@ class GameViewModel(
             }
         }
 
-        if (candidate != null && !candidate.isExpired() && HttpClients.token() != null) {
-            try {
-                api().getSessionMeV2()
-                store.saveSession(candidate)
-                return current.copy(session = candidate)
-            } catch (_: Exception) {
-                // Stale JWT — fall through to mint.
+        if (candidate != null && HttpClients.token() != null) {
+            // Proactive refresh when under 2 minutes remain (or already in skew window).
+            if (candidate.secondsUntilExpiry() in 1..120 || candidate.isExpired()) {
+                try {
+                    val refreshed = refreshSessionToken(candidate)
+                    HttpClients.setToken(refreshed.token)
+                    store.saveSession(refreshed)
+                    return current.copy(session = refreshed, info = "Session renewed")
+                } catch (_: Exception) {
+                    // Fall through to me/mint.
+                }
+            }
+            if (!candidate.isExpired()) {
+                try {
+                    api().getSessionMeV2()
+                    store.saveSession(candidate)
+                    return current.copy(session = candidate)
+                } catch (_: Exception) {
+                    try {
+                        val refreshed = refreshSessionToken(candidate)
+                        HttpClients.setToken(refreshed.token)
+                        store.saveSession(refreshed)
+                        return current.copy(session = refreshed, info = "Session renewed")
+                    } catch (_: Exception) {
+                        // Stale JWT — fall through to mint.
+                    }
+                }
             }
         }
 

@@ -59,4 +59,10 @@ extension SessionInfo {
         if expiresAtEpochSeconds <= 0 { return false }
         return nowEpochSeconds >= (expiresAtEpochSeconds - 30)
     }
+
+    /// Seconds until JWT expiry (0 if missing/expired).
+    public func secondsUntilExpiry(nowEpochSeconds: Int64 = Int64(Date().timeIntervalSince1970)) -> Int64 {
+        if expiresAtEpochSeconds <= 0 { return 0 }
+        return max(0, expiresAtEpochSeconds - nowEpochSeconds)
+    }
 }

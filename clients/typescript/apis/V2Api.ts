@@ -155,6 +155,11 @@ export interface RefreshSessionV2Request {
     xRequestId?: string;
 }
 
+export interface RenameSessionV2Request {
+    sessionRequest: SessionRequest;
+    xRequestId?: string;
+}
+
 export interface ResetGameV2Request {
     xRequestId?: string;
 }
@@ -836,6 +841,48 @@ export class V2Api extends runtime.BaseAPI {
      */
     async refreshSessionV2(requestParameters: RefreshSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SessionEnvelope> {
         const response = await this.refreshSessionV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Requires a valid Bearer token. Updates the display name (max 64 chars) and returns a fresh JWT with the new name claim. Session id is unchanged. 
+     * Rename the session display name and re-issue JWT.
+     */
+    async renameSessionV2Raw(requestParameters: RenameSessionV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SessionEnvelope>> {
+        if (requestParameters['sessionRequest'] == null) {
+            throw new runtime.RequiredError(
+                'sessionRequest',
+                'Required parameter "sessionRequest" was null or undefined when calling renameSessionV2().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/session`,
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: SessionRequestToJSON(requestParameters['sessionRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SessionEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Requires a valid Bearer token. Updates the display name (max 64 chars) and returns a fresh JWT with the new name claim. Session id is unchanged. 
+     * Rename the session display name and re-issue JWT.
+     */
+    async renameSessionV2(requestParameters: RenameSessionV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SessionEnvelope> {
+        const response = await this.renameSessionV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 

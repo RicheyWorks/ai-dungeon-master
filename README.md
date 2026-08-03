@@ -111,6 +111,7 @@ Full contract: [`docs/api/openapi.yaml`](docs/api/openapi.yaml) ·
 |---|---|
 | `POST /v2/session` | Guest session → JWT + session id |
 | `POST /v2/session/refresh` | Re-issue JWT (same session id) |
+| `PATCH /v2/session` | Rename display name + re-issue JWT |
 | `GET /v2/session/me` | Echo caller session |
 | `GET /v2/status` | Party, quest, choices, location, events |
 | `POST /v2/action` | Apply a choice |

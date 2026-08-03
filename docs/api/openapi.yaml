@@ -396,6 +396,44 @@ paths:
           description: Not authenticated.
         '429':
           description: Rate limited.
+
+    patch:
+      tags: [v2]
+      operationId: renameSessionV2
+      summary: Rename the session display name and re-issue JWT.
+      description: |
+        Requires a valid Bearer token. Updates the display name (max 64 chars)
+        and returns a fresh JWT with the new name claim. Session id is unchanged.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRequest'
+      responses:
+        '200':
+          description: Session envelope with new name and JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionEnvelope'
+        '400':
+          description: Missing displayName.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited.
+
   /v2/session/refresh:
     post:
       tags: [v2]

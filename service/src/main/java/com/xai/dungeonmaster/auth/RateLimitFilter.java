@@ -128,6 +128,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && (path.equals("/v2/session") || path.equals("/v2/session/refresh"))) {
             return new Limit("session", props.sessionPerMinute());
         }
+        if ("PATCH".equals(method) && path.equals("/v2/session")) {
+            return new Limit("session", props.sessionPerMinute());
+        }
         if ("DELETE".equals(method) && path.equals("/v2/session")) {
             return new Limit("logout", props.logoutPerMinute());
         }

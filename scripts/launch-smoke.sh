@@ -133,6 +133,19 @@ if [[ -n "$NEW_TOKEN" ]]; then
   green "OK  session refresh kept id, rotated token"
 fi
 
+http PATCH /v2/session "$TOKEN" '{"displayName":"SmokeRenamed"}'
+expect 200 "PATCH /v2/session (rename)"
+RENAME_NAME="$(json_get payload.displayName)"
+RENAME_TOKEN="$(json_get payload.token)"
+if [[ -n "$RENAME_TOKEN" ]]; then
+  TOKEN="$RENAME_TOKEN"
+fi
+if [[ "$RENAME_NAME" != "SmokeRenamed" ]]; then
+  red "FAIL rename displayName got ${RENAME_NAME}"
+  exit 1
+fi
+green "OK  session rename"
+
 http GET /v2/catalog "$TOKEN"
 expect 200 "GET /v2/catalog"
 PACK_ID="$(pick_pack)"

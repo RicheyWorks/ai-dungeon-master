@@ -482,6 +482,25 @@ public final class GameViewModel: ObservableObject {
         )
     }
 
+    private func refreshSessionToken(_ current: SessionInfo) async throws -> SessionInfo {
+        applyBasePath()
+        applyBearer(current.token)
+        let envelope = try await V2API.refreshSessionV2()
+        let p = envelope.payload
+        guard let token = p.token, !token.isEmpty else {
+            throw NSError(domain: "AIDungeonMaster", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Session token missing from refreshSessionV2",
+            ])
+        }
+        return SessionInfo(
+            sessionId: p.sessionId,
+            token: token,
+            displayName: p.displayName.isEmpty ? current.displayName : p.displayName,
+            expiresAtEpochSeconds: p.expiresAtEpochSeconds ?? 0,
+            createdAtEpochSeconds: p.createdAtEpochSeconds ?? current.createdAtEpochSeconds
+        )
+    }
+
     private func ensureSession() async throws {
         applyBasePath()
         var candidate = session
@@ -492,15 +511,38 @@ public final class GameViewModel: ObservableObject {
             }
         }
 
-        if let candidate, !candidate.isExpired(),
-           AIDungeonMasterClientAPI.customHeaders["Authorization"] != nil {
-            do {
-                _ = try await V2API.getSessionMeV2()
-                session = candidate
-                store.saveSession(candidate)
-                return
-            } catch {
-                // Stale JWT — mint below.
+        if let candidate, AIDungeonMasterClientAPI.customHeaders["Authorization"] != nil {
+            let left = candidate.secondsUntilExpiry()
+            if (left > 0 && left <= 120) || candidate.isExpired() {
+                do {
+                    let refreshed = try await refreshSessionToken(candidate)
+                    session = refreshed
+                    applyBearer(refreshed.token)
+                    store.saveSession(refreshed)
+                    info = "Session renewed"
+                    return
+                } catch {
+                    // fall through
+                }
+            }
+            if !candidate.isExpired() {
+                do {
+                    _ = try await V2API.getSessionMeV2()
+                    session = candidate
+                    store.saveSession(candidate)
+                    return
+                } catch {
+                    do {
+                        let refreshed = try await refreshSessionToken(candidate)
+                        session = refreshed
+                        applyBearer(refreshed.token)
+                        store.saveSession(refreshed)
+                        info = "Session renewed"
+                        return
+                    } catch {
+                        // Stale JWT — mint below.
+                    }
+                }
             }
         }
 
