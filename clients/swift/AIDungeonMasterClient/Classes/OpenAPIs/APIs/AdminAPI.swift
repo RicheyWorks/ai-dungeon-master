@@ -17,11 +17,12 @@ open class AdminAPI {
      
      - parameter sessionId: (query)  
      - parameter xAdminToken: (header)  
-     - returns: Void
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: AdminSessionPacksEnvelope
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func getAdminSessionPacks(sessionId: String, xAdminToken: String) async throws {
-        return try await getAdminSessionPacksWithRequestBuilder(sessionId: sessionId, xAdminToken: xAdminToken).execute().body
+    open class func getAdminSessionPacks(sessionId: String, xAdminToken: String, xRequestId: String? = nil) async throws -> AdminSessionPacksEnvelope {
+        return try await getAdminSessionPacksWithRequestBuilder(sessionId: sessionId, xAdminToken: xAdminToken, xRequestId: xRequestId).execute().body
     }
 
     /**
@@ -29,9 +30,10 @@ open class AdminAPI {
      - GET /v2/admin/session-packs
      - parameter sessionId: (query)  
      - parameter xAdminToken: (header)  
-     - returns: RequestBuilder<Void> 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<AdminSessionPacksEnvelope> 
      */
-    open class func getAdminSessionPacksWithRequestBuilder(sessionId: String, xAdminToken: String) -> RequestBuilder<Void> {
+    open class func getAdminSessionPacksWithRequestBuilder(sessionId: String, xAdminToken: String, xRequestId: String? = nil) -> RequestBuilder<AdminSessionPacksEnvelope> {
         let localVariablePath = "/v2/admin/session-packs"
         let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
         let localVariableParameters: [String: Any]? = nil
@@ -43,11 +45,12 @@ open class AdminAPI {
 
         let localVariableNillableHeaders: [String: Any?] = [
             "X-Admin-Token": xAdminToken.encodeToJSON(),
+            "X-Request-Id": xRequestId?.encodeToJSON(),
         ]
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
-        let localVariableRequestBuilder: RequestBuilder<Void>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getNonDecodableBuilder()
+        let localVariableRequestBuilder: RequestBuilder<AdminSessionPacksEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
@@ -62,11 +65,12 @@ open class AdminAPI {
      - parameter sessionId: (query)  (optional)
      - parameter since: (query) Epoch milliseconds (inclusive lower bound) (optional)
      - parameter until: (query) Epoch milliseconds (inclusive upper bound) (optional)
-     - returns: Void
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: AdminReceiptsEnvelope
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func listAdminReceipts(xAdminToken: String, limit: Int? = nil, productId: String? = nil, storefront: String? = nil, sessionId: String? = nil, since: Int64? = nil, until: Int64? = nil) async throws {
-        return try await listAdminReceiptsWithRequestBuilder(xAdminToken: xAdminToken, limit: limit, productId: productId, storefront: storefront, sessionId: sessionId, since: since, until: until).execute().body
+    open class func listAdminReceipts(xAdminToken: String, limit: Int? = nil, productId: String? = nil, storefront: String? = nil, sessionId: String? = nil, since: Int64? = nil, until: Int64? = nil, xRequestId: String? = nil) async throws -> AdminReceiptsEnvelope {
+        return try await listAdminReceiptsWithRequestBuilder(xAdminToken: xAdminToken, limit: limit, productId: productId, storefront: storefront, sessionId: sessionId, since: since, until: until, xRequestId: xRequestId).execute().body
     }
 
     /**
@@ -79,9 +83,10 @@ open class AdminAPI {
      - parameter sessionId: (query)  (optional)
      - parameter since: (query) Epoch milliseconds (inclusive lower bound) (optional)
      - parameter until: (query) Epoch milliseconds (inclusive upper bound) (optional)
-     - returns: RequestBuilder<Void> 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<AdminReceiptsEnvelope> 
      */
-    open class func listAdminReceiptsWithRequestBuilder(xAdminToken: String, limit: Int? = nil, productId: String? = nil, storefront: String? = nil, sessionId: String? = nil, since: Int64? = nil, until: Int64? = nil) -> RequestBuilder<Void> {
+    open class func listAdminReceiptsWithRequestBuilder(xAdminToken: String, limit: Int? = nil, productId: String? = nil, storefront: String? = nil, sessionId: String? = nil, since: Int64? = nil, until: Int64? = nil, xRequestId: String? = nil) -> RequestBuilder<AdminReceiptsEnvelope> {
         let localVariablePath = "/v2/admin/receipts"
         let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
         let localVariableParameters: [String: Any]? = nil
@@ -98,11 +103,12 @@ open class AdminAPI {
 
         let localVariableNillableHeaders: [String: Any?] = [
             "X-Admin-Token": xAdminToken.encodeToJSON(),
+            "X-Request-Id": xRequestId?.encodeToJSON(),
         ]
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
-        let localVariableRequestBuilder: RequestBuilder<Void>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getNonDecodableBuilder()
+        let localVariableRequestBuilder: RequestBuilder<AdminReceiptsEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
@@ -149,6 +155,53 @@ open class AdminAPI {
         let localVariableRequestBuilder: RequestBuilder<AdminSessionsEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Purge idle sessions (ops)
+     
+     - parameter xAdminToken: (header)  
+     - parameter idleTtlSeconds: (query)  (optional, default to 86400)
+     - parameter evictEngines: (query)  (optional, default to true)
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: AdminSessionsPurgedEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func purgeIdleAdminSessions(xAdminToken: String, idleTtlSeconds: Int64? = nil, evictEngines: Bool? = nil, xRequestId: String? = nil) async throws -> AdminSessionsPurgedEnvelope {
+        return try await purgeIdleAdminSessionsWithRequestBuilder(xAdminToken: xAdminToken, idleTtlSeconds: idleTtlSeconds, evictEngines: evictEngines, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Purge idle sessions (ops)
+     - POST /v2/admin/sessions/purge-idle
+     - Removes sessions idle longer than idleTtlSeconds; optionally runs engine idle eviction.
+     - parameter xAdminToken: (header)  
+     - parameter idleTtlSeconds: (query)  (optional, default to 86400)
+     - parameter evictEngines: (query)  (optional, default to true)
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<AdminSessionsPurgedEnvelope> 
+     */
+    open class func purgeIdleAdminSessionsWithRequestBuilder(xAdminToken: String, idleTtlSeconds: Int64? = nil, evictEngines: Bool? = nil, xRequestId: String? = nil) -> RequestBuilder<AdminSessionsPurgedEnvelope> {
+        let localVariablePath = "/v2/admin/sessions/purge-idle"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "idleTtlSeconds": (wrappedValue: idleTtlSeconds?.encodeToJSON(), isExplode: true),
+            "evictEngines": (wrappedValue: evictEngines?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Admin-Token": xAdminToken.encodeToJSON(),
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AdminSessionsPurgedEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
 
     /**

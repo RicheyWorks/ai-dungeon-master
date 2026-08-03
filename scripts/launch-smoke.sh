@@ -200,6 +200,13 @@ if [[ -n "${ADMIN_TOKEN:-}" ]]; then
   expect 200 "GET /v2/admin/sessions"
   SESS_TOTAL="$(json_get payload.total)"
   info "admin sessions total=${SESS_TOTAL:-?}"
+
+  tmp="$(mktemp)"
+  HTTP_CODE="$(curl -sS -m "$TIMEOUT" -X POST -H "X-Admin-Token: $ADMIN_TOKEN" -H "X-Request-Id: $REQUEST_ID" \
+    -o "$tmp" -w "%{http_code}" \
+    "${BASE_URL}/v2/admin/sessions/purge-idle?idleTtlSeconds=999999999&evictEngines=false" || echo 000)"
+  BODY="$(cat "$tmp")"; rm -f "$tmp"
+  expect 200 "POST /v2/admin/sessions/purge-idle"
 fi
 
 # STOMP JWT CONNECT + subscription ACL (requires Node 22+ WebSocket).

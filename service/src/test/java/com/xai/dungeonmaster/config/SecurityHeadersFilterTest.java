@@ -22,6 +22,9 @@ class SecurityHeadersFilterTest {
         assertTrue(csp.contains("fonts.googleapis.com"), csp);
         assertTrue(csp.contains("fonts.gstatic.com"), csp);
         assertEquals("same-origin", res.getHeader("Cross-Origin-Resource-Policy"));
+        assertEquals("off", res.getHeader("X-DNS-Prefetch-Control"));
+        assertTrue(res.getHeader("Permissions-Policy").contains("payment=()"));
+        assertTrue(csp.contains("base-uri 'self'"), csp);
         assertNull(res.getHeader("Strict-Transport-Security"));
     }
 

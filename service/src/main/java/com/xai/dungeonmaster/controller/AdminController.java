@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -246,6 +247,41 @@ public class AdminController {
         AdminAudit.log("ok", "/v2/admin/sessions/" + sid, RateLimitFilter.clientIp(request, false),
                 requestId, "revoked existed=" + known + " token=" + AdminAudit.tokenFingerprint(token));
         return ResponseEntity.ok(Envelope.of("admin.session.revoked", payload, requestId));
+    }
+
+    /**
+     * Purge idle sessions and optionally idle engines.
+     * <pre>POST /v2/admin/sessions/purge-idle?idleTtlSeconds=86400&evictEngines=true</pre>
+     */
+    @PostMapping("/sessions/purge-idle")
+    public ResponseEntity<Envelope<?>> purgeIdleSessions(
+            @RequestParam(value = "idleTtlSeconds", defaultValue = "86400") long idleTtlSeconds,
+            @RequestParam(value = "evictEngines", defaultValue = "true") boolean evictEngines,
+            @RequestHeader(value = "X-Admin-Token", required = false) String token,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId, "/v2/admin/sessions/purge-idle", request);
+        if (denied != null) return denied;
+        if (sessions == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
+                    Envelope.of("error", new ErrorPayload("Session service unavailable."), requestId));
+        }
+        long ttl = Math.max(0L, idleTtlSeconds);
+        int removedSessions = sessions.purgeIdle(ttl);
+        int removedEngines = 0;
+        if (evictEngines && instances != null) {
+            removedEngines = instances.evictIdle();
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("idleTtlSeconds", ttl);
+        payload.put("removedSessions", removedSessions);
+        payload.put("removedEngines", removedEngines);
+        payload.put("activeSessions", sessions.activeCount());
+        payload.put("activeEngines", instances != null ? instances.sessionCount() : 0);
+        AdminAudit.log("ok", "/v2/admin/sessions/purge-idle", RateLimitFilter.clientIp(request, false),
+                requestId, "ttl=" + ttl + " sessions=" + removedSessions + " engines=" + removedEngines
+                        + " token=" + AdminAudit.tokenFingerprint(token));
+        return ResponseEntity.ok(Envelope.of("admin.sessions.purged", payload, requestId));
     }
 
     private ResponseEntity<Envelope<?>> authorize(

@@ -19,8 +19,11 @@ import java.io.IOException
 import okhttp3.OkHttpClient
 import okhttp3.HttpUrl
 
+import com.xai.dungeonmaster.client.models.AdminReceiptsEnvelope
+import com.xai.dungeonmaster.client.models.AdminSessionPacksEnvelope
 import com.xai.dungeonmaster.client.models.AdminSessionRevokedEnvelope
 import com.xai.dungeonmaster.client.models.AdminSessionsEnvelope
+import com.xai.dungeonmaster.client.models.AdminSessionsPurgedEnvelope
 import com.xai.dungeonmaster.client.models.ErrorEnvelope
 
 import com.squareup.moshi.Json
@@ -52,19 +55,21 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
      * 
      * @param sessionId 
      * @param xAdminToken 
-     * @return void
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return AdminSessionPacksEnvelope
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
      * @throws UnsupportedOperationException If the API returns an informational or redirection response
      * @throws ClientException If the API returns a client error response
      * @throws ServerException If the API returns a server error response
      */
+    @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
-    fun getAdminSessionPacks(sessionId: kotlin.String, xAdminToken: kotlin.String) : Unit {
-        val localVarResponse = getAdminSessionPacksWithHttpInfo(sessionId = sessionId, xAdminToken = xAdminToken)
+    fun getAdminSessionPacks(sessionId: kotlin.String, xAdminToken: kotlin.String, xRequestId: kotlin.String? = null) : AdminSessionPacksEnvelope {
+        val localVarResponse = getAdminSessionPacksWithHttpInfo(sessionId = sessionId, xAdminToken = xAdminToken, xRequestId = xRequestId)
 
         return when (localVarResponse.responseType) {
-            ResponseType.Success -> Unit
+            ResponseType.Success -> (localVarResponse as Success<*>).data as AdminSessionPacksEnvelope
             ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
             ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
             ResponseType.ClientError -> {
@@ -83,15 +88,17 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
      * 
      * @param sessionId 
      * @param xAdminToken 
-     * @return ApiResponse<Unit?>
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<AdminSessionPacksEnvelope?>
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
      */
+    @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class)
-    fun getAdminSessionPacksWithHttpInfo(sessionId: kotlin.String, xAdminToken: kotlin.String) : ApiResponse<Unit?> {
-        val localVariableConfig = getAdminSessionPacksRequestConfig(sessionId = sessionId, xAdminToken = xAdminToken)
+    fun getAdminSessionPacksWithHttpInfo(sessionId: kotlin.String, xAdminToken: kotlin.String, xRequestId: kotlin.String?) : ApiResponse<AdminSessionPacksEnvelope?> {
+        val localVariableConfig = getAdminSessionPacksRequestConfig(sessionId = sessionId, xAdminToken = xAdminToken, xRequestId = xRequestId)
 
-        return request<Unit, Unit>(
+        return request<Unit, AdminSessionPacksEnvelope>(
             localVariableConfig
         )
     }
@@ -101,9 +108,10 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
      *
      * @param sessionId 
      * @param xAdminToken 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
      * @return RequestConfig
      */
-    fun getAdminSessionPacksRequestConfig(sessionId: kotlin.String, xAdminToken: kotlin.String) : RequestConfig<Unit> {
+    fun getAdminSessionPacksRequestConfig(sessionId: kotlin.String, xAdminToken: kotlin.String, xRequestId: kotlin.String?) : RequestConfig<Unit> {
         val localVariableBody = null
         val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
             .apply {
@@ -111,7 +119,9 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
             }
         val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
         xAdminToken.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
-        
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
         return RequestConfig(
             method = RequestMethod.GET,
             path = "/v2/admin/session-packs",
@@ -132,19 +142,21 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
      * @param sessionId  (optional)
      * @param since Epoch milliseconds (inclusive lower bound) (optional)
      * @param until Epoch milliseconds (inclusive upper bound) (optional)
-     * @return void
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return AdminReceiptsEnvelope
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
      * @throws UnsupportedOperationException If the API returns an informational or redirection response
      * @throws ClientException If the API returns a client error response
      * @throws ServerException If the API returns a server error response
      */
+    @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
-    fun listAdminReceipts(xAdminToken: kotlin.String, limit: kotlin.Int? = 50, productId: kotlin.String? = null, storefront: kotlin.String? = null, sessionId: kotlin.String? = null, since: kotlin.Long? = null, until: kotlin.Long? = null) : Unit {
-        val localVarResponse = listAdminReceiptsWithHttpInfo(xAdminToken = xAdminToken, limit = limit, productId = productId, storefront = storefront, sessionId = sessionId, since = since, until = until)
+    fun listAdminReceipts(xAdminToken: kotlin.String, limit: kotlin.Int? = 50, productId: kotlin.String? = null, storefront: kotlin.String? = null, sessionId: kotlin.String? = null, since: kotlin.Long? = null, until: kotlin.Long? = null, xRequestId: kotlin.String? = null) : AdminReceiptsEnvelope {
+        val localVarResponse = listAdminReceiptsWithHttpInfo(xAdminToken = xAdminToken, limit = limit, productId = productId, storefront = storefront, sessionId = sessionId, since = since, until = until, xRequestId = xRequestId)
 
         return when (localVarResponse.responseType) {
-            ResponseType.Success -> Unit
+            ResponseType.Success -> (localVarResponse as Success<*>).data as AdminReceiptsEnvelope
             ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
             ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
             ResponseType.ClientError -> {
@@ -168,15 +180,17 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
      * @param sessionId  (optional)
      * @param since Epoch milliseconds (inclusive lower bound) (optional)
      * @param until Epoch milliseconds (inclusive upper bound) (optional)
-     * @return ApiResponse<Unit?>
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<AdminReceiptsEnvelope?>
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
      */
+    @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class)
-    fun listAdminReceiptsWithHttpInfo(xAdminToken: kotlin.String, limit: kotlin.Int?, productId: kotlin.String?, storefront: kotlin.String?, sessionId: kotlin.String?, since: kotlin.Long?, until: kotlin.Long?) : ApiResponse<Unit?> {
-        val localVariableConfig = listAdminReceiptsRequestConfig(xAdminToken = xAdminToken, limit = limit, productId = productId, storefront = storefront, sessionId = sessionId, since = since, until = until)
+    fun listAdminReceiptsWithHttpInfo(xAdminToken: kotlin.String, limit: kotlin.Int?, productId: kotlin.String?, storefront: kotlin.String?, sessionId: kotlin.String?, since: kotlin.Long?, until: kotlin.Long?, xRequestId: kotlin.String?) : ApiResponse<AdminReceiptsEnvelope?> {
+        val localVariableConfig = listAdminReceiptsRequestConfig(xAdminToken = xAdminToken, limit = limit, productId = productId, storefront = storefront, sessionId = sessionId, since = since, until = until, xRequestId = xRequestId)
 
-        return request<Unit, Unit>(
+        return request<Unit, AdminReceiptsEnvelope>(
             localVariableConfig
         )
     }
@@ -191,9 +205,10 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
      * @param sessionId  (optional)
      * @param since Epoch milliseconds (inclusive lower bound) (optional)
      * @param until Epoch milliseconds (inclusive upper bound) (optional)
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
      * @return RequestConfig
      */
-    fun listAdminReceiptsRequestConfig(xAdminToken: kotlin.String, limit: kotlin.Int?, productId: kotlin.String?, storefront: kotlin.String?, sessionId: kotlin.String?, since: kotlin.Long?, until: kotlin.Long?) : RequestConfig<Unit> {
+    fun listAdminReceiptsRequestConfig(xAdminToken: kotlin.String, limit: kotlin.Int?, productId: kotlin.String?, storefront: kotlin.String?, sessionId: kotlin.String?, since: kotlin.Long?, until: kotlin.Long?, xRequestId: kotlin.String?) : RequestConfig<Unit> {
         val localVariableBody = null
         val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
             .apply {
@@ -218,7 +233,9 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
             }
         val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
         xAdminToken.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
-        
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
         return RequestConfig(
             method = RequestMethod.GET,
             path = "/v2/admin/receipts",
@@ -306,6 +323,96 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
         return RequestConfig(
             method = RequestMethod.GET,
             path = "/v2/admin/sessions",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Purge idle sessions (ops)
+     * Removes sessions idle longer than idleTtlSeconds; optionally runs engine idle eviction.
+     * @param xAdminToken 
+     * @param idleTtlSeconds  (optional, default to 86400L)
+     * @param evictEngines  (optional, default to true)
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return AdminSessionsPurgedEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun purgeIdleAdminSessions(xAdminToken: kotlin.String, idleTtlSeconds: kotlin.Long? = 86400L, evictEngines: kotlin.Boolean? = true, xRequestId: kotlin.String? = null) : AdminSessionsPurgedEnvelope {
+        val localVarResponse = purgeIdleAdminSessionsWithHttpInfo(xAdminToken = xAdminToken, idleTtlSeconds = idleTtlSeconds, evictEngines = evictEngines, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as AdminSessionsPurgedEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Purge idle sessions (ops)
+     * Removes sessions idle longer than idleTtlSeconds; optionally runs engine idle eviction.
+     * @param xAdminToken 
+     * @param idleTtlSeconds  (optional, default to 86400L)
+     * @param evictEngines  (optional, default to true)
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<AdminSessionsPurgedEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun purgeIdleAdminSessionsWithHttpInfo(xAdminToken: kotlin.String, idleTtlSeconds: kotlin.Long?, evictEngines: kotlin.Boolean?, xRequestId: kotlin.String?) : ApiResponse<AdminSessionsPurgedEnvelope?> {
+        val localVariableConfig = purgeIdleAdminSessionsRequestConfig(xAdminToken = xAdminToken, idleTtlSeconds = idleTtlSeconds, evictEngines = evictEngines, xRequestId = xRequestId)
+
+        return request<Unit, AdminSessionsPurgedEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation purgeIdleAdminSessions
+     *
+     * @param xAdminToken 
+     * @param idleTtlSeconds  (optional, default to 86400L)
+     * @param evictEngines  (optional, default to true)
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun purgeIdleAdminSessionsRequestConfig(xAdminToken: kotlin.String, idleTtlSeconds: kotlin.Long?, evictEngines: kotlin.Boolean?, xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
+            .apply {
+                if (idleTtlSeconds != null) {
+                    put("idleTtlSeconds", listOf(idleTtlSeconds.toString()))
+                }
+                if (evictEngines != null) {
+                    put("evictEngines", listOf(evictEngines.toString()))
+                }
+            }
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xAdminToken.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.POST,
+            path = "/v2/admin/sessions/purge-idle",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,

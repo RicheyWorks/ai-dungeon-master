@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  AdminReceiptsPayload,
+  AdminSessionPacksPayload,
   AdminSessionRow,
   AdminSessionsPayload,
+  AdminSessionsPurgedPayload,
   CatalogPayload,
   EntitlementPayload,
   GameStatusV2,
@@ -74,6 +77,10 @@ export function App() {
   const [adminToken, setAdminToken] = useState(() => sessionStore.loadAdminToken());
   const [metricsToken, setMetricsToken] = useState(() => sessionStore.loadMetricsToken());
   const [adminSessions, setAdminSessions] = useState<AdminSessionsPayload | null>(null);
+  const [adminReceipts, setAdminReceipts] = useState<AdminReceiptsPayload | null>(null);
+  const [sessionPacksLookup, setSessionPacksLookup] = useState("");
+  const [adminSessionPacks, setAdminSessionPacks] = useState<AdminSessionPacksPayload | null>(null);
+  const [purgeResult, setPurgeResult] = useState<AdminSessionsPurgedPayload | null>(null);
   const [metricsProbe, setMetricsProbe] = useState<{
     ok: boolean;
     status: number;
@@ -94,7 +101,10 @@ export function App() {
   const ownedCount = entitlements?.owned?.length ?? null;
 
   const pollHealth = useCallback(async (url = baseUrl) => {
-    const ready = await api.fetchReadiness(url);
+    const ready = await api.fetchReadiness(url, {
+      adminToken: adminToken || undefined,
+      metricsToken: metricsToken || undefined,
+    });
     const v2 = await api.fetchHealthV2(url, {
       adminToken: adminToken || undefined,
       metricsToken: metricsToken || undefined,
@@ -729,10 +739,102 @@ export function App() {
             sessionStore.saveMetricsToken(t);
           }}
           adminSessions={adminSessions}
+          adminReceipts={adminReceipts}
+          sessionPacksLookup={sessionPacksLookup}
+          setSessionPacksLookup={setSessionPacksLookup}
+          adminSessionPacks={adminSessionPacks}
+          purgeResult={purgeResult}
           metricsProbe={metricsProbe}
           busy={busy}
           currentSessionId={session?.sessionId ?? null}
           onRefresh={() => void pollHealth()}
+          onClearOpsTokens={() => {
+            setAdminToken("");
+            setMetricsToken("");
+            sessionStore.saveAdminToken("");
+            sessionStore.saveMetricsToken("");
+            setAdminSessions(null);
+            setAdminReceipts(null);
+            setAdminSessionPacks(null);
+            setPurgeResult(null);
+            setMetricsProbe(null);
+            setInfo("Ops tokens cleared");
+          }}
+          onLoadReceipts={() =>
+            void (async () => {
+              try {
+                setError(null);
+                const p = await api.listAdminReceipts(baseUrl, adminToken, 25);
+                setAdminReceipts(p);
+                setInfo(`Loaded ${p.count ?? p.receipts?.length ?? 0} receipts`);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onLoadSessionPacks={() =>
+            void (async () => {
+              try {
+                setError(null);
+                const sid = sessionPacksLookup.trim() || session?.sessionId || "";
+                if (!sid) {
+                  setError("Enter a session id for pack lookup");
+                  return;
+                }
+                const p = await api.getAdminSessionPacks(baseUrl, adminToken, sid);
+                setAdminSessionPacks(p);
+                setInfo(`Packs for ${sid.slice(0, 8)}…`);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onPurgeIdle={() =>
+            void (async () => {
+              try {
+                setError(null);
+                if (!window.confirm("Purge idle sessions (default 24h) and evict idle engines?")) return;
+                const p = await api.purgeIdleAdminSessions(baseUrl, adminToken, 86400, true);
+                setPurgeResult(p);
+                setAdminSessions(await api.listAdminSessions(baseUrl, adminToken, 100));
+                setInfo(
+                  `Purged sessions=${p.removedSessions ?? 0} engines=${p.removedEngines ?? 0}`,
+                );
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onExportDiagnostics={() => {
+            const blob = new Blob(
+              [
+                JSON.stringify(
+                  {
+                    exportedAt: new Date().toISOString(),
+                    baseUrl: baseUrl || window.location.origin,
+                    health,
+                    readiness,
+                    adminSessions,
+                    adminReceipts,
+                    adminSessionPacks,
+                    metricsProbe,
+                    session: session
+                      ? { sessionId: session.sessionId, displayName: session.displayName }
+                      : null,
+                  },
+                  null,
+                  2,
+                ),
+              ],
+              { type: "application/json" },
+            );
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `dm-diagnostics-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            setInfo("Diagnostics exported");
+          }}
           onLoadSessions={() =>
             void (async () => {
               try {
@@ -1737,11 +1839,21 @@ function SystemTab(props: {
   metricsToken: string;
   setMetricsToken: (v: string) => void;
   adminSessions: AdminSessionsPayload | null;
+  adminReceipts: AdminReceiptsPayload | null;
+  sessionPacksLookup: string;
+  setSessionPacksLookup: (v: string) => void;
+  adminSessionPacks: AdminSessionPacksPayload | null;
+  purgeResult: AdminSessionsPurgedPayload | null;
   metricsProbe: { ok: boolean; status: number; bytes: number; sample?: string } | null;
   busy: boolean;
   currentSessionId: string | null;
   onRefresh: () => void;
+  onClearOpsTokens: () => void;
   onLoadSessions: () => void;
+  onLoadReceipts: () => void;
+  onLoadSessionPacks: () => void;
+  onPurgeIdle: () => void;
+  onExportDiagnostics: () => void;
   onRevokeSession: (id: string) => void;
   onProbeMetrics: () => void;
   onCopyBase: () => void;
@@ -1751,14 +1863,20 @@ function SystemTab(props: {
   const mem = props.health?.memory;
   const detail = props.health?.detail === true;
   const sessions = props.adminSessions?.sessions ?? [];
+  const receipts = props.adminReceipts?.receipts ?? [];
 
   return (
-    <div className="stack">
+    <div className="stack system-tab">
       <div className="section-head">
         <h3>System health</h3>
-        <button type="button" onClick={props.onRefresh}>
-          Refresh
-        </button>
+        <div className="row">
+          <button type="button" className="ghost compact" onClick={props.onExportDiagnostics}>
+            Export JSON
+          </button>
+          <button type="button" onClick={props.onRefresh}>
+            Refresh
+          </button>
+        </div>
       </div>
       <p className="muted">
         Public probes via <code>/health/ready</code> and <code>/v2/health</code>. Detail fields
@@ -1792,10 +1910,14 @@ function SystemTab(props: {
       </div>
 
       <div className="card stack">
-        <strong>Ops tokens</strong>
+        <div className="row between">
+          <strong>Ops tokens</strong>
+          <button type="button" className="ghost compact" onClick={props.onClearOpsTokens}>
+            Clear tokens
+          </button>
+        </div>
         <p className="muted" style={{ margin: 0 }}>
-          Stored in this browser only (<code>localStorage</code>). Used for health detail, admin
-          sessions, and metrics probe — never sent unless you use those actions.
+          Stored in this browser only. Used for health detail, admin inventory, and metrics probe.
         </p>
         <label className="field">
           <span>X-Admin-Token</span>
@@ -1919,19 +2041,36 @@ function SystemTab(props: {
       <div className="card stack">
         <div className="section-head">
           <strong>Admin sessions</strong>
-          <button
-            type="button"
-            className="primary"
-            disabled={props.busy || !props.adminToken.trim()}
-            onClick={props.onLoadSessions}
-          >
-            Load sessions
-          </button>
+          <div className="row">
+            <button
+              type="button"
+              className="ghost compact"
+              disabled={props.busy || !props.adminToken.trim()}
+              onClick={props.onPurgeIdle}
+            >
+              Purge idle
+            </button>
+            <button
+              type="button"
+              className="primary"
+              disabled={props.busy || !props.adminToken.trim()}
+              onClick={props.onLoadSessions}
+            >
+              Load sessions
+            </button>
+          </div>
         </div>
         <p className="muted" style={{ margin: 0 }}>
-          <code>GET /v2/admin/sessions</code> · revoke uses{" "}
-          <code>DELETE /v2/admin/sessions/&#123;id&#125;</code>
+          <code>GET /v2/admin/sessions</code> ·{" "}
+          <code>POST /v2/admin/sessions/purge-idle</code> · revoke via DELETE
         </p>
+        {props.purgeResult ? (
+          <div className="subtle">
+            Last purge: sessions −{props.purgeResult.removedSessions ?? 0}, engines −
+            {props.purgeResult.removedEngines ?? 0} · active{" "}
+            {props.purgeResult.activeSessions ?? "?"} / {props.purgeResult.activeEngines ?? "?"}
+          </div>
+        ) : null}
         {!props.adminToken.trim() ? (
           <div className="empty">Enter an admin token above to manage sessions.</div>
         ) : null}
@@ -2000,12 +2139,100 @@ function SystemTab(props: {
         ) : null}
       </div>
 
+      <div className="card stack">
+        <div className="section-head">
+          <strong>Admin receipts</strong>
+          <button
+            type="button"
+            disabled={props.busy || !props.adminToken.trim()}
+            onClick={props.onLoadReceipts}
+          >
+            Load receipts
+          </button>
+        </div>
+        <p className="muted" style={{ margin: 0 }}>
+          Fingerprints only — <code>GET /v2/admin/receipts</code>
+        </p>
+        {receipts.length > 0 ? (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Store</th>
+                  <th>Session</th>
+                  <th>Fingerprint</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receipts.map((r, i) => (
+                  <tr key={(r.fingerprint ?? "") + i}>
+                    <td>{r.productId ?? "—"}</td>
+                    <td>{r.storefront ?? "—"}</td>
+                    <td>
+                      <code>{r.sessionId ? r.sessionId.slice(0, 8) : "—"}</code>
+                    </td>
+                    <td>
+                      <code title={r.fingerprint}>{r.fingerprint ? r.fingerprint.slice(0, 12) : "—"}…</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : props.adminReceipts ? (
+          <div className="empty">No receipts.</div>
+        ) : null}
+      </div>
+
+      <div className="card stack">
+        <div className="section-head">
+          <strong>Session packs</strong>
+          <button
+            type="button"
+            disabled={props.busy || !props.adminToken.trim()}
+            onClick={props.onLoadSessionPacks}
+          >
+            Lookup
+          </button>
+        </div>
+        <label className="field">
+          <span>Session id (empty = current)</span>
+          <input
+            value={props.sessionPacksLookup}
+            onChange={(e) => props.setSessionPacksLookup(e.target.value)}
+            placeholder={props.currentSessionId ?? "session uuid"}
+            spellCheck={false}
+            aria-label="Session id for pack lookup"
+          />
+        </label>
+        {props.adminSessionPacks ? (
+          <div className="stack">
+            <div className="subtle">
+              Session {props.adminSessionPacks.sessionId?.slice(0, 8)}…
+              {props.adminSessionPacks.sessionScoped ? " · session-scoped" : ""}
+            </div>
+            <div className="chip-row">
+              {(props.adminSessionPacks.enabledPackIds ?? []).length === 0 ? (
+                <span className="muted">No enabled pack overrides</span>
+              ) : (
+                (props.adminSessionPacks.enabledPackIds ?? []).map((id) => (
+                  <span key={id} className="chip">
+                    {id}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       <div className="card">
         <strong>Audit logs</strong>
         <p className="muted" style={{ margin: 0 }}>
-          Server emits <code>dm.admin.audit</code> and <code>dm.security.audit</code> lines (job ACL
-          denials, rate limits, oversize bodies, bad ops tokens). Tail process logs in ops — not
-          exposed in this SPA.
+          Server emits <code>dm.admin.audit</code> and <code>dm.security.audit</code> (job ACL,
+          rate limits, oversize bodies, bad ops tokens). Tail process logs in ops — not exposed
+          here. Rate-limit responses include <code>X-RateLimit-Reset</code>.
         </p>
       </div>
     </div>
