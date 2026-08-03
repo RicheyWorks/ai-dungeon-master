@@ -280,6 +280,12 @@ code {
   border-color: color-mix(in oklab, var(--danger) 40%, transparent);
 }
 
+.banner.warn {
+  color: #f0e0b8;
+  background: color-mix(in oklab, var(--warn) 16%, transparent);
+  border-color: color-mix(in oklab, var(--warn) 40%, transparent);
+}
+
 @keyframes banner-in {
   from {
     opacity: 0;

@@ -70,6 +70,20 @@ export async function mintSession(
   };
 }
 
+/** Re-issue JWT for the current session (same session id). */
+export async function refreshSession(baseUrl: string, token: string): Promise<SessionInfo> {
+  const envelope = await createApi(baseUrl, token).refreshSessionV2();
+  const p = envelope.payload;
+  if (!p.token) throw new Error("Session token missing from refreshSessionV2");
+  return {
+    sessionId: p.sessionId,
+    token: p.token,
+    displayName: p.displayName ?? "Adventurer",
+    expiresAtEpochSeconds: p.expiresAtEpochSeconds ?? 0,
+    createdAtEpochSeconds: p.createdAtEpochSeconds ?? 0,
+  };
+}
+
 export async function validateSession(baseUrl: string, token: string): Promise<boolean> {
   try {
     await createApi(baseUrl, token).getSessionMeV2();
@@ -231,10 +245,22 @@ function asInstallJob(job: SdkMarketplaceInstallJob | null | undefined): Marketp
 async function sdkErrorMessage(e: unknown, fallback: string): Promise<string> {
   if (e instanceof ResponseError) {
     try {
-      const env = (await e.response.json()) as { payload?: { message?: string } };
-      if (env.payload?.message) return env.payload.message;
+      const env = (await e.response.json()) as { payload?: { message?: string }; requestId?: string };
+      const msg = env.payload?.message;
+      if (e.response.status === 429) {
+        const retry = e.response.headers.get("Retry-After") || e.response.headers.get("X-RateLimit-Reset");
+        const base = msg || "Rate limited";
+        return retry ? `${base} — retry in ${retry}s` : base;
+      }
+      if (msg) {
+        return env.requestId ? `${msg} (${env.requestId})` : msg;
+      }
     } catch {
       /* ignore */
+    }
+    if (e.response.status === 429) {
+      const retry = e.response.headers.get("Retry-After");
+      return retry ? `Rate limited — retry in ${retry}s` : "Rate limited";
     }
     return `${fallback} ${e.response.status}`;
   }

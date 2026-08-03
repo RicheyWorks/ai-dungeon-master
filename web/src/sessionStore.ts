@@ -30,6 +30,23 @@ export function relativeEpoch(epochSeconds?: number, now = Math.floor(Date.now()
   return `${Math.floor(d / 86400)}d ago`;
 }
 
+/** Seconds until JWT expiry (0 if missing/expired). */
+export function secondsUntilExpiry(info: SessionInfo, now = Math.floor(Date.now() / 1000)): number {
+  if (!info.expiresAtEpochSeconds) return 0;
+  return Math.max(0, info.expiresAtEpochSeconds - now);
+}
+
+export function formatTtl(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m < 60) return r > 0 ? `${m}m ${r}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
+}
+
 export const sessionStore = {
   loadBaseUrl(defaultUrl: string): string {
     return localStorage.getItem(key("base_url")) || defaultUrl;

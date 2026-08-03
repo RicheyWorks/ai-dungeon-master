@@ -46,6 +46,21 @@ public class SessionService {
         return new Issued(session, token.value(), token.expiresAtEpochSeconds());
     }
 
+    /**
+     * Re-issue a JWT for an existing session (same identity). Touches last-seen.
+     * Empty if the session id is unknown (revoked / purged).
+     */
+    public Optional<Issued> refreshSession(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return Optional.empty();
+        Optional<Session> found = store.load(sessionId.trim());
+        if (found.isEmpty()) return Optional.empty();
+        Session session = found.get();
+        session.markSeen();
+        store.save(session);
+        JwtService.Token token = jwt.issue(session.id(), Map.of("name", session.displayName()));
+        return Optional.of(new Issued(session, token.value(), token.expiresAtEpochSeconds()));
+    }
+
     public Optional<Session> find(String id) {
         return store.load(id);
     }

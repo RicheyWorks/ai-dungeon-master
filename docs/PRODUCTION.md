@@ -43,6 +43,7 @@ BASE_URL=https://$DOMAIN ADMIN_TOKEN=$GAME_ADMIN_TOKEN ./scripts/launch-smoke.sh
 Play path covered by `launch-smoke.sh`:
 
 1. `POST /v2/session` (mint)
+2. `POST /v2/session/refresh` (optional — same id, fresh JWT)
 2. `GET /v2/session/me`
 3. `GET /v2/catalog` + optional pack enable
 4. `GET /v2/status` → `POST /v2/action`
@@ -297,7 +298,7 @@ Limits are bound once via `RateLimitProperties`. Set `game.rate-limit.trust-forw
 
 Limits are bound once via `RateLimitProperties` (`game.rate-limit.*`) and shared by the HTTP filter + STOMP guards.
 
-Covered paths: `POST /v2/session`, `DELETE /v2/session`, `/v2/admin/**`, `POST /v2/marketplace/{id}/install`, `POST /v2/catalog/packs`, `POST /v2/narrate` (+ STOMP `/app/narrate` per session), `POST /v2/action` (+ STOMP `/app/action` per session), `POST /v2/save|/load|/reset`, `GET /metrics`, `POST /v2/entitlements/verify`.
+Covered paths: `POST /v2/session`, `POST /v2/session/refresh`, `DELETE /v2/session`, `/v2/admin/**`, `POST /v2/marketplace/{id}/install`, `POST /v2/catalog/packs`, `POST /v2/narrate` (+ STOMP `/app/narrate` per session), `POST /v2/action` (+ STOMP `/app/action` per session), `POST /v2/save|/load|/reset`, `GET /metrics`, `POST /v2/entitlements/verify`.
 429 responses include `Retry-After` and `X-RateLimit-*` headers. Client IP prefers
 `X-Forwarded-For` (nginx sets this).
 

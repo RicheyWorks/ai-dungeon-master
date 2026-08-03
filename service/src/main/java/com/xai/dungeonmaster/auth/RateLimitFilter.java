@@ -125,7 +125,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             path = path.substring(0, path.length() - 1);
         }
         String method = req.getMethod() == null ? "" : req.getMethod().toUpperCase(Locale.ROOT);
-        if ("POST".equals(method) && path.equals("/v2/session")) {
+        if ("POST".equals(method) && (path.equals("/v2/session") || path.equals("/v2/session/refresh"))) {
             return new Limit("session", props.sessionPerMinute());
         }
         if ("DELETE".equals(method) && path.equals("/v2/session")) {
