@@ -19,4 +19,10 @@ data class SessionInfo(
         // Small skew so we re-mint before the server rejects the JWT.
         return nowEpochSeconds >= (expiresAtEpochSeconds - 30)
     }
+
+    /** Seconds until JWT expiry (0 if missing/expired). */
+    fun secondsUntilExpiry(nowEpochSeconds: Long = System.currentTimeMillis() / 1000L): Long {
+        if (expiresAtEpochSeconds <= 0L) return 0L
+        return (expiresAtEpochSeconds - nowEpochSeconds).coerceAtLeast(0L)
+    }
 }

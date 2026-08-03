@@ -742,6 +742,45 @@ open class V2API {
     }
 
     /**
+     Rename the session display name and re-issue JWT.
+     
+     - parameter sessionRequest: (body)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: SessionEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func renameSessionV2(sessionRequest: SessionRequest, xRequestId: String? = nil) async throws -> SessionEnvelope {
+        return try await renameSessionV2WithRequestBuilder(sessionRequest: sessionRequest, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Rename the session display name and re-issue JWT.
+     - PATCH /v2/session
+     - Requires a valid Bearer token. Updates the display name (max 64 chars) and returns a fresh JWT with the new name claim. Session id is unchanged. 
+     - parameter sessionRequest: (body)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<SessionEnvelope> 
+     */
+    open class func renameSessionV2WithRequestBuilder(sessionRequest: SessionRequest, xRequestId: String? = nil) -> RequestBuilder<SessionEnvelope> {
+        let localVariablePath = "/v2/session"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters = JSONEncodingHelper.encodingParameters(forEncodableObject: sessionRequest)
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "Content-Type": "application/json",
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<SessionEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "PATCH", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Start a fresh engine for the caller (new party/quest).
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)

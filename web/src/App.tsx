@@ -558,6 +558,38 @@ export function App() {
           >
             Renew
           </button>
+          <button
+            type="button"
+            className="ghost compact"
+            disabled={busy || !online}
+            title="Rename adventurer"
+            onClick={() =>
+              void (async () => {
+                const name = window.prompt("Display name", session.displayName);
+                if (name == null) return;
+                const trimmed = name.trim();
+                if (!trimmed) {
+                  setError("Name cannot be empty");
+                  return;
+                }
+                try {
+                  setError(null);
+                  setBusy(true);
+                  const next = await api.renameSession(baseUrl, session.token, trimmed);
+                  sessionStore.saveSession(next);
+                  setSession(next);
+                  if (stompRef.current) stompRef.current.setToken(next.token);
+                  setInfo(`Renamed to ${next.displayName}`);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            Rename
+          </button>
           <span
             className={
               healthOk === true ? "pill up" : healthOk === false ? "pill down" : "pill"

@@ -44,6 +44,7 @@ Play path covered by `launch-smoke.sh`:
 
 1. `POST /v2/session` (mint)
 2. `POST /v2/session/refresh` (optional — same id, fresh JWT)
+3. `PATCH /v2/session` (optional — rename display name + fresh JWT)
 2. `GET /v2/session/me`
 3. `GET /v2/catalog` + optional pack enable
 4. `GET /v2/status` → `POST /v2/action`

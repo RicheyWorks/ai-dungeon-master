@@ -112,6 +112,26 @@ export async function refreshSession(baseUrl: string, token: string): Promise<Se
   };
 }
 
+/** Rename display name and re-issue JWT (same session id). */
+export async function renameSession(
+  baseUrl: string,
+  token: string,
+  displayName: string,
+): Promise<SessionInfo> {
+  const envelope = await createApi(baseUrl, token).renameSessionV2({
+    sessionRequest: { displayName: displayName.trim() },
+  });
+  const p = envelope.payload;
+  if (!p.token) throw new Error("Session token missing from renameSessionV2");
+  return {
+    sessionId: p.sessionId,
+    token: p.token,
+    displayName: p.displayName ?? displayName.trim(),
+    expiresAtEpochSeconds: p.expiresAtEpochSeconds ?? 0,
+    createdAtEpochSeconds: p.createdAtEpochSeconds ?? 0,
+  };
+}
+
 export async function validateSession(baseUrl: string, token: string): Promise<boolean> {
   try {
     await createApi(baseUrl, token).getSessionMeV2();

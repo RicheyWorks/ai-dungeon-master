@@ -86,6 +86,38 @@ public class SessionController {
                         Envelope.of("error", new ErrorPayload("Session no longer exists."), requestId)));
     }
 
+    /**
+     * Rename the caller's display name and re-issue a JWT with the new name claim.
+     */
+    @PatchMapping
+    public ResponseEntity<Envelope<?>> rename(
+            @RequestBody(required = false) SessionRequest req,
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+
+        if (session == null) {
+            return ResponseEntity.status(401).body(
+                    Envelope.of("error", new ErrorPayload("Not authenticated."), requestId));
+        }
+        String displayName = (req == null) ? null : req.displayName();
+        if (displayName == null || displayName.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Envelope.of("error", new ErrorPayload("displayName is required."), requestId));
+        }
+        return sessions.renameSession(session.id(), displayName)
+                .<ResponseEntity<Envelope<?>>>map(issued -> {
+                    SessionPayload payload = new SessionPayload(
+                            issued.session().id(),
+                            issued.token(),
+                            issued.session().displayName(),
+                            issued.expiresAtEpochSeconds(),
+                            issued.session().createdAtEpoch());
+                    return ResponseEntity.ok(Envelope.of("session", payload, requestId));
+                })
+                .orElseGet(() -> ResponseEntity.status(401).body(
+                        Envelope.of("error", new ErrorPayload("Session no longer exists."), requestId)));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<Envelope<?>> me(
             @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,

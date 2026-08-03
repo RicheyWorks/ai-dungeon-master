@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -105,5 +106,29 @@ class AuthFlowTest {
     void refreshRequiresAuth() throws Exception {
         mvc.perform(post("/v2/session/refresh"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void renameUpdatesDisplayNameAndToken() throws Exception {
+        String body = mvc.perform(post("/v2/session").contentType(APPLICATION_JSON).content("{\"displayName\":\"Old\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String sessionId = json.readTree(body).path("payload").path("sessionId").asText();
+        String token = json.readTree(body).path("payload").path("token").asText();
+
+        String renamed = mvc.perform(patch("/v2/session")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"displayName\":\"NewHero\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.sessionId").value(sessionId))
+                .andExpect(jsonPath("$.payload.displayName").value("NewHero"))
+                .andExpect(jsonPath("$.payload.token").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        String newToken = json.readTree(renamed).path("payload").path("token").asText();
+
+        mvc.perform(get("/v2/session/me").header("Authorization", "Bearer " + newToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.displayName").value("NewHero"));
     }
 }
