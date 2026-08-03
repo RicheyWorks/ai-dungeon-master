@@ -617,11 +617,62 @@ function GameTab(props: {
   const quest = status?.quest;
   const progress = Math.min(Math.max(quest?.progress ?? 0, 0), 1);
   const outcome =
-    quest?.completed ? "Completed" : quest?.failed ? "Failed" : status?.combatActive ? "In combat!" : "In progress";
+    quest?.completed
+      ? "Completed"
+      : quest?.failed
+        ? "Failed"
+        : status?.combatActive
+          ? "In combat"
+          : "In progress";
+  const choices = status?.availableChoices ?? [];
+  const choiceSignature = choices.join("\u0001");
+  const rifts = status?.discoveredRifts ?? [];
+  const history = status?.recentHistory ?? [];
+  const streamRef = useRef<HTMLDivElement | null>(null);
+  const promptRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Number keys 1–9 choose; Ctrl/Cmd+Enter narrates when prompt focused.
+  useEffect(() => {
+    const list = choiceSignature ? choiceSignature.split("\u0001") : [];
+    const onKey = (e: KeyboardEvent) => {
+      if (props.busy) return;
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName?.toLowerCase();
+      const inField =
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        t?.isContentEditable === true;
+
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        if (props.prompt.trim()) {
+          e.preventDefault();
+          props.onNarrate();
+        }
+        return;
+      }
+
+      if (inField) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const n = Number(e.key);
+      if (n >= 1 && n <= 9 && list[n - 1]) {
+        e.preventDefault();
+        props.onAct(list[n - 1]);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [props.busy, props.prompt, props.onAct, props.onNarrate, choiceSignature]);
+
+  useEffect(() => {
+    const el = streamRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [props.streamBuffer, props.narration]);
 
   return (
-    <div className="stack">
-      <div className="row">
+    <div className="stack game-tab">
+      <div className="toolbar-sticky row">
         <button type="button" onClick={props.onSave} disabled={props.busy}>
           Save
         </button>
@@ -631,6 +682,16 @@ function GameTab(props: {
         <button type="button" className="ghost" onClick={props.onReset} disabled={props.busy}>
           Reset
         </button>
+        {props.stompConnected ? (
+          <span className="pill up" title="STOMP live stream">
+            LIVE
+          </span>
+        ) : (
+          <span className="pill muted-pill" title="REST fallback for narrate/action">
+            REST
+          </span>
+        )}
+        {status?.combatActive ? <span className="pill down">COMBAT</span> : null}
       </div>
 
       {!status ? (
@@ -640,12 +701,30 @@ function GameTab(props: {
         </div>
       ) : (
         <>
-          <div className="card quest-card">
+          <div className={`card quest-card${status.combatActive ? " combat" : ""}`}>
             <h2>{quest?.title ?? "No active quest"}</h2>
             <div className="quest-meta muted">
-              <span className="pill muted-pill">{outcome}</span>
-              <span>Chaos {status.chaosLevel ?? "?"}</span>
-              {status.location ? <span>{status.location}</span> : null}
+              <span
+                className={
+                  status.combatActive
+                    ? "pill down"
+                    : quest?.completed
+                      ? "pill up"
+                      : quest?.failed
+                        ? "pill down"
+                        : "pill muted-pill"
+                }
+              >
+                {outcome}
+              </span>
+              <span className="stat">
+                Chaos <b>{status.chaosLevel ?? "?"}</b>
+              </span>
+              {status.location ? (
+                <span className="stat">
+                  At <b>{status.location}</b>
+                </span>
+              ) : null}
             </div>
             <div className="progress" aria-hidden>
               <span style={{ width: `${progress * 100}%` }} />
@@ -653,6 +732,18 @@ function GameTab(props: {
             <div className="subtle" style={{ marginTop: 6 }}>
               Quest progress {Math.round(progress * 100)}%
             </div>
+            {rifts.length > 0 && (
+              <div className="rift-row">
+                <span className="subtle">Discovered rifts</span>
+                <div className="row" style={{ marginTop: 6 }}>
+                  {rifts.map((r) => (
+                    <span key={r} className="pill muted-pill" title={r}>
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <section>
@@ -664,8 +755,13 @@ function GameTab(props: {
                 {(status.party ?? []).map((m, i) => {
                   const hp = Math.max(m.hp ?? 0, 0);
                   const maxHp = Math.max(m.maxHp ?? 1, 1);
+                  const ratio = hp / maxHp;
+                  const low = ratio <= 0.35 && m.alive !== false;
                   return (
-                    <div className="card party-card" key={i}>
+                    <div
+                      className={`card party-card${m.alive === false ? " is-fallen" : ""}${low ? " is-low" : ""}`}
+                      key={i}
+                    >
                       <div className="row between">
                         <span className="name">{m.name ?? "?"}</span>
                         <span className="muted">
@@ -673,7 +769,7 @@ function GameTab(props: {
                         </span>
                       </div>
                       <div className="progress hp" aria-hidden>
-                        <span style={{ width: `${(hp / maxHp) * 100}%` }} />
+                        <span style={{ width: `${ratio * 100}%` }} />
                       </div>
                       <div className="muted" style={{ marginTop: 6 }}>
                         HP {hp}/{maxHp}
@@ -693,9 +789,9 @@ function GameTab(props: {
           {(status.recentEvents ?? []).length > 0 && (
             <section>
               <h3>Story so far</h3>
-              <div className="card">
+              <div className="card chronicle">
                 {(status.recentEvents ?? []).map((e, i) => (
-                  <div key={i} className="muted" style={{ marginBottom: 6 }}>
+                  <div key={i} className="chronicle-line">
                     {e}
                   </div>
                 ))}
@@ -703,12 +799,33 @@ function GameTab(props: {
             </section>
           )}
 
+          {history.length > 0 && (
+            <details className="card history-fold">
+              <summary>Engine log ({history.length})</summary>
+              <div className="history-body">
+                {history.map((line, i) => (
+                  <div key={i} className="subtle">
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
           <section>
-            <h3>Choices</h3>
-            {(status.availableChoices ?? []).length === 0 ? (
-              <div className="empty">No choices right now — narrate or wait for the next beat.</div>
+            <div className="section-head">
+              <h3>Choices</h3>
+              {choices.length > 0 ? (
+                <span className="subtle">Keys 1–{Math.min(9, choices.length)}</span>
+              ) : null}
+            </div>
+            {choices.length === 0 ? (
+              <div className="empty">
+                <strong>No choices right now</strong>
+                Narrate below or wait for the next beat.
+              </div>
             ) : (
-              (status.availableChoices ?? []).map((label) => (
+              choices.map((label, idx) => (
                 <button
                   key={label}
                   type="button"
@@ -716,7 +833,10 @@ function GameTab(props: {
                   disabled={props.busy}
                   onClick={() => props.onAct(label)}
                 >
-                  {label}
+                  <span className="choice-key" aria-hidden>
+                    {idx < 9 ? idx + 1 : "·"}
+                  </span>
+                  <span className="choice-label">{label}</span>
                 </button>
               ))
             )}
@@ -724,15 +844,22 @@ function GameTab(props: {
         </>
       )}
 
-      <section>
+      <section className="narrate-panel">
         <h3>
           {props.stompConnected ? "Ask the Dungeon Master (live)" : "Ask the Dungeon Master"}
         </h3>
         <textarea
+          ref={promptRef}
           rows={3}
           value={props.prompt}
           onChange={(e) => props.setPrompt(e.target.value)}
-          placeholder="What do you do?"
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && props.prompt.trim()) {
+              e.preventDefault();
+              props.onNarrate();
+            }
+          }}
+          placeholder="What do you do? (Ctrl/⌘+Enter to send)"
           aria-label="Narration prompt"
         />
         <div className="row" style={{ marginTop: 8 }}>
@@ -744,11 +871,25 @@ function GameTab(props: {
           >
             {props.stompConnected ? "Stream narrate" : "Narrate"}
           </button>
+          {props.streamBuffer ? (
+            <span className="pill muted-pill">Streaming…</span>
+          ) : null}
         </div>
-        {props.streamBuffer && (
-          <div className="card stream">{props.streamBuffer}</div>
+        {(props.streamBuffer || props.narration) && (
+          <div className="card stream-panel" ref={streamRef}>
+            {props.streamBuffer ? (
+              <div className="stream">{props.streamBuffer}</div>
+            ) : null}
+            {props.narration && !props.streamBuffer ? (
+              <div className="narration">{props.narration}</div>
+            ) : null}
+            {props.narration && props.streamBuffer ? (
+              <div className="narration" style={{ marginTop: 12, opacity: 0.85 }}>
+                {props.narration}
+              </div>
+            ) : null}
+          </div>
         )}
-        {props.narration && <div className="card narration">{props.narration}</div>}
       </section>
     </div>
   );

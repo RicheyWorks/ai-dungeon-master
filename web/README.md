@@ -8,7 +8,8 @@ fat jar at `/app/`.
 
 | Tab | Capabilities |
 |---|---|
-| **Game** | Session, party/quest/choices, save/load/reset, live STOMP narrate |
+| **Game** | Session, party/quest/choices, save/load/reset, live STOMP narrate, keys **1–9** for choices, **Ctrl/⌘+Enter** to narrate |
+
 | **Mods** | Marketplace list/search/async install, catalog, enable/disable, zip upload |
 | **Store** | Entitlements, sandbox receipts, Steam order verify |
 | **System** | Readiness + lean health probes (auto-refresh) |
