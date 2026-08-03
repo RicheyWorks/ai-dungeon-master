@@ -42,8 +42,32 @@ paths:
           name: X-Admin-Token
           required: true
           schema: { type: string }
+        - $ref: '#/components/parameters/XRequestId'
       responses:
-        '200': { description: Enabled packs + overrides }
+        '200':
+          description: Enabled packs + overrides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSessionPacksEnvelope'
+        '400':
+          description: Missing sessionId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Invalid admin token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Admin API disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 
   /v2/admin/sessions:
     get:
@@ -115,6 +139,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /v2/admin/sessions/purge-idle:
+    post:
+      tags: [admin]
+      operationId: purgeIdleAdminSessions
+      summary: Purge idle sessions (ops)
+      description: Removes sessions idle longer than idleTtlSeconds; optionally runs engine idle eviction.
+      parameters:
+        - in: query
+          name: idleTtlSeconds
+          schema: { type: integer, format: int64, default: 86400 }
+        - in: query
+          name: evictEngines
+          schema: { type: boolean, default: true }
+        - in: header
+          name: X-Admin-Token
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Purge result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSessionsPurgedEnvelope'
+        '401':
+          description: Invalid admin token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Admin API disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /v2/admin/receipts:
     get:
       tags: [admin]
@@ -145,13 +207,26 @@ paths:
           name: X-Admin-Token
           required: true
           schema: { type: string }
+        - $ref: '#/components/parameters/XRequestId'
       responses:
         '200':
           description: Recent receipt fingerprints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReceiptsEnvelope'
         '401':
           description: Bad admin token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Admin API disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /v2/status:
     get:
       tags: [v2]
@@ -1042,6 +1117,76 @@ components:
               enum: [health]
             payload:
               $ref: '#/components/schemas/HealthPayload'
+
+
+    AdminReceiptRow:
+      type: object
+      properties:
+        fingerprint: { type: string }
+        sessionId: { type: string }
+        productId: { type: string }
+        storefront: { type: string }
+        redeemedAtEpochMs: { type: integer, format: int64 }
+    AdminReceiptsPayload:
+      type: object
+      properties:
+        count: { type: integer }
+        limit: { type: integer }
+        productId: { type: string }
+        storefront: { type: string }
+        sessionId: { type: string }
+        since: { type: integer, format: int64 }
+        until: { type: integer, format: int64 }
+        receipts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminReceiptRow'
+    AdminReceiptsEnvelope:
+      type: object
+      required: [type, version, payload, requestId]
+      properties:
+        type: { type: string, example: admin.receipts }
+        version: { type: integer }
+        payload:
+          $ref: '#/components/schemas/AdminReceiptsPayload'
+        requestId: { type: string }
+    AdminSessionPacksPayload:
+      type: object
+      properties:
+        sessionId: { type: string }
+        enabledPackIds:
+          type: array
+          items: { type: string }
+        overrides:
+          type: object
+          additionalProperties: true
+        sessionScoped: { type: boolean }
+    AdminSessionPacksEnvelope:
+      type: object
+      required: [type, version, payload, requestId]
+      properties:
+        type: { type: string, example: admin.session-packs }
+        version: { type: integer }
+        payload:
+          $ref: '#/components/schemas/AdminSessionPacksPayload'
+        requestId: { type: string }
+    AdminSessionsPurgedPayload:
+      type: object
+      properties:
+        idleTtlSeconds: { type: integer, format: int64 }
+        removedSessions: { type: integer }
+        removedEngines: { type: integer }
+        activeSessions: { type: integer }
+        activeEngines: { type: integer }
+    AdminSessionsPurgedEnvelope:
+      type: object
+      required: [type, version, payload, requestId]
+      properties:
+        type: { type: string, example: admin.sessions.purged }
+        version: { type: integer }
+        payload:
+          $ref: '#/components/schemas/AdminSessionsPurgedPayload'
+        requestId: { type: string }
 
     AdminSessionRow:
       type: object

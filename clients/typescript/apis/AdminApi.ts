@@ -15,15 +15,24 @@
 
 import * as runtime from '../runtime';
 import type {
+  AdminReceiptsEnvelope,
+  AdminSessionPacksEnvelope,
   AdminSessionRevokedEnvelope,
   AdminSessionsEnvelope,
+  AdminSessionsPurgedEnvelope,
   ErrorEnvelope,
 } from '../models/index';
 import {
+    AdminReceiptsEnvelopeFromJSON,
+    AdminReceiptsEnvelopeToJSON,
+    AdminSessionPacksEnvelopeFromJSON,
+    AdminSessionPacksEnvelopeToJSON,
     AdminSessionRevokedEnvelopeFromJSON,
     AdminSessionRevokedEnvelopeToJSON,
     AdminSessionsEnvelopeFromJSON,
     AdminSessionsEnvelopeToJSON,
+    AdminSessionsPurgedEnvelopeFromJSON,
+    AdminSessionsPurgedEnvelopeToJSON,
     ErrorEnvelopeFromJSON,
     ErrorEnvelopeToJSON,
 } from '../models/index';
@@ -31,6 +40,7 @@ import {
 export interface GetAdminSessionPacksRequest {
     sessionId: string;
     xAdminToken: string;
+    xRequestId?: string;
 }
 
 export interface ListAdminReceiptsRequest {
@@ -41,11 +51,19 @@ export interface ListAdminReceiptsRequest {
     sessionId?: string;
     since?: number;
     until?: number;
+    xRequestId?: string;
 }
 
 export interface ListAdminSessionsRequest {
     xAdminToken: string;
     limit?: number;
+    xRequestId?: string;
+}
+
+export interface PurgeIdleAdminSessionsRequest {
+    xAdminToken: string;
+    idleTtlSeconds?: number;
+    evictEngines?: boolean;
     xRequestId?: string;
 }
 
@@ -63,7 +81,7 @@ export class AdminApi extends runtime.BaseAPI {
     /**
      * Session pack overrides (ops)
      */
-    async getAdminSessionPacksRaw(requestParameters: GetAdminSessionPacksRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+    async getAdminSessionPacksRaw(requestParameters: GetAdminSessionPacksRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AdminSessionPacksEnvelope>> {
         if (requestParameters['sessionId'] == null) {
             throw new runtime.RequiredError(
                 'sessionId',
@@ -90,6 +108,10 @@ export class AdminApi extends runtime.BaseAPI {
             headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
         }
 
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
         const response = await this.request({
             path: `/v2/admin/session-packs`,
             method: 'GET',
@@ -97,20 +119,21 @@ export class AdminApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.VoidApiResponse(response);
+        return new runtime.JSONApiResponse(response, (jsonValue) => AdminSessionPacksEnvelopeFromJSON(jsonValue));
     }
 
     /**
      * Session pack overrides (ops)
      */
-    async getAdminSessionPacks(requestParameters: GetAdminSessionPacksRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
-        await this.getAdminSessionPacksRaw(requestParameters, initOverrides);
+    async getAdminSessionPacks(requestParameters: GetAdminSessionPacksRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminSessionPacksEnvelope> {
+        const response = await this.getAdminSessionPacksRaw(requestParameters, initOverrides);
+        return await response.value();
     }
 
     /**
      * List recent redeemed receipts (ops)
      */
-    async listAdminReceiptsRaw(requestParameters: ListAdminReceiptsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+    async listAdminReceiptsRaw(requestParameters: ListAdminReceiptsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AdminReceiptsEnvelope>> {
         if (requestParameters['xAdminToken'] == null) {
             throw new runtime.RequiredError(
                 'xAdminToken',
@@ -150,6 +173,10 @@ export class AdminApi extends runtime.BaseAPI {
             headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
         }
 
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
         const response = await this.request({
             path: `/v2/admin/receipts`,
             method: 'GET',
@@ -157,14 +184,15 @@ export class AdminApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.VoidApiResponse(response);
+        return new runtime.JSONApiResponse(response, (jsonValue) => AdminReceiptsEnvelopeFromJSON(jsonValue));
     }
 
     /**
      * List recent redeemed receipts (ops)
      */
-    async listAdminReceipts(requestParameters: ListAdminReceiptsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
-        await this.listAdminReceiptsRaw(requestParameters, initOverrides);
+    async listAdminReceipts(requestParameters: ListAdminReceiptsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminReceiptsEnvelope> {
+        const response = await this.listAdminReceiptsRaw(requestParameters, initOverrides);
+        return await response.value();
     }
 
     /**
@@ -211,6 +239,57 @@ export class AdminApi extends runtime.BaseAPI {
      */
     async listAdminSessions(requestParameters: ListAdminSessionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminSessionsEnvelope> {
         const response = await this.listAdminSessionsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Removes sessions idle longer than idleTtlSeconds; optionally runs engine idle eviction.
+     * Purge idle sessions (ops)
+     */
+    async purgeIdleAdminSessionsRaw(requestParameters: PurgeIdleAdminSessionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AdminSessionsPurgedEnvelope>> {
+        if (requestParameters['xAdminToken'] == null) {
+            throw new runtime.RequiredError(
+                'xAdminToken',
+                'Required parameter "xAdminToken" was null or undefined when calling purgeIdleAdminSessions().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['idleTtlSeconds'] != null) {
+            queryParameters['idleTtlSeconds'] = requestParameters['idleTtlSeconds'];
+        }
+
+        if (requestParameters['evictEngines'] != null) {
+            queryParameters['evictEngines'] = requestParameters['evictEngines'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xAdminToken'] != null) {
+            headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
+        }
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/admin/sessions/purge-idle`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AdminSessionsPurgedEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Removes sessions idle longer than idleTtlSeconds; optionally runs engine idle eviction.
+     * Purge idle sessions (ops)
+     */
+    async purgeIdleAdminSessions(requestParameters: PurgeIdleAdminSessionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminSessionsPurgedEnvelope> {
+        const response = await this.purgeIdleAdminSessionsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

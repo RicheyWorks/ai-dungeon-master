@@ -50,10 +50,12 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
         res.setHeader("X-Content-Type-Options", "nosniff");
         res.setHeader("X-Frame-Options", frameOptions);
         res.setHeader("Referrer-Policy", referrerPolicy);
-        res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+        res.setHeader("Permissions-Policy",
+                "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()");
         res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
         res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
         res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
+        res.setHeader("X-DNS-Prefetch-Control", "off");
         // API is JSON; SPA needs self assets + Google Fonts (Cinzel / Source Sans).
         if (!res.containsHeader("Content-Security-Policy")) {
             res.setHeader("Content-Security-Policy",
@@ -61,6 +63,7 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
                             + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
                             + "font-src 'self' https://fonts.gstatic.com data:; "
                             + "script-src 'self'; "
+                            + "base-uri 'self'; form-action 'self'; "
                             + "connect-src 'self' ws: wss:; frame-ancestors 'none'");
         }
         if (hstsEnabled && isSecure(req)) {

@@ -102,6 +102,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             res.setHeader("Retry-After", Long.toString(retryAfterSec));
             res.setHeader("X-RateLimit-Limit", Integer.toString(limit.maxPerMinute));
             res.setHeader("X-RateLimit-Remaining", "0");
+            res.setHeader("X-RateLimit-Reset", Long.toString(retryAfterSec));
             res.setContentType("application/json");
             String requestId = safeRequestId(req);
             res.getWriter().write("{\"type\":\"error\",\"version\":1,\"payload\":{\"message\":"
@@ -113,6 +114,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         res.setHeader("X-RateLimit-Limit", Integer.toString(limit.maxPerMinute));
         res.setHeader("X-RateLimit-Remaining",
                 Long.toString(Math.max(0, limit.maxPerMinute - n)));
+        res.setHeader("X-RateLimit-Reset", Long.toString(Math.max(1L, hit.retryAfterSeconds())));
         chain.doFilter(req, res);
     }
 

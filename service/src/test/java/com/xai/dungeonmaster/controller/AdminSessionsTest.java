@@ -14,6 +14,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,5 +60,17 @@ class AdminSessionsTest {
         SessionService.Session a = sessions.createSession("X").session();
         mvc.perform(delete("/v2/admin/sessions/" + a.id()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void purgeIdle() throws Exception {
+        sessions.createSession("Idle").session();
+        mvc.perform(post("/v2/admin/sessions/purge-idle")
+                        .param("idleTtlSeconds", "0")
+                        .param("evictEngines", "true")
+                        .header("X-Admin-Token", "ops-sessions-secret"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type", equalTo("admin.sessions.purged")))
+                .andExpect(jsonPath("$.payload.removedSessions", greaterThanOrEqualTo(0)));
     }
 }

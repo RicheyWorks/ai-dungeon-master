@@ -63,7 +63,8 @@ Play path covered by `launch-smoke.sh`:
 | Inspect session packs | `GET /v2/admin/session-packs?sessionId=…` + `X-Admin-Token` |
 | List sessions | `GET /v2/admin/sessions?limit=100` + `X-Admin-Token` |
 | Revoke session | `DELETE /v2/admin/sessions/{sessionId}` + `X-Admin-Token` |
-| Web SPA ops | System tab stores admin/metrics tokens in browser localStorage for detail health, session list/revoke, metrics probe |
+| Purge idle | `POST /v2/admin/sessions/purge-idle?idleTtlSeconds=86400&evictEngines=true` + `X-Admin-Token` |
+| Web SPA ops | System tab: admin/metrics tokens, sessions/receipts/packs, purge idle, export diagnostics JSON |
 | Rollback | redeploy previous image tag; keep Postgres + `saves` volumes |
 
 ### 4. Abuse surface (prod defaults)

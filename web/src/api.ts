@@ -360,16 +360,20 @@ export async function getReadiness(baseUrl: string): Promise<ReadinessResponse> 
 }
 
 /** Soft readiness: returns body for both 200 and 503. */
-export async function fetchReadiness(baseUrl: string): Promise<{
+export async function fetchReadiness(
+  baseUrl: string,
+  opts?: { adminToken?: string; metricsToken?: string },
+): Promise<{
   ok: boolean;
   body: ReadinessResponse | null;
   error?: string;
 }> {
   const base = resolveBase(baseUrl);
   try {
-    const res = await fetch(`${base}/health/ready`, {
-      headers: { Accept: "application/json" },
-    });
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (opts?.metricsToken?.trim()) headers["X-Metrics-Token"] = opts.metricsToken.trim();
+    if (opts?.adminToken?.trim()) headers["X-Admin-Token"] = opts.adminToken.trim();
+    const res = await fetch(`${base}/health/ready`, { headers });
     const body = (await res.json()) as ReadinessResponse;
     return { ok: res.ok, body };
   } catch (e) {
@@ -464,6 +468,85 @@ export async function revokeAdminSession(
     return (env.payload as { sessionId?: string; revoked?: boolean; existed?: boolean }) ?? {};
   } catch (e) {
     throw new Error(await sdkErrorMessage(e, "admin revoke"));
+  }
+}
+
+export type AdminReceiptRow = {
+  fingerprint?: string;
+  sessionId?: string;
+  productId?: string;
+  storefront?: string;
+  redeemedAtEpochMs?: number;
+};
+
+export type AdminReceiptsPayload = {
+  count?: number;
+  limit?: number;
+  receipts?: AdminReceiptRow[];
+};
+
+export async function listAdminReceipts(
+  baseUrl: string,
+  adminToken: string,
+  limit = 25,
+): Promise<AdminReceiptsPayload> {
+  try {
+    const env = await createAdminApi(baseUrl, adminToken).listAdminReceipts({
+      xAdminToken: adminToken,
+      limit,
+    });
+    return (env.payload as AdminReceiptsPayload) ?? { receipts: [] };
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "admin receipts"));
+  }
+}
+
+export type AdminSessionPacksPayload = {
+  sessionId?: string;
+  enabledPackIds?: string[];
+  overrides?: Record<string, unknown>;
+  sessionScoped?: boolean;
+};
+
+export async function getAdminSessionPacks(
+  baseUrl: string,
+  adminToken: string,
+  sessionId: string,
+): Promise<AdminSessionPacksPayload> {
+  try {
+    const env = await createAdminApi(baseUrl, adminToken).getAdminSessionPacks({
+      xAdminToken: adminToken,
+      sessionId,
+    });
+    return (env.payload as AdminSessionPacksPayload) ?? {};
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "admin session packs"));
+  }
+}
+
+export type AdminSessionsPurgedPayload = {
+  idleTtlSeconds?: number;
+  removedSessions?: number;
+  removedEngines?: number;
+  activeSessions?: number;
+  activeEngines?: number;
+};
+
+export async function purgeIdleAdminSessions(
+  baseUrl: string,
+  adminToken: string,
+  idleTtlSeconds = 86400,
+  evictEngines = true,
+): Promise<AdminSessionsPurgedPayload> {
+  try {
+    const env = await createAdminApi(baseUrl, adminToken).purgeIdleAdminSessions({
+      xAdminToken: adminToken,
+      idleTtlSeconds,
+      evictEngines,
+    });
+    return (env.payload as AdminSessionsPurgedPayload) ?? {};
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "admin purge idle"));
   }
 }
 
