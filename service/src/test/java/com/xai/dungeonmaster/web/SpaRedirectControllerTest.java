@@ -22,19 +22,22 @@ class SpaRedirectControllerTest {
     void rootRedirectsToApp() throws Exception {
         mvc.perform(get("/"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/app/"));
+                .andExpect(redirectedUrl("/app/index.html"));
     }
 
     @Test
     void playAndClientAliasesRedirect() throws Exception {
         mvc.perform(get("/play"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/app/"));
+                .andExpect(redirectedUrl("/app/index.html"));
         mvc.perform(get("/client"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/app/"));
+                .andExpect(redirectedUrl("/app/index.html"));
         mvc.perform(get("/app"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/app/"));
+                .andExpect(redirectedUrl("/app/index.html"));
+        mvc.perform(get("/app/"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/app/index.html"));
     }
 }

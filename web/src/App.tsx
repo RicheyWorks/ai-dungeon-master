@@ -231,22 +231,29 @@ export function App() {
 
   return (
     <div className="app">
-      <header className="bar">
+      <header className="brand">
+        <h1>AI Dungeon Master</h1>
+        <p className="tagline">Session-scoped play · live narration · content packs</p>
+      </header>
+
+      <div className="bar">
         <input
           value={baseUrl}
           onChange={(e) => onBaseUrlChange(e.target.value)}
-          placeholder="Server (empty = same origin / Vite proxy)"
+          placeholder="Server (empty = same origin)"
           spellCheck={false}
+          aria-label="Engine base URL"
         />
         <button type="button" onClick={refresh} disabled={busy}>
           {busy ? "…" : "Sync"}
         </button>
-        <button type="button" onClick={startSession} disabled={busy}>
+        <button type="button" className="primary" onClick={startSession} disabled={busy}>
           {session ? "New session" : "Start session"}
         </button>
         {session ? (
           <button
             type="button"
+            className="ghost"
             disabled={busy}
             onClick={() =>
               void (async () => {
@@ -275,13 +282,14 @@ export function App() {
             Log out
           </button>
         ) : null}
-      </header>
+      </div>
 
       {session && (
         <div className={`session-line${stompConnected ? " live" : ""}`}>
-          Playing as {session.displayName} · {shortId(session.sessionId)}
-          {stompConnected ? " · LIVE" : ""}
-          {" · "}
+          <span>
+            {session.displayName} · {shortId(session.sessionId)}
+            {stompConnected ? " · LIVE" : ""}
+          </span>
           <span
             className={
               healthOk === true ? "pill up" : healthOk === false ? "pill down" : "pill"
@@ -294,17 +302,21 @@ export function App() {
       )}
       {!session && healthOk !== null && (
         <div className="session-line">
-          Engine{" "}
+          <span>Engine</span>
           <span className={healthOk ? "pill up" : "pill down"}>
             {healthOk ? "READY" : "NOT READY"}
           </span>
-          {healthAt ? ` · checked ${healthAt}` : ""}
+          {healthAt ? <span className="subtle">checked {healthAt}</span> : null}
         </div>
       )}
-      {info && <div className="banner">{info}</div>}
-      {error && <div className="banner error">Error: {error}</div>}
+      {info && <div className="banner" role="status">{info}</div>}
+      {error && (
+        <div className="banner error" role="alert">
+          {error}
+        </div>
+      )}
 
-      <nav className="tabs">
+      <nav className="tabs" aria-label="Main">
         <button type="button" className={tab === "game" ? "active" : ""} onClick={() => setTab("game")}>
           Game
         </button>
@@ -616,89 +628,112 @@ function GameTab(props: {
         <button type="button" onClick={props.onLoad} disabled={props.busy}>
           Load
         </button>
-        <button type="button" onClick={props.onReset} disabled={props.busy}>
+        <button type="button" className="ghost" onClick={props.onReset} disabled={props.busy}>
           Reset
         </button>
       </div>
 
-      <div className="card">
-        <h2>{quest?.title ?? "No active quest"}</h2>
-        <div className="muted">
-          {outcome} · Chaos {status?.chaosLevel ?? "?"}
+      {!status ? (
+        <div className="empty">
+          <strong>No adventure yet</strong>
+          Start or restore a session, then Sync to load party and choices.
         </div>
-        <div className="progress">
-          <span style={{ width: `${progress * 100}%` }} />
-        </div>
-        {status?.location && <div className="muted">Location: {status.location}</div>}
-      </div>
-
-      <section>
-        <h3>Party</h3>
-        {(status?.party ?? []).map((m, i) => {
-          const hp = Math.max(m.hp ?? 0, 0);
-          const maxHp = Math.max(m.maxHp ?? 1, 1);
-          return (
-            <div className="card" key={i}>
-              <div className="row" style={{ justifyContent: "space-between" }}>
-                <strong>{m.name ?? "?"}</strong>
-                <span className="muted">
-                  {m.role ?? ""} L{m.level ?? 1}
-                </span>
-              </div>
-              <div className="progress">
-                <span style={{ width: `${(hp / maxHp) * 100}%` }} />
-              </div>
-              <div className="muted">
-                HP {hp}/{maxHp}
-                {m.mana != null ? ` · MP ${m.mana}/${m.maxMana ?? m.mana}` : ""}
-                {m.alive === false ? " · FALLEN" : ""}
-                {(m.statuses ?? []).length ? ` · ${(m.statuses ?? []).join(", ")}` : ""}
-              </div>
+      ) : (
+        <>
+          <div className="card quest-card">
+            <h2>{quest?.title ?? "No active quest"}</h2>
+            <div className="quest-meta muted">
+              <span className="pill muted-pill">{outcome}</span>
+              <span>Chaos {status.chaosLevel ?? "?"}</span>
+              {status.location ? <span>{status.location}</span> : null}
             </div>
-          );
-        })}
-      </section>
-
-      {(status?.recentEvents ?? []).length > 0 && (
-        <section>
-          <h3>The story so far</h3>
-          <div className="card">
-            {(status?.recentEvents ?? []).map((e, i) => (
-              <div key={i} className="muted">
-                {e}
-              </div>
-            ))}
+            <div className="progress" aria-hidden>
+              <span style={{ width: `${progress * 100}%` }} />
+            </div>
+            <div className="subtle" style={{ marginTop: 6 }}>
+              Quest progress {Math.round(progress * 100)}%
+            </div>
           </div>
-        </section>
+
+          <section>
+            <h3>Party</h3>
+            {(status.party ?? []).length === 0 ? (
+              <div className="empty">No party members on this status snapshot.</div>
+            ) : (
+              <div className="party-grid">
+                {(status.party ?? []).map((m, i) => {
+                  const hp = Math.max(m.hp ?? 0, 0);
+                  const maxHp = Math.max(m.maxHp ?? 1, 1);
+                  return (
+                    <div className="card party-card" key={i}>
+                      <div className="row between">
+                        <span className="name">{m.name ?? "?"}</span>
+                        <span className="muted">
+                          {m.role ?? ""} · L{m.level ?? 1}
+                        </span>
+                      </div>
+                      <div className="progress hp" aria-hidden>
+                        <span style={{ width: `${(hp / maxHp) * 100}%` }} />
+                      </div>
+                      <div className="muted" style={{ marginTop: 6 }}>
+                        HP {hp}/{maxHp}
+                        {m.mana != null ? ` · MP ${m.mana}/${m.maxMana ?? m.mana}` : ""}
+                        {m.alive === false ? <span className="fallen"> · FALLEN</span> : null}
+                        {(m.statuses ?? []).length
+                          ? ` · ${(m.statuses ?? []).join(", ")}`
+                          : ""}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {(status.recentEvents ?? []).length > 0 && (
+            <section>
+              <h3>Story so far</h3>
+              <div className="card">
+                {(status.recentEvents ?? []).map((e, i) => (
+                  <div key={i} className="muted" style={{ marginBottom: 6 }}>
+                    {e}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <h3>Choices</h3>
+            {(status.availableChoices ?? []).length === 0 ? (
+              <div className="empty">No choices right now — narrate or wait for the next beat.</div>
+            ) : (
+              (status.availableChoices ?? []).map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="choice primary"
+                  disabled={props.busy}
+                  onClick={() => props.onAct(label)}
+                >
+                  {label}
+                </button>
+              ))
+            )}
+          </section>
+        </>
       )}
 
       <section>
-        <h3>Choices</h3>
-        {(status?.availableChoices ?? []).length === 0 && (
-          <div className="muted">No choices available.</div>
-        )}
-        {(status?.availableChoices ?? []).map((label) => (
-          <button
-            key={label}
-            type="button"
-            className="choice primary"
-            disabled={props.busy}
-            onClick={() => props.onAct(label)}
-          >
-            {label}
-          </button>
-        ))}
-      </section>
-
-      <section>
         <h3>
-          {props.stompConnected ? "Ask the Dungeon Master (live stream)" : "Ask the Dungeon Master"}
+          {props.stompConnected ? "Ask the Dungeon Master (live)" : "Ask the Dungeon Master"}
         </h3>
         <textarea
           rows={3}
           value={props.prompt}
           onChange={(e) => props.setPrompt(e.target.value)}
           placeholder="What do you do?"
+          aria-label="Narration prompt"
         />
         <div className="row" style={{ marginTop: 8 }}>
           <button
@@ -747,40 +782,26 @@ function ModsTab(props: {
 
   return (
     <div className="stack">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <h3 style={{ margin: 0 }}>Marketplace</h3>
+      <div className="section-head">
+        <h3>Marketplace</h3>
         <button type="button" onClick={props.onReload} disabled={props.busy || jobActive}>
           Reload
         </button>
       </div>
       {job && (
         <div className="card stack">
-          <div className="row" style={{ justifyContent: "space-between" }}>
+          <div className="row between">
             <strong>
               Install {job.packId ?? "…"} · {job.phase ?? "…"}
             </strong>
             {jobActive && (
-              <button type="button" onClick={props.onCancelInstall}>
+              <button type="button" className="ghost" onClick={props.onCancelInstall}>
                 Cancel
               </button>
             )}
           </div>
-          <div
-            style={{
-              height: 10,
-              borderRadius: 6,
-              background: "rgba(255,255,255,0.08)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                height: "100%",
-                width: `${Math.min(100, Math.max(0, job.percent ?? 0))}%`,
-                background: "linear-gradient(90deg, #6ee7b7, #34d399)",
-                transition: "width 0.2s ease",
-              }}
-            />
+          <div className="progress job" aria-hidden>
+            <span style={{ width: `${Math.min(100, Math.max(0, job.percent ?? 0))}%` }} />
           </div>
           <div className="muted">
             {job.percent ?? 0}%
@@ -792,7 +813,7 @@ function ModsTab(props: {
         </div>
       )}
       <p className="muted">
-        Local discovery from <code>/v2/marketplace</code>
+        Discovery via <code>/v2/marketplace</code>
         {props.marketplace?.root ? ` · ${props.marketplace.root}` : ""}.{" "}
         {props.marketplace
           ? `${props.marketplace.available ?? 0} available · ${props.marketplace.installed ?? 0} installed`
@@ -808,11 +829,12 @@ function ModsTab(props: {
         ) : null}
       </p>
 
-      <div className="card row">
+      <div className="toolbar">
         <input
           value={props.marketQuery}
           onChange={(e) => props.setMarketQuery(e.target.value)}
           placeholder="Search packs…"
+          aria-label="Search marketplace"
           onKeyDown={(e) => {
             if (e.key === "Enter") props.onSearch();
           }}
@@ -823,12 +845,22 @@ function ModsTab(props: {
       </div>
 
       {marketPacks.length === 0 && props.marketplace && (
-        <div className="muted">No marketplace packs match.</div>
+        <div className="empty">
+          <strong>No packs match</strong>
+          Try a different search or reload the marketplace.
+        </div>
+      )}
+
+      {!props.marketplace && (
+        <div className="empty">
+          <strong>Marketplace not loaded</strong>
+          Hit Reload to fetch available content packs.
+        </div>
       )}
 
       {marketPacks.map((pack) => (
         <div className="card stack" key={pack.id}>
-          <div className="row" style={{ justifyContent: "space-between" }}>
+          <div className="row between">
             <div>
               <div className="pack-title">
                 {pack.displayName ?? pack.id}{" "}
@@ -847,12 +879,12 @@ function ModsTab(props: {
                 {pack.enabled ? " · enabled" : ""}
               </div>
               {pack.source === "remote" && pack.downloadUrl && (
-                <div className="muted" style={{ wordBreak: "break-all" }}>
+                <div className="subtle" style={{ wordBreak: "break-all" }}>
                   {pack.downloadUrl}
                 </div>
               )}
               {pack.sha256 && (
-                <div className="muted" title={pack.sha256}>
+                <div className="subtle" title={pack.sha256}>
                   sha256 {pack.sha256.slice(0, 12)}…{pack.sha256.slice(-8)}
                   {pack.source === "remote" ? " · verified on install" : ""}
                 </div>
@@ -875,13 +907,16 @@ function ModsTab(props: {
         </div>
       ))}
 
-      <div className="row" style={{ justifyContent: "space-between", marginTop: "0.5rem" }}>
-        <h3 style={{ margin: 0 }}>Live catalog</h3>
+      <div className="section-head" style={{ marginTop: "0.5rem" }}>
+        <h3>Live catalog</h3>
       </div>
 
-      <div className="card">
+      <div className="card stack">
         <strong>Upload pack zip</strong>
-        <p className="muted">POST /v2/catalog/packs</p>
+        <p className="muted" style={{ margin: 0 }}>
+          Multipart <code>POST /v2/catalog/packs</code>
+          {` — may require admin token in multi-tenant prod.`}
+        </p>
         <label className="switch">
           <span>Replace if exists</span>
           <input
@@ -904,7 +939,10 @@ function ModsTab(props: {
       </div>
 
       {livePacks.length === 0 && (
-        <div className="muted">No live packs yet — install from the marketplace or upload a zip.</div>
+        <div className="empty">
+          <strong>No live packs</strong>
+          Install from the marketplace or upload a zip.
+        </div>
       )}
 
       {livePacks.map((pack) => (
@@ -914,7 +952,7 @@ function ModsTab(props: {
               {pack.displayName ?? pack.id ?? "?"}
               {pack.locked ? (
                 <span className="pill muted-pill" title={(pack.requiredProductIds ?? []).join(", ")}>
-                  {" "}LOCKED
+                  LOCKED
                 </span>
               ) : null}
             </div>
@@ -931,6 +969,7 @@ function ModsTab(props: {
               checked={pack.enabled === true}
               disabled={props.busy || !pack.id || (!!pack.locked && !pack.enabled)}
               onChange={(e) => pack.id && props.onToggle(pack.id, e.target.checked)}
+              aria-label={`Enable ${pack.displayName ?? pack.id}`}
             />
             {pack.locked && (pack.requiredProductIds?.length ?? 0) > 0 ? (
               <button
@@ -986,8 +1025,8 @@ function StoreTab(props: {
 
   return (
     <div className="stack">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <h3 style={{ margin: 0 }}>Entitlements</h3>
+      <div className="section-head">
+        <h3>Entitlements</h3>
         <button type="button" onClick={props.onRefresh} disabled={props.busy}>
           Refresh
         </button>
@@ -998,7 +1037,11 @@ function StoreTab(props: {
         {owned.length === 0 ? (
           <p className="muted">None yet — buy via Steam/desktop, sandbox, or verify a receipt.</p>
         ) : (
-          owned.map((sku) => <div key={sku}>• {sku}</div>)
+          <ul style={{ margin: "8px 0 0", paddingLeft: "1.2rem" }}>
+            {owned.map((sku) => (
+              <li key={sku}>{sku}</li>
+            ))}
+          </ul>
         )}
         {props.entitlements?.reason && (
           <div className="muted">Last: {props.entitlements.reason}</div>
@@ -1006,9 +1049,9 @@ function StoreTab(props: {
       </div>
 
       {props.unlockHint ? (
-        <div className="card" style={{ borderColor: "var(--accent, #7c6af7)" }}>
+        <div className="card stack" style={{ borderColor: "var(--border-strong)" }}>
           <strong>Unlock pack</strong>
-          <p className="muted" style={{ marginBottom: 8 }}>{props.unlockHint}</p>
+          <p className="muted" style={{ margin: 0 }}>{props.unlockHint}</p>
           <div className="row">
             <button
               type="button"
@@ -1018,9 +1061,9 @@ function StoreTab(props: {
                 props.onSandboxBuy(props.productId.trim(), props.storefront || DEV_STOREFRONT);
               }}
             >
-              Buy {props.productId} (sandbox) now
+              Buy {props.productId} (sandbox)
             </button>
-            <button type="button" disabled={props.busy} onClick={props.onClearUnlockHint}>
+            <button type="button" className="ghost" disabled={props.busy} onClick={props.onClearUnlockHint}>
               Dismiss
             </button>
           </div>
@@ -1029,10 +1072,9 @@ function StoreTab(props: {
 
       <div className="card stack">
         <strong>Steam desktop (orderId)</strong>
-        <p className="muted">
+        <p className="muted" style={{ margin: 0 }}>
           Steamworks MicroTxn: paste orderId from InitTxn, then verify storefront{" "}
-          <code>steam</code>. Live engines QueryTxn then FinalizeTxn after grant (
-          <code>desktop/STEAM.md</code>). Optional bridge: <code>window.__dmSteam</code>.
+          <code>steam</code>. See <code>desktop/STEAM.md</code>.
         </p>
         <SteamOrderPanel
           busy={props.busy}
@@ -1046,9 +1088,9 @@ function StoreTab(props: {
 
       <div className="card stack">
         <strong>Sandbox purchase</strong>
-        <p className="muted">
-          Mints a storefront-shaped receipt (HMAC sandbox; JSON envelopes for google_play /
-          app_store / steam) and posts it to POST /v2/entitlements/verify.
+        <p className="muted" style={{ margin: 0 }}>
+          Mints a storefront-shaped receipt and posts it to{" "}
+          <code>POST /v2/entitlements/verify</code>.
         </p>
         <div className="row">
           {KNOWN_STOREFRONTS.map((id) => (
@@ -1063,14 +1105,18 @@ function StoreTab(props: {
             </button>
           ))}
         </div>
-        <input value={props.productId} onChange={(e) => props.setProductId(e.target.value)} />
+        <input
+          value={props.productId}
+          onChange={(e) => props.setProductId(e.target.value)}
+          aria-label="Product id"
+        />
         <button
           type="button"
           className="primary"
           disabled={props.busy || !props.productId.trim()}
           onClick={() => props.onSandboxBuy(props.productId.trim(), props.storefront)}
         >
-          Buy with {props.storefront} sandbox receipt
+          Buy with {props.storefront} sandbox
         </button>
       </div>
 
@@ -1102,7 +1148,7 @@ function StoreTab(props: {
         </button>
       </div>
 
-      <div>
+      <section>
         <h3>Demo SKUs</h3>
         {demos.map((sku) => (
           <button
@@ -1115,7 +1161,7 @@ function StoreTab(props: {
             Buy {sku} ({props.storefront})
           </button>
         ))}
-      </div>
+      </section>
     </div>
   );
 }
@@ -1228,15 +1274,15 @@ function SystemTab(props: {
 
   return (
     <div className="stack">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <h3 style={{ margin: 0 }}>System health</h3>
+      <div className="section-head">
+        <h3>System health</h3>
         <button type="button" onClick={props.onRefresh}>
           Refresh
         </button>
       </div>
       <p className="muted">
         Public probes via <code>/health/ready</code> and <code>/v2/health</code> (no session
-        required). Auto-refreshes every 15s.
+        required). Detail fields may be redacted without an ops token. Auto-refresh every 15s.
       </p>
 
       <div className="card stack">
@@ -1252,14 +1298,14 @@ function SystemTab(props: {
           {props.healthAt && <span className="muted">as of {props.healthAt}</span>}
         </div>
         {props.healthError && <div className="banner error">{props.healthError}</div>}
-        <div className="muted">
+        <div className="subtle">
           Base URL: {props.baseUrl.trim() || "(same origin)"}
         </div>
       </div>
 
       <div className="card">
         <strong>Metrics</strong>
-        <div className="row" style={{ marginTop: "0.5rem" }}>
+        <div className="stat-row">
           <span className="stat">
             Sessions <b>{props.health?.sessions ?? props.readiness?.sessions ?? "—"}</b>
           </span>
@@ -1283,13 +1329,13 @@ function SystemTab(props: {
         )}
       </div>
 
-      <div className="card stack">
+      <div className="card">
         <strong>Dependencies</strong>
         {depEntries.length === 0 ? (
           <p className="muted">No dependency data yet — hit Refresh.</p>
         ) : (
           depEntries.map(([name, check]) => (
-            <div key={name} className="switch">
+            <div key={name} className="dep-row">
               <span>{name}</span>
               <span
                 className={

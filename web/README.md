@@ -1,35 +1,32 @@
-# AI Dungeon Master — Web / desktop client
+# AI Dungeon Master — Web client
 
 Browser SPA with feature parity to the Android and iOS shells, built on the
-generated TypeScript SDK (`../clients/typescript`). Suitable as:
-
-- a local web UI next to the engine
-- the front-end for a future **Tauri / Steam** desktop wrap
+generated TypeScript SDK (`../clients/typescript`). Also staged into the engine
+fat jar at `/app/`.
 
 ## Features
 
 | Tab | Capabilities |
 |---|---|
 | **Game** | Session, party/quest/choices, save/load/reset, live STOMP narrate |
-| **Mods** | Catalog, enable/disable, zip upload |
-| **Store** | Entitlements, dev receipt purchases, manual verify |
+| **Mods** | Marketplace list/search/async install, catalog, enable/disable, zip upload |
+| **Store** | Entitlements, sandbox receipts, Steam order verify |
+| **System** | Readiness + lean health probes (auto-refresh) |
 
-- Guest session via `createSessionV2` + Bearer on every `/v2/*` call  
-- **Session restore** from `localStorage` (validated with `/v2/session/me`)  
-- Live narration over native WebSocket `/ws-stomp`  
-- Dark “parchment & brass” theme (Cinzel + Source Sans)
+- Guest session via `createSessionV2` + Bearer on every `/v2/*` call
+- Session restore from `localStorage` (validated with `/v2/session/me`)
+- Live narration over native WebSocket `/ws-stomp`
+- Marketplace jobs via generated SDK (list/poll/cancel); async start edge-decoded
+- Dark editorial theme (Cinzel + Source Sans, cool steel accent)
 
 ## Run
 
 ### Hosted by the engine (recommended)
 
 ```bash
-# stage the SPA into service/src/main/resources/static/app/
 ./scripts/build-web.sh
-
-# start the engine (any usual way)
 mvn -pl service -am spring-boot:run
-# → open http://localhost:8080/app/
+# → http://localhost:8080/app/
 #    root / and /play also redirect there
 ```
 
@@ -48,12 +45,6 @@ Leave **Server** empty to use same origin (proxy or engine host).
 VITE_BASE=/app/ npm run build   # same as scripts/build-web.sh
 ```
 
-### Optional: ship as static files on the engine
-
-`scripts/build-web.sh` already copies `web/dist/*` into
-`service/src/main/resources/static/app/`. Re-run after UI changes before
-packaging the fat jar so players always get the latest shell.
-
 ## Layout
 
 ```
@@ -63,17 +54,18 @@ web/
   index.html
   src/
     App.tsx               tabs + session chrome
-    api.ts                thin wrappers over @ai-dungeon-master/client
+    api.ts                wrappers over @ai-dungeon-master/client
     sessionStore.ts       localStorage session + base URL
     stomp.ts              STOMP 1.2 over WebSocket
     devReceipts.ts        DevStorefront-compatible HMAC
-    styles.css
+    steamPurchase.ts      Steam order helpers
+    styles.css            design tokens + chrome
 ```
 
-## Desktop (Tauri) next step
+## Desktop (Tauri)
 
-This SPA is intentionally framework-light so a Tauri 2 shell can load `web/dist`
-as its `frontendDist` with almost no glue. Scaffold when ready:
+This SPA is framework-light so a Tauri 2 shell can load `web/dist` as
+`frontendDist`. Scaffold when ready:
 
 ```bash
 npm create tauri-app@latest desktop -- --template vanilla-ts
@@ -82,6 +74,5 @@ npm create tauri-app@latest desktop -- --template vanilla-ts
 
 ## Not yet wired
 
-- Tauri / Steam packaging  
-- StoreKit / Play Billing (dev receipts cover the loop)  
-- Pack upload progress UI  
+- Tauri / Steam packaging in this package alone (see `desktop/`)
+- StoreKit / Play Billing (dev receipts cover the loop)
