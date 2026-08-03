@@ -18,6 +18,9 @@ class SecurityHeadersFilterTest {
         assertEquals("DENY", res.getHeader("X-Frame-Options"));
         assertEquals("no-referrer", res.getHeader("Referrer-Policy"));
         assertNotNull(res.getHeader("Content-Security-Policy"));
+        String csp = res.getHeader("Content-Security-Policy");
+        assertTrue(csp.contains("fonts.googleapis.com"), csp);
+        assertTrue(csp.contains("fonts.gstatic.com"), csp);
         assertEquals("same-origin", res.getHeader("Cross-Origin-Resource-Policy"));
         assertNull(res.getHeader("Strict-Transport-Security"));
     }

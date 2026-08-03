@@ -1,328 +1,255 @@
 # AI Dungeon Master
 
-A single-player, AI-narrated dungeon crawler built as a portable game engine: a
-pure-Java core, a Spring Boot server, a versioned REST + WebSocket API, an
-offline-capable LLM narration layer, and a data-driven content-pack system.
+Single-player, AI-narrated dungeon crawler as a **portable game engine**: pure-Java
+core, Spring Boot HTTP + STOMP API, offline-capable LLM narration, data-driven
+content packs, and typed clients for web, Android, and iOS.
 
-> Java 17 · Spring Boot 3.2.5 · Maven multi-module · 153 tests green
+| | |
+|---|---|
+| **Stack** | Java 17 · Spring Boot 3.2 · Maven multi-module |
+| **API** | Versioned REST `/v2/*` + STOMP WebSocket · OpenAPI / AsyncAPI |
+| **Clients** | Web SPA · Android (Compose) · iOS (SwiftUI) · generated TS / Kotlin / Swift SDKs |
+| **Tests** | `mvn clean test` (core + service suites) |
 
+---
 
 ## Highlights
 
-- Typed, versioned REST + STOMP WebSocket API (`/v2/*`) with generated TypeScript, Kotlin, and Swift SDKs.
-- Swappable LLM narration: offline `local-stub` by default, plus keyed OpenAI / Anthropic / xAI / local-llama backends.
-- Eight plugin SPIs, all `ServiceLoader`-driven; code mods are signature-verified and bytecode-sandboxed before loading.
-- Data-driven content packs (four themed packs ship) with a runtime enable/disable mod browser at `/mod-browser.html`.
-- Story depth engine (ADR-001): branching scene graphs, flag-gated campaigns, structured narrative memory fed to the narrator, and NPC/faction dispositions — all authorable as pack JSON, all offline-capable.
-- Optional JWT session identity (in-memory or file-persisted, cross-process locked) and storefront receipt validation with pluggable entitlement stores.
+- **Typed API + SDKs** — every `/v2` response is an envelope
+  `{ type, version, payload, requestId }`. OpenAPI → TypeScript, Kotlin, Swift.
+- **Narration you can run offline** — `local-stub` by default; optional OpenAI /
+  Anthropic / xAI / local-llama when keys are present.
+- **Plugin SPIs** — eight `ServiceLoader` SPIs; code mods are signature-checked
+  and bytecode-sandboxed before load.
+- **Content packs** — four themed packs ship; marketplace browse + async install;
+  runtime enable/disable and zip upload (admin-gated in multi-tenant prod).
+- **Story depth (ADR-001)** — branching quest graphs, campaigns, narrative memory,
+  NPC/faction dispositions — pack JSON, offline-capable.
+- **Production hardening** — JWT sessions, rate limits, STOMP subscription ACL,
+  marketplace job ownership, dual admin-token rotation, lean public health,
+  metrics scrape token. See [`docs/PRODUCTION.md`](docs/PRODUCTION.md).
 
+---
 
-## Overview
-
-The project follows a **hybrid architecture** — a pure-Java engine holds all the
-rules and plugin interfaces, a Spring Boot layer exposes it over HTTP + STOMP
-WebSocket, and thin native clients (generated from the API specs) consume it.
-Scope for v1 is single-player.
-
-Two Maven modules:
-
-- **`core`** — the game engine and plugin SPI. No Spring, no Swing; depends only
-  on Jackson + JUnit. Domain model (party, combat, quests, items, spells),
-  procedural generation, the `LLMProvider` narration abstraction, and the
-  content-pack registries live here.
-- **`service`** — the Spring Boot adapter: REST (`/v2/*` plus legacy
-  `/api/game/*`), STOMP WebSocket narration, an optional Swing desktop GUI, an
-  optional terminal CLI, plugin/content-pack wiring, and the narration provider
-  stack.
-
-## Requirements
-
-- JDK 17+
-- Maven 3.9+
-
-## Build & test
+## Quick start
 
 ```bash
-mvn clean test     # compile both modules and run the suite (91 tests)
-mvn package        # build the runnable Spring Boot jar
-```
+# Build & test
+mvn clean test
+mvn package
 
-The runnable artifact is `service/target/ai-dungeon-master-service-1.0-SNAPSHOT.jar`.
-
-## Run
-
-Headless server (REST + WebSocket only):
-
-```bash
+# Run headless engine (REST + WebSocket on :8080)
 java -jar service/target/ai-dungeon-master-service-1.0-SNAPSHOT.jar
+
+# Optional modes
+java -jar service/target/ai-dungeon-master-service-1.0-SNAPSHOT.jar \
+  --game.gui.enabled=true    # Swing desktop
+  # --game.cli.enabled=true  # terminal CLI
 ```
 
-The server listens on `http://localhost:8080`. Optional modes (pass as Spring
-`--property=value` args or set in `application.properties`):
+Smoke the API:
 
 ```bash
---game.gui.enabled=true    # launch the Swing desktop window
---game.cli.enabled=true    # run the interactive terminal CLI
+curl -s localhost:8080/health          # liveness (LB-safe, lean)
+curl -s localhost:8080/health/ready    # readiness
+curl -s localhost:8080/v2/status       # game_status envelope (session may be required)
+curl -s localhost:8080/v2/marketplace  # pack discovery
+curl -s localhost:8080/v2/catalog      # installed packs + plugins
 ```
 
-The JVM stays headless by default; the GUI flag flips `java.awt.headless` before
-Spring boots so AWT can initialise.
-
-Once it's up, open the mod browser at `http://localhost:8080/mod-browser.html`, or
-smoke-test the API:
+**Play in the browser:** stage the SPA and open `/app/`:
 
 ```bash
-curl -s localhost:8080/health          # liveness for LBs
-curl -s localhost:8080/health/ready    # readiness + session/engine counts
-curl -s localhost:8080/v2/health       # metrics envelope
-curl -s localhost:8080/metrics         # Prometheus scrape
-curl -s localhost:8080/v2/status      # typed game_status envelope
-curl -s localhost:8080/v2/marketplace     # content-pack discovery
-curl -s localhost:8080/v2/catalog     # installed packs + plugins
+./scripts/build-web.sh
+# with engine running → http://localhost:8080/app/
 ```
 
-## API
+Or hot-reload the web client against a local engine:
 
-Every **v2** response is wrapped in a typed, versioned envelope, so clients get a
-stable, self-describing shape:
+```bash
+# terminal 1 — engine
+mvn -pl service -am spring-boot:run
 
-```json
-{ "type": "game_status", "version": 1, "payload": { ... }, "requestId": "..." }
+# terminal 2 — Vite (proxies /v2 + /ws-stomp → :8080)
+cd web && npm install && npm run dev
+# → http://localhost:5173
 ```
 
-### REST
+---
+
+## Architecture
+
+```
+┌─────────────┐     REST / STOMP      ┌──────────────────┐
+│  Web / mobile│ ◄──────────────────► │  service (Boot)  │
+│  + SDKs      │                      │  JWT · rate limit │
+└─────────────┘                      │  marketplace jobs │
+                                     └────────┬─────────┘
+                                              │
+                                     ┌────────▼─────────┐
+                                     │  core (pure Java) │
+                                     │  engine · packs   │
+                                     │  plugins · LLM    │
+                                     └──────────────────┘
+```
+
+| Module | Role |
+|---|---|
+| **`core`** | Engine + plugin SPI. No Spring. Domain model, generation, `LLMProvider`, content registries. |
+| **`service`** | Spring adapter: REST `/v2/*`, STOMP, optional Swing/CLI, production gates, static `/app` SPA. |
+
+---
+
+## API surface
+
+Full contract: [`docs/api/openapi.yaml`](docs/api/openapi.yaml) ·
+[`docs/api/asyncapi.yaml`](docs/api/asyncapi.yaml).
+
+### REST (selected)
 
 | Method & path | Description |
 |---|---|
-| `GET /v2/status` | Full snapshot — structured party, chaos, choices, recent log, location, discovered rifts |
+| `POST /v2/session` | Guest session → JWT + session id |
+| `GET /v2/session/me` | Echo caller session |
+| `GET /v2/status` | Party, quest, choices, location, events |
+| `POST /v2/action` | Apply a choice |
+| `POST /v2/narrate` | DM narration (active LLM) |
+| `POST /v2/save` · `/load` · `/reset` | Session-scoped save lifecycle |
+| `GET /v2/marketplace` | Discover local + remote packs |
+| `POST /v2/marketplace/{id}/install` | Install (`?async=true` → job + poll) |
+| `GET/DELETE /v2/marketplace/jobs/{jobId}` | Progress / cancel (**owner session only**) |
+| `GET /v2/catalog` | Installed packs + plugins |
+| `POST /v2/catalog/packs` | Upload zip (admin-gated when required) |
+| `POST /v2/catalog/packs/{id}/enable` · `/disable` | Toggle pack |
+| `POST /v2/entitlements/verify` · `GET /v2/entitlements` | Store receipts |
+| `GET /health` · `/health/ready` · `/v2/health` | Probes (detail token-gated in prod) |
+| `GET /metrics` | Prometheus (scrape token in prod) |
 
-| `POST /v2/action` | Apply a choice (`{ "choiceLabel": "Attack" }`); returns updated status |
-| `POST /v2/narrate` | Generate DM narration via the active LLM provider |
-| `POST /v2/save` | Persist the caller's engine (session-scoped file under `game.saves.dir`) |
-| `POST /v2/load` | Restore the caller's engine from its save file |
-| `POST /v2/reset` | Start a fresh engine for the caller |
-| `POST /v2/session` | Create a guest session; returns a JWT + session id (enables multi-player isolation) |
-| `GET /v2/session/me` | Echo the caller's session (requires a Bearer token) |
-| `GET /v2/catalog` | Installed content packs + registered plugins (mod browser) |
-| `POST /v2/catalog/packs` | Upload + install a content-pack zip at runtime (multipart `file`, `?replace=true` to overwrite) |
-| `POST /v2/catalog/packs/{id}/enable` · `/disable` | Toggle a content pack on/off at runtime |
-| `POST /v2/entitlements/verify` | Validate a purchase receipt and grant the entitlement |
-| `GET /v2/entitlements` | List the caller's owned products |
-| `GET/POST /api/game/*` | Original unversioned API (kept for existing clients) |
-
-Example `GET /v2/status` payload:
+Envelope shape:
 
 ```json
-{
-  "party": [
-    { "name": "Kael", "role": "Warrior", "hp": 100, "maxHp": 100,
-      "armorClass": 12, "alive": true, "statuses": [] }
-  ],
-  "chaosLevel": 4,
-  "combatActive": false,
-  "availableChoices": ["Scavenge for parts", "Push deeper into the rift"],
-  "recentHistory": ["..."],
-  "quest": { "title": "The Weeping Tree", "completed": false, "failed": false, "progress": 0.33 },
-  "recentEvents": ["Quest begun: The Weeping Tree", "Boss slain: Grave Warden (by Kael)"],
-  "location": "The Weeping Tree",
-  "discoveredRifts": ["The Whispering Void", "The Iron Singularity"]
-}
+{ "type": "game_status", "version": 1, "payload": { "...": "..." }, "requestId": "..." }
 ```
 
-Send an `X-Request-Id` header to have it echoed back in the envelope for
-request/response correlation.
+Send `X-Request-Id` to correlate request/response.
 
-### WebSocket (STOMP)
+### STOMP WebSocket
 
-- Connect: `ws://localhost:8080/ws` (SockJS fallback available)
-- **Multi-player:** CONNECT with `Authorization: Bearer <jwt>` (from
-  `POST /v2/session`), then subscribe to `/topic/narrative/{sessionId}`
-- **Legacy single-player:** subscribe to `/topic/narrative` (shared default engine)
-- Stream: typed `narrative_chunk` / `narrative_update` envelopes plus plain-text
-  engine broadcasts and `[WS]` acks
-- Send: `/app/action` (a choice) or `/app/narrate` (a prompt to stream narration)
+- Connect: `ws://localhost:8080/ws-stomp` (SockJS also available)
+- CONNECT with `Authorization: Bearer <jwt>`
+- Subscribe: `/topic/narrative/{sessionId}` (foreign session ids are denied)
+- Send: `/app/action`, `/app/narrate`
 
-### Specs & client SDKs
+### Client SDKs
 
-The full contract is documented and validated under [`docs/api/`](docs/api/):
+Generated under [`clients/`](clients/) — do not hand-edit; regenerate from OpenAPI
+(see [`clients/README.md`](clients/README.md)).
 
-- [`openapi.yaml`](docs/api/openapi.yaml) — OpenAPI 3.0.3 (REST)
-- [`asyncapi.yaml`](docs/api/asyncapi.yaml) — AsyncAPI 2.6.0 (WebSocket)
+| Path | Platform |
+|---|---|
+| [`web/`](web/) | Vite + React SPA (TypeScript SDK) · also served at `/app/` |
+| [`android/`](android/) | Jetpack Compose (Kotlin SDK) |
+| [`ios/`](ios/) | SwiftUI (Swift SDK) |
 
-Generated, type-checked client SDKs live in [`clients/`](clients/):
-`typescript/`, `kotlin/` (Android/JVM), and `swift/` (iOS/macOS) — all from the
-same spec via openapi-generator 7.7.0. See [`clients/README.md`](clients/README.md).
+---
 
-## AI narration (LLM providers)
+## AI narration
 
-Narration flows through a swappable
-[`LLMProvider`](core/src/main/java/com/xai/dungeonmaster/plugin/LLMProvider.java)
-SPI, so the backend can change per deployment or per turn without touching game
-code:
-
-- **Offline by default, keyed when you want it.** The bundled `local-stub`
-  provider is deterministic and needs no API key or network — ideal for dev, CI,
-  and a free/privacy tier. Keyed backends for **OpenAI, Anthropic, xAI, and local
-  llama** ship too: set `game.narration.provider` and the matching `*_API_KEY` env
-  var. A provider with no key reports DOWN and the registry falls back to the stub.
-- **Guardrails.** `TokenBudgetProvider` enforces a per-session token ceiling and
-  `ModerationProvider` filters output; they compose as decorators and are wired
-  in `GameConfig`.
-- **Streaming.** Streaming-capable providers push partial narration chunks over
-  the WebSocket as typed envelopes.
-
-Config:
+| Provider id | Notes |
+|---|---|
+| `local-stub` | Default · deterministic · no network |
+| `openai` · `anthropic` · `xai` · `llama` | Keyed backends; missing key → DOWN, fall back to stub |
 
 ```properties
-game.narration.provider=local-stub    # local-stub | openai | anthropic | xai | llama
-game.narration.token.ceiling=4000     # per-session cost guardrail
-# Keyed providers read env / system props: OPENAI_API_KEY, ANTHROPIC_API_KEY,
-# XAI_API_KEY, LLAMA_BASE_URL (+ optional *_MODEL / *_BASE_URL overrides).
+game.narration.provider=local-stub
+game.narration.token.ceiling=4000
+# OPENAI_API_KEY / ANTHROPIC_API_KEY / XAI_API_KEY / LLAMA_BASE_URL
 ```
+
+Decorators: token budget + moderation. Streaming providers push
+`narrative_chunk` / `narrative_update` over STOMP.
+
+---
 
 ## Content packs & plugins
 
-Game content is data-driven, not hardcoded:
+- Bundled + scanned packs under `content-packs/` (`game.content.packs.dir`)
+- Ships: `black-hollows`, `dnd-classic`, `sci-fi`, `cozy-hearthwood`
+- Story data: `quests/`, `campaigns/`, `npcs/`, `factions/` (see ADR-001)
+- Code plugins: JARs + `plugin.yaml`, signature policy
+  (`LENIENT` / `REQUIRED` / `DISABLED`) + bytecode sandbox
+- Marketplace: remote index, checksums, HMAC, async install with job ownership
+- Static mod browser: `/mod-browser.html` · full SPA: `/app/`
 
-- `core/src/main/resources/items.json` and `monsters.json` form the bundled pack,
-  merged into a process-wide `ContentRegistry` at startup; `DungeonGenerator`
-  draws loot and enemies from it (with legacy fallbacks when nothing is loaded).
-- Additional packs are scanned from a `content-packs/` directory
-  (`game.content.packs.dir`).
-- Code-bearing plugins ship as JARs with a `plugin.yaml` manifest, loaded via a
-  scoped classloader (`game.plugins.dir`).
-- All eight plugin SPIs (SpellEffect, ItemEffect, EncounterTable, LootTable,
-  QuestScript, LLMProvider, StorefrontIntegration, ContentPack) dispatch through
-  registries and are discovered via Java `ServiceLoader` (`META-INF/services`);
-  each ships a bundled default that packs or mods can override — no engine changes.
-- Plugin JARs are signature-checked before any class loads: `PluginLoader`
-  hashes the payload (SHA-256, all entries except `plugin.yaml`) and compares
-  it to the manifest `signature` under a configurable
-  `game.plugins.signature.policy` (LENIENT / REQUIRED / DISABLED).
-- Plugin bytecode is sandboxed before instantiation: `SandboxedClassLoader`
-  rejects classes referencing blocked APIs (process exec, reflection, classloaders,
-  raw net/fs, JNI/`native` methods, JDK internals) under `game.plugins.sandbox.enabled`
-  (default on). SPI calls also run under a wall-clock timeout
-  (`game.plugins.call.timeout-ms`, default 2000) so a hung mod cannot freeze the loop.
-
-- Four themed packs ship under `content-packs/`: `black-hollows` (horror),
-  `dnd-classic`, `sci-fi`, and `cozy-hearthwood` — monsters, items, and localized
-  strings, each loaded end-to-end by tests.
-- **Story content is pack data too** (ADR-001). A pack may also ship:
-  - `quests/*.json` — branching quest documents (scenes, per-choice `nextSceneId`
-    targets, declarative `effects` like `SET_FLAG`/`START_QUEST`/`MODIFY_DISPOSITION`
-    and `condition` gates like `FLAG`/`DISPOSITION`/`REPUTATION`), registered as
-    `QuestScript`s and graph-linted at load;
-  - `campaigns/*.json` — flag-gated quest chains the engine walks automatically
-    (activate with `game.campaign.id`);
-  - `npcs/*.json` and `factions/*.json` — characters with persona sheets for the
-    narrator, plus disposition/reputation tracked in the persistent world state.
-  `black-hollows` ships all four end-to-end: the 3-quest **Hollows Cycle** campaign
-  (`game.campaign.id=the-hollows-cycle`), where burning or resting the weeping tree
-  routes the arc to different quests, and Mother Brine, whose blessing unlocks only
-  if you've earned her trust.
-- A static **mod-browser page** ships at `/mod-browser.html` (served by the
-  engine): it renders the `/v2/catalog` data — installed packs, plugins per SPI,
-  and the narration provider — and can **enable/disable packs at runtime**, with
-  no build step or dependencies.
-- **Packs install at runtime** via `POST /v2/catalog/packs` (or the mod
-  browser's upload button): zip a pack folder and upload it. Uploads are
-  validated defensively — zip-slip guard, entry/size caps, manifest id checks —
-  extracted under `game.content.packs.dir`, and registered through the same
-  loader as the startup scan (quests and campaigns included). Data only; code
-  mods still go through the signed + sandboxed plugin loader.
+---
 
 ## Project layout
 
 ```
-core/      pure-Java engine + plugin SPI (no Spring/Swing)
-service/   Spring Boot: REST, WebSocket, GUI, CLI, wiring
+core/            pure-Java engine + SPI
+service/         Spring Boot REST, STOMP, production gates, static SPA
+web/             Vite + React client (TypeScript SDK)
+android/ · ios/  native shells
+clients/         generated openapi-generator SDKs
+content-packs/   themed data packs
 docs/
-  api/                OpenAPI + AsyncAPI specs and SDK-generation notes
-  ROADMAP_STATUS.md   current state vs the 5-phase roadmap
-clients/
-  typescript/  kotlin/  swift/   generated REST client SDKs (openapi-generator)
-content-packs/   themed data packs: black-hollows, dnd-classic, sci-fi, cozy-hearthwood
+  api/           OpenAPI + AsyncAPI
+  PRODUCTION.md  multi-tenant ops, tokens, smoke gates
+  MULTI_NODE.md  redis/jdbc session stores, sticky LB
+  STOREFRONTS.md receipt plugins
+  ROADMAP_STATUS.md
+deploy/          docker compose (app ×2 + Postgres + nginx)
+scripts/         build-web, launch-smoke, marketplace helpers
 ```
 
-## Configuration reference
+---
+
+## Configuration (common)
 
 | Property | Default | Purpose |
 |---|---|---|
-| `server.port` | `8080` | HTTP/WebSocket port |
-| `game.difficulty` | `4` | Encounter difficulty |
-| `game.chaos` | `4` | Chaos level (affects generation) |
-| `game.party.names` / `game.party.roles` | `Kael,Lira` / `Warrior,Mage` | Starting party |
-| `game.gui.enabled` | `true` | Launch the Swing GUI |
-| `game.cli.enabled` | `false` | Run the terminal CLI |
-| `game.campaign.id` | _(none)_ | Story arc to run (from a pack's `campaigns/*.json`), e.g. `the-hollows-cycle` |
-| `game.narration.provider` | `local-stub` | Active LLM provider id |
-| `game.narration.token.ceiling` | `4000` | Per-session narration token cap |
-| `game.auth.enabled` | `false` | Enforce JWT auth on `/v2/**` (opt-in) |
-| `game.auth.jwt.secret` | _(insecure dev secret)_ | HMAC-SHA256 token signing secret |
-| `game.auth.jwt.ttl-seconds` | `86400` | Session token lifetime (seconds) |
-| `game.auth.session.store` | `memory` | Session store: `memory`, `file`, `redis`, or `jdbc` (see `docs/MULTI_NODE.md`) |
-| `game.auth.entitlement.store` | `memory` | Entitlement store: `memory`, `file`, `redis`, or `jdbc` |
-| `game.auth.redis.url` | `redis://127.0.0.1:6379` | Redis URL when either store is `redis` |
-| `game.auth.jdbc.url` | _(empty)_ | JDBC URL when either store is `jdbc` / `postgres` |
+| `server.port` | `8080` | HTTP / WebSocket |
+| `game.difficulty` / `game.chaos` | `4` / `4` | Encounter tuning |
+| `game.campaign.id` | _(none)_ | Pack campaign, e.g. `the-hollows-cycle` |
+| `game.narration.provider` | `local-stub` | Active LLM |
+| `game.auth.enabled` | `false` | Enforce JWT on `/v2/**` |
+| `game.auth.jwt.secret` | _(dev only)_ | HMAC secret — set in prod |
+| `game.auth.session.store` | `memory` | `memory` · `file` · `redis` · `jdbc` |
+| `game.plugins.signature.policy` | `LENIENT` | Prod: `REQUIRED` |
+| `game.plugins.sandbox.enabled` | `true` | Bytecode sandbox |
+| `game.saves.dir` | `saves` | Per-session saves |
+| `game.instances.max` | `100` | Concurrent session engines |
 
+Production env, admin/metrics tokens, marketplace gates, and launch smoke:
+[`docs/PRODUCTION.md`](docs/PRODUCTION.md). Multi-node stores:
+[`docs/MULTI_NODE.md`](docs/MULTI_NODE.md).
 
-| `game.auth.session.file` | `sessions.json` | JSON file for the file session store |
-| `game.saves.dir` | `saves` | Per-session game save directory |
-| `game.instances.idle-ttl-seconds` | `3600` | Evict idle per-session engines after N seconds (0 = never) |
-| `game.instances.max` | `100` | Max concurrent per-session engines (LRU eviction) |
-| `game.instances.save-on-evict` | `true` | Auto-save when an engine is evicted |
-| `game.instances.autoload` | `true` | Restore session save when minting a new engine |
-| `game.plugins.signature.policy` | `LENIENT` | Plugin signature policy: LENIENT / REQUIRED / DISABLED |
+---
 
-| `game.plugins.sandbox.enabled` | `true` | Sandbox-scan plugin bytecode before loading |
-| `game.plugins.call.timeout-ms` | `2000` | Wall timeout for item/spell plugin SPI calls |
-| `game.plugins.call.guard` | `true` | Enable the runtime call timeout guard |
+## Deploy
 
+```bash
+# Multi-node local stack (2 app nodes + Postgres + sticky nginx)
+docker compose -f deploy/docker-compose.yml up --build
+# → http://localhost:8080/app/
 
+# Prometheus overlay
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.metrics.yml up --build
+```
+
+Desktop helper: `./desktop/launch.sh` (Windows: `.\desktop\launch.ps1`).
+
+Launch gate (health + play + STOMP ACL + metrics): `scripts/launch-smoke.sh`.
+
+---
 
 ## Roadmap
 
-See [`docs/ROADMAP_STATUS.md`](docs/ROADMAP_STATUS.md) for the detailed,
-code-grounded status. In brief: Phases 0–2 and 5 are complete (headless core,
-plugin SPIs, signed/sandboxed mods, typed v2 API, LLM stack, content packs,
-story depth, faction-aware encounters, WorldMap on status). What's left is
-primarily client-native: Android/iOS/Steam apps on the generated SDKs, plus
-live keyed-provider smoke tests and multi-node session storage.
+See [`docs/ROADMAP_STATUS.md`](docs/ROADMAP_STATUS.md). Core engine, plugins, v2 API,
+LLM stack, story depth, and production multi-tenant gates are in place. Ongoing
+work is client polish, storefront packaging, and live keyed-provider ops.
 
-
-
-
-### Storefronts
-
-Server plugins: `dev`, `google_play`, `app_store`, `steam` — see [`docs/STOREFRONTS.md`](docs/STOREFRONTS.md).
-
-### Multi-node Docker
-
-```bash
-docker compose -f deploy/docker-compose.yml up --build
-# → http://localhost:8080/app/   (2 app nodes + Postgres + sticky nginx)
-```
-
-See [`deploy/README.md`](deploy/README.md), [`docs/MULTI_NODE.md`](docs/MULTI_NODE.md), and [`docs/PRODUCTION.md`](docs/PRODUCTION.md). Prometheus overlay: `deploy/docker-compose.metrics.yml` (UI on :9090).
-
-### Desktop
-
-```bash
-./desktop/launch.sh          # start engine (if needed) + open /app/
-# Windows:  .\desktop\launch.ps1
-```
-
-Optional Tauri window scaffold: `desktop/tauri/`.
-
-### Native / web clients
-
-| Path | Platform |
-|---|---|
-| `android/` | Jetpack Compose on the Kotlin SDK |
-| `ios/` | SwiftUI on the Swift SDK |
-| `web/` | Vite + React SPA on the TypeScript SDK — also staged at `/app/` on the engine |
-
+---
 
 ## License
 

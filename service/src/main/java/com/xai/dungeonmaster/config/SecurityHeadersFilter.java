@@ -54,11 +54,13 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
         res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
         res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
         res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
-        // API is JSON; keep CSP minimal so the SPA can still load its own assets.
+        // API is JSON; SPA needs self assets + Google Fonts (Cinzel / Source Sans).
         if (!res.containsHeader("Content-Security-Policy")) {
             res.setHeader("Content-Security-Policy",
                     "default-src 'self'; img-src 'self' data: blob:; "
-                            + "style-src 'self' 'unsafe-inline'; script-src 'self'; "
+                            + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                            + "font-src 'self' https://fonts.gstatic.com data:; "
+                            + "script-src 'self'; "
                             + "connect-src 'self' ws: wss:; frame-ancestors 'none'");
         }
         if (hstsEnabled && isSecure(req)) {
