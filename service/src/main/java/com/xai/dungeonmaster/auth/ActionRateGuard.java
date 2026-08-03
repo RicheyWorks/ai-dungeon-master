@@ -38,6 +38,15 @@ public class ActionRateGuard {
         long n = hit.count();
         if (n > perMinute) {
             metrics.rejected("action_stomp");
+            SecurityAudit.log(
+                    "rate_limited",
+                    "stomp:/app/action",
+                    "-",
+                    null,
+                    "bucket=action_stomp session=" + (clientKey == null || clientKey.isBlank() ? "anon" : clientKey.trim())
+                            + " count=" + n
+                            + " limit=" + perMinute
+                            + " retryAfterSec=" + hit.retryAfterSeconds());
             return Decision.deny(perMinute, hit.retryAfterSeconds());
         }
         metrics.allowed("action_stomp");

@@ -1,5 +1,7 @@
 package com.xai.dungeonmaster.config;
 
+import com.xai.dungeonmaster.auth.RateLimitFilter;
+import com.xai.dungeonmaster.auth.SecurityAudit;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,9 +53,16 @@ public class RequestSizeFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         long len = req.getContentLengthLong();
         if (len > maxBytes) {
+            String requestId = safeRequestId(req);
+            String path = req.getRequestURI() == null ? "-" : req.getRequestURI();
+            SecurityAudit.log(
+                    "request_too_large",
+                    path,
+                    RateLimitFilter.clientIp(req, false),
+                    requestId,
+                    "contentLength=" + len + " maxBytes=" + maxBytes);
             res.setStatus(413);
             res.setContentType("application/json");
-            String requestId = safeRequestId(req);
             res.getWriter().write("{\"type\":\"error\",\"version\":1,\"payload\":{\"message\":"
                     + "\"Request body too large (max " + maxBytes + " bytes).\"},"
                     + "\"requestId\":\"" + requestId + "\"}");

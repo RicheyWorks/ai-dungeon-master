@@ -214,6 +214,11 @@ public class GameInstanceService {
         return bySession.size();
     }
 
+    /** True when a dedicated engine exists for the session id. */
+    public boolean hasSession(String sessionId) {
+        return sessionId != null && !sessionId.isBlank() && bySession.containsKey(sessionId);
+    }
+
     /**
      * STOMP topic for a session's narrative stream. Unauthenticated / default
      * engines use the legacy {@code /topic/narrative}; authenticated sessions

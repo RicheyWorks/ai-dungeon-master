@@ -48,6 +48,15 @@ public class NarrationRateGuard {
         long n = hit.count();
         if (n > perMinute) {
             metrics.rejected("narrate_stomp");
+            SecurityAudit.log(
+                    "rate_limited",
+                    "stomp:/app/narrate",
+                    "-",
+                    null,
+                    "bucket=narrate_stomp session=" + (clientKey == null || clientKey.isBlank() ? "anon" : clientKey.trim())
+                            + " count=" + n
+                            + " limit=" + perMinute
+                            + " retryAfterSec=" + hit.retryAfterSeconds());
             return Decision.deny(perMinute, hit.retryAfterSeconds());
         }
         metrics.allowed("narrate_stomp");

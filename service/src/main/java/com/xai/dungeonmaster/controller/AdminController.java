@@ -2,15 +2,19 @@ package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.auth.AdminAudit;
 import com.xai.dungeonmaster.auth.RateLimitFilter;
+import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.dto.ErrorPayload;
 import com.xai.dungeonmaster.entitlement.ReceiptLedger;
+import com.xai.dungeonmaster.service.GameInstanceService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +39,8 @@ public class AdminController {
 
     private final ReceiptLedger ledger;
     private final SessionPackService sessionPacks;
+    private final SessionService sessions;
+    private final GameInstanceService instances;
     private final String adminToken;
     private final String previousAdminToken;
 
@@ -41,22 +48,45 @@ public class AdminController {
     public AdminController(
             ReceiptLedger ledger,
             SessionPackService sessionPacks,
+            SessionService sessions,
+            GameInstanceService instances,
             @Value("${game.admin.token:}") String adminToken,
             @Value("${game.admin.token.previous:}") String previousAdminToken) {
         this.ledger = ledger;
         this.sessionPacks = sessionPacks;
+        this.sessions = sessions;
+        this.instances = instances;
         this.adminToken = adminToken == null ? "" : adminToken.trim();
         this.previousAdminToken = previousAdminToken == null ? "" : previousAdminToken.trim();
     }
 
     /** Back-compat for receipt-only tests. */
     public AdminController(ReceiptLedger ledger, String adminToken) {
-        this(ledger, null, adminToken, "");
+        this(ledger, null, null, null, adminToken, "");
     }
 
     /** Test helper with session packs + dual token. */
     public AdminController(ReceiptLedger ledger, SessionPackService sessionPacks, String adminToken) {
-        this(ledger, sessionPacks, adminToken, "");
+        this(ledger, sessionPacks, null, null, adminToken, "");
+    }
+
+    /** Test helper with dual admin tokens. */
+    public AdminController(
+            ReceiptLedger ledger,
+            SessionPackService sessionPacks,
+            String adminToken,
+            String previousAdminToken) {
+        this(ledger, sessionPacks, null, null, adminToken, previousAdminToken);
+    }
+
+    /** Test helper with sessions + engines. */
+    public AdminController(
+            ReceiptLedger ledger,
+            SessionPackService sessionPacks,
+            SessionService sessions,
+            GameInstanceService instances,
+            String adminToken) {
+        this(ledger, sessionPacks, sessions, instances, adminToken, "");
     }
 
     /**
@@ -138,6 +168,84 @@ public class AdminController {
         AdminAudit.log("ok", "/v2/admin/session-packs", RateLimitFilter.clientIp(request, false),
                 requestId, "sessionId=" + sid + " token=" + AdminAudit.tokenFingerprint(token));
         return ResponseEntity.ok(Envelope.of("admin.session-packs", payload, requestId));
+    }
+
+    /**
+     * List active sessions (identity only — no JWTs).
+     * <pre>GET /v2/admin/sessions?limit=100</pre>
+     */
+    @GetMapping("/sessions")
+    public ResponseEntity<Envelope<?>> listSessions(
+            @RequestParam(value = "limit", defaultValue = "100") int limit,
+            @RequestHeader(value = "X-Admin-Token", required = false) String token,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId, "/v2/admin/sessions", request);
+        if (denied != null) return denied;
+        if (sessions == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
+                    Envelope.of("error", new ErrorPayload("Session service unavailable."), requestId));
+        }
+        int cap = Math.min(Math.max(limit, 1), 500);
+        List<SessionService.Session> all = new ArrayList<>(sessions.allSessions());
+        all.sort(Comparator.comparingLong(SessionService.Session::lastSeenEpoch).reversed());
+        List<Map<String, Object>> items = new ArrayList<>();
+        int i = 0;
+        for (SessionService.Session s : all) {
+            if (i++ >= cap) break;
+            if (s == null || s.id() == null) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("sessionId", s.id());
+            row.put("displayName", s.displayName());
+            row.put("createdAtEpochSeconds", s.createdAtEpoch());
+            row.put("lastSeenEpochSeconds", s.lastSeenEpoch());
+            row.put("hasEngine", instances != null && instances.hasSession(s.id()));
+            items.add(row);
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("count", items.size());
+        payload.put("total", sessions.activeCount());
+        payload.put("limit", cap);
+        payload.put("sessions", items);
+        AdminAudit.log("ok", "/v2/admin/sessions", RateLimitFilter.clientIp(request, false),
+                requestId, "count=" + items.size() + " total=" + sessions.activeCount()
+                        + " token=" + AdminAudit.tokenFingerprint(token));
+        return ResponseEntity.ok(Envelope.of("admin.sessions", payload, requestId));
+    }
+
+    /**
+     * Revoke a session (delete identity + destroy game engine). Client must re-auth.
+     * <pre>DELETE /v2/admin/sessions/{sessionId}</pre>
+     */
+    @DeleteMapping("/sessions/{sessionId}")
+    public ResponseEntity<Envelope<?>> revokeSession(
+            @PathVariable("sessionId") String sessionId,
+            @RequestHeader(value = "X-Admin-Token", required = false) String token,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId, "/v2/admin/sessions", request);
+        if (denied != null) return denied;
+        if (sessions == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
+                    Envelope.of("error", new ErrorPayload("Session service unavailable."), requestId));
+        }
+        if (sessionId == null || sessionId.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Envelope.of("error", new ErrorPayload("sessionId is required."), requestId));
+        }
+        String sid = sessionId.trim();
+        boolean known = sessions.find(sid).isPresent();
+        if (instances != null) {
+            instances.destroy(sid, true);
+        }
+        sessions.delete(sid);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("sessionId", sid);
+        payload.put("revoked", true);
+        payload.put("existed", known);
+        AdminAudit.log("ok", "/v2/admin/sessions/" + sid, RateLimitFilter.clientIp(request, false),
+                requestId, "revoked existed=" + known + " token=" + AdminAudit.tokenFingerprint(token));
+        return ResponseEntity.ok(Envelope.of("admin.session.revoked", payload, requestId));
     }
 
     private ResponseEntity<Envelope<?>> authorize(

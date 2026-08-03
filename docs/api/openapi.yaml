@@ -45,6 +45,46 @@ paths:
       responses:
         '200': { description: Enabled packs + overrides }
 
+  /v2/admin/sessions:
+    get:
+      tags: [admin]
+      operationId: listAdminSessions
+      summary: List active sessions (ops)
+      description: Identity only — no JWTs. Newest last-seen first.
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 100, maximum: 500 }
+        - in: header
+          name: X-Admin-Token
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200': { description: Session inventory }
+        '401': { description: Invalid admin token }
+        '404': { description: Admin API disabled }
+  /v2/admin/sessions/{sessionId}:
+    delete:
+      tags: [admin]
+      operationId: revokeAdminSession
+      summary: Revoke a session (ops)
+      description: Deletes session identity and destroys its game engine (save-on-evict).
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Admin-Token
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200': { description: Session revoked }
+        '401': { description: Invalid admin token }
+        '404': { description: Admin API disabled }
+
   /v2/admin/receipts:
     get:
       tags: [admin]
