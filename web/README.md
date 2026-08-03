@@ -78,3 +78,14 @@ npm create tauri-app@latest desktop -- --template vanilla-ts
 
 - Tauri / Steam packaging in this package alone (see `desktop/`)
 - StoreKit / Play Billing (dev receipts cover the loop)
+
+## Keyboard (SPA)
+
+| Key | Action |
+|---|---|
+| `1`–`9` | Pick a choice (Game tab) |
+| `Ctrl`/`⌘`+`Enter` | Narrate |
+| `?` | Help |
+| `Esc` | Close help / dismiss banners |
+| `Alt`+`1`–`4` | Game / Mods / Store / System |
+
