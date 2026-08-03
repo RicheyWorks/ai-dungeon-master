@@ -1,6 +1,7 @@
 import {
   Configuration,
   HealthApi,
+  ResponseError,
   V2Api,
   type ActionRequest,
   type CatalogPayload,
@@ -8,6 +9,7 @@ import {
   type GameStatusV2,
   type HealthPayload,
   type LivenessResponse,
+  type MarketplaceInstallJob as SdkMarketplaceInstallJob,
   type NarrateRequest,
   type ReadinessResponse,
   type SessionRequest,
@@ -198,55 +200,6 @@ export type MarketplacePayload = {
   packs?: MarketplaceListing[];
 };
 
-/** List local marketplace packs (uses session token when auth is on). */
-export async function getMarketplace(
-  baseUrl: string,
-  token: string | null,
-  query?: string,
-): Promise<MarketplacePayload> {
-  const base = resolveBase(baseUrl);
-  const qs = query?.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
-  const res = await fetch(`${base}/v2/marketplace${qs}`, {
-    headers: {
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!res.ok) throw new Error(`marketplace ${res.status}`);
-  const env = (await res.json()) as { payload?: MarketplacePayload };
-  return env.payload ?? { packs: [] };
-}
-
-/** Install a marketplace pack into the live catalog (sync). */
-export async function installMarketplacePack(
-  baseUrl: string,
-  token: string | null,
-  id: string,
-): Promise<{ packId?: string; alreadyInstalled?: boolean; message?: string }> {
-  const base = resolveBase(baseUrl);
-  const res = await fetch(`${base}/v2/marketplace/${encodeURIComponent(id)}/install`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!res.ok) {
-    let msg = `install ${res.status}`;
-    try {
-      const env = (await res.json()) as { payload?: { message?: string } };
-      if (env.payload?.message) msg = env.payload.message;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  const env = (await res.json()) as {
-    payload?: { packId?: string; alreadyInstalled?: boolean; message?: string };
-  };
-  return env.payload ?? {};
-}
-
 export type MarketplaceInstallJob = {
   jobId: string;
   packId?: string;
@@ -259,36 +212,95 @@ export type MarketplaceInstallJob = {
   error?: string | null;
 };
 
-/** Start async install; returns job snapshot (HTTP 202). */
+function asInstallJob(job: SdkMarketplaceInstallJob | null | undefined): MarketplaceInstallJob {
+  if (!job?.jobId) throw new Error("install job missing jobId");
+  return {
+    jobId: job.jobId,
+    packId: job.packId,
+    phase: job.phase,
+    bytesRead: job.bytesRead,
+    bytesTotal: job.bytesTotal,
+    percent: job.percent,
+    message: job.message ?? undefined,
+    cancelRequested: job.cancelRequested,
+    error: job.error,
+  };
+}
+
+async function sdkErrorMessage(e: unknown, fallback: string): Promise<string> {
+  if (e instanceof ResponseError) {
+    try {
+      const env = (await e.response.json()) as { payload?: { message?: string } };
+      if (env.payload?.message) return env.payload.message;
+    } catch {
+      /* ignore */
+    }
+    return `${fallback} ${e.response.status}`;
+  }
+  return e instanceof Error ? e.message : fallback;
+}
+
+/** List local marketplace packs (generated V2Api). */
+export async function getMarketplace(
+  baseUrl: string,
+  token: string | null,
+  query?: string,
+): Promise<MarketplacePayload> {
+  try {
+    const env = await createApi(baseUrl, token).listMarketplaceV2({
+      q: query?.trim() || undefined,
+    });
+    return (env.payload as MarketplacePayload) ?? { packs: [] };
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "marketplace"));
+  }
+}
+
+/** Install a marketplace pack into the live catalog (sync). */
+export async function installMarketplacePack(
+  baseUrl: string,
+  token: string | null,
+  id: string,
+): Promise<{ packId?: string; alreadyInstalled?: boolean; message?: string }> {
+  try {
+    const env = await createApi(baseUrl, token).installMarketplacePackV2({ id, async: false });
+    const p = env.payload;
+    return {
+      packId: p?.packId,
+      alreadyInstalled: p?.alreadyInstalled,
+      message: p?.message,
+    };
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "install"));
+  }
+}
+
+/**
+ * Start async install; returns job snapshot (HTTP 202).
+ * Uses Raw so the 202 job envelope is not forced through the sync install schema.
+ */
 export async function startMarketplaceInstall(
   baseUrl: string,
   token: string | null,
   id: string,
 ): Promise<MarketplaceInstallJob> {
-  const base = resolveBase(baseUrl);
-  const res = await fetch(
-    `${base}/v2/marketplace/${encodeURIComponent(id)}/install?async=true`,
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    },
-  );
-  if (!res.ok) {
-    let msg = `install async ${res.status}`;
-    try {
-      const env = (await res.json()) as { payload?: { message?: string } };
-      if (env.payload?.message) msg = env.payload.message;
-    } catch {
-      /* ignore */
+  try {
+    const res = await createApi(baseUrl, token).installMarketplacePackV2Raw({
+      id,
+      async: true,
+    });
+    const json = (await res.raw.json()) as {
+      type?: string;
+      payload?: SdkMarketplaceInstallJob;
+    };
+    if (json.type === "marketplace_install_job" || json.payload?.jobId) {
+      return asInstallJob(json.payload);
     }
-    throw new Error(msg);
+    throw new Error("install job missing jobId");
+  } catch (e) {
+    if (e instanceof Error && e.message === "install job missing jobId") throw e;
+    throw new Error(await sdkErrorMessage(e, "install async"));
   }
-  const env = (await res.json()) as { payload?: MarketplaceInstallJob };
-  if (!env.payload?.jobId) throw new Error("install job missing jobId");
-  return env.payload;
 }
 
 export async function getMarketplaceInstallJob(
@@ -296,17 +308,12 @@ export async function getMarketplaceInstallJob(
   token: string | null,
   jobId: string,
 ): Promise<MarketplaceInstallJob> {
-  const base = resolveBase(baseUrl);
-  const res = await fetch(`${base}/v2/marketplace/jobs/${encodeURIComponent(jobId)}`, {
-    headers: {
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!res.ok) throw new Error(`install job ${res.status}`);
-  const env = (await res.json()) as { payload?: MarketplaceInstallJob };
-  if (!env.payload) throw new Error("empty job payload");
-  return env.payload;
+  try {
+    const env = await createApi(baseUrl, token).getMarketplaceInstallJobV2({ jobId });
+    return asInstallJob(env.payload);
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "install job"));
+  }
 }
 
 export async function cancelMarketplaceInstall(
@@ -314,17 +321,12 @@ export async function cancelMarketplaceInstall(
   token: string | null,
   jobId: string,
 ): Promise<MarketplaceInstallJob | null> {
-  const base = resolveBase(baseUrl);
-  const res = await fetch(`${base}/v2/marketplace/jobs/${encodeURIComponent(jobId)}`, {
-    method: "DELETE",
-    headers: {
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!res.ok) throw new Error(`cancel job ${res.status}`);
-  const env = (await res.json()) as { payload?: MarketplaceInstallJob };
-  return env.payload ?? null;
+  try {
+    const env = await createApi(baseUrl, token).cancelMarketplaceInstallJobV2({ jobId });
+    return env.payload ? asInstallJob(env.payload) : null;
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "cancel job"));
+  }
 }
 
 /** Poll async install until terminal phase. */

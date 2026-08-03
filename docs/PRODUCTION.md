@@ -76,9 +76,9 @@ Play path covered by `launch-smoke.sh`:
 
 ### 5. Client parity
 
-Web (`web/src/api.ts`) uses the generated TS SDK for session/action/narrate/save/load/logout/catalog/entitlements.
-Marketplace list/install/jobs are on the generated `V2Api` (OpenAPI regen); web may still use raw `fetch` until wired.
-Kotlin/Swift SDKs expose the same OpenAPI operations under `clients/kotlin` and `clients/swift`.
+Web (`web/src/api.ts`) uses the generated TS SDK for session/action/narrate/save/load/logout/catalog/entitlements
+**and marketplace list/install/jobs**. Kotlin/Swift SDKs expose the same OpenAPI operations under
+`clients/kotlin` and `clients/swift`.
 
 ---
 ## Fail-fast security guard
@@ -224,6 +224,9 @@ GET /metrics
 X-Metrics-Token: <token>
 # or Authorization: Bearer <token>
 ```
+
+Launch smoke asserts this when `METRICS_TOKEN` is set (`launch-check` always sets one):
+unauthenticated scrapes must get **401**, and both header forms must return **200**.
 
 Prometheus config example:
 

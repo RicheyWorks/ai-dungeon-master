@@ -26,8 +26,10 @@ models/HealthPayload.ts
 models/HealthPayloadMemory.ts
 models/LivenessResponse.ts
 models/MarketplaceEnvelope.ts
+models/MarketplaceInstallEnvelope.ts
 models/MarketplaceInstallJob.ts
 models/MarketplaceInstallJobEnvelope.ts
+models/MarketplaceInstallResult.ts
 models/MarketplaceListing.ts
 models/MarketplacePackEnvelope.ts
 models/MarketplacePayload.ts

@@ -562,9 +562,17 @@ paths:
           description: When true, returns 202 + job id for progress polling.
       responses:
         '201':
-          description: Newly installed.
+          description: Newly installed (sync).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceInstallEnvelope'
         '200':
-          description: Already installed.
+          description: Already installed (sync).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceInstallEnvelope'
         '202':
           description: Async install job accepted.
           content:
@@ -1005,6 +1013,24 @@ components:
               enum: [marketplace_install_job]
             payload:
               $ref: '#/components/schemas/MarketplaceInstallJob'
+    MarketplaceInstallResult:
+      type: object
+      properties:
+        packId: { type: string }
+        alreadyInstalled: { type: boolean }
+        message: { type: string }
+        marketplace:
+          $ref: '#/components/schemas/MarketplacePayload'
+    MarketplaceInstallEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [marketplace_install]
+            payload:
+              $ref: '#/components/schemas/MarketplaceInstallResult'
     Envelope:
       type: object
       description: Base transport envelope. Concrete responses specialize `payload`.

@@ -48,6 +48,7 @@ PORT="${SMOKE_PORT:-18080}"
 LOG="${TMPDIR:-/tmp}/dm-launch-check-$$.log"
 JWT_SECRET="${JWT_SECRET:-launch-check-jwt-secret-32chars-min!!}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-launch-check-admin-token-32chars!!}"
+METRICS_TOKEN="${METRICS_TOKEN:-launch-check-metrics-token-16+}"
 
 info "Boot engine on :$PORT"
 # Dev-safe (non-prod) auth stack so we don't need Postgres/Redis for the gate.
@@ -66,6 +67,7 @@ java -jar "$JAR" \
   --game.rate-limit.store=memory \
   --game.rate-limit.enabled=true \
   --game.admin.token="$ADMIN_TOKEN" \
+  --game.metrics.scrape-token="$METRICS_TOKEN" \
   --game.content.packs.dir="$ROOT/content-packs" \
   --game.saves.dir="${TMPDIR:-/tmp}/dm-saves-$$" \
   --game.legacy.api.enabled=false \
@@ -100,7 +102,7 @@ fi
 green "Engine up"
 
 info "Play-path smoke"
-BASE_URL="http://127.0.0.1:${PORT}" ADMIN_TOKEN="$ADMIN_TOKEN" \
+BASE_URL="http://127.0.0.1:${PORT}" ADMIN_TOKEN="$ADMIN_TOKEN" METRICS_TOKEN="$METRICS_TOKEN" \
   bash "$ROOT/scripts/launch-smoke.sh"
 
 info "Prod guard unit coverage already in mvn test"

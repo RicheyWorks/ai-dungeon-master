@@ -24,6 +24,7 @@ import type {
   GameStatusEnvelope,
   HealthEnvelope,
   MarketplaceEnvelope,
+  MarketplaceInstallEnvelope,
   MarketplaceInstallJobEnvelope,
   MarketplacePackEnvelope,
   NarrateRequest,
@@ -51,6 +52,8 @@ import {
     HealthEnvelopeToJSON,
     MarketplaceEnvelopeFromJSON,
     MarketplaceEnvelopeToJSON,
+    MarketplaceInstallEnvelopeFromJSON,
+    MarketplaceInstallEnvelopeToJSON,
     MarketplaceInstallJobEnvelopeFromJSON,
     MarketplaceInstallJobEnvelopeToJSON,
     MarketplacePackEnvelopeFromJSON,
@@ -563,7 +566,7 @@ export class V2Api extends runtime.BaseAPI {
      * Sync by default. Pass `async=true` for background download with progress (`GET /v2/marketplace/jobs/{jobId}`). Async jobs bind to the caller session for poll/cancel ACL. 
      * Install a marketplace pack into the live catalog.
      */
-    async installMarketplacePackV2Raw(requestParameters: InstallMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+    async installMarketplacePackV2Raw(requestParameters: InstallMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MarketplaceInstallEnvelope>> {
         if (requestParameters['id'] == null) {
             throw new runtime.RequiredError(
                 'id',
@@ -590,15 +593,16 @@ export class V2Api extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.VoidApiResponse(response);
+        return new runtime.JSONApiResponse(response, (jsonValue) => MarketplaceInstallEnvelopeFromJSON(jsonValue));
     }
 
     /**
      * Sync by default. Pass `async=true` for background download with progress (`GET /v2/marketplace/jobs/{jobId}`). Async jobs bind to the caller session for poll/cancel ACL. 
      * Install a marketplace pack into the live catalog.
      */
-    async installMarketplacePackV2(requestParameters: InstallMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
-        await this.installMarketplacePackV2Raw(requestParameters, initOverrides);
+    async installMarketplacePackV2(requestParameters: InstallMarketplacePackV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MarketplaceInstallEnvelope> {
+        const response = await this.installMarketplacePackV2Raw(requestParameters, initOverrides);
+        return await response.value();
     }
 
     /**
