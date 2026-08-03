@@ -113,4 +113,15 @@ class HealthControllerTest {
                 .andExpect(jsonPath("$.payload.detail", equalTo(true)))
                 .andExpect(jsonPath("$.payload.memory.maxBytes", greaterThanOrEqualTo(0)));
     }
+
+    @Test
+    void badOpsTokenStaysLean() throws Exception {
+        detailedMvc.perform(get("/v2/health").header("X-Metrics-Token", "wrong-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.detail", equalTo(false)))
+                .andExpect(jsonPath("$.payload.memory").doesNotExist());
+        detailedMvc.perform(get("/health/ready").header("X-Admin-Token", "nope"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.engines").doesNotExist());
+    }
 }

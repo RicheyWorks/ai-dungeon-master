@@ -304,29 +304,12 @@ public final class GameViewModel: ObservableObject {
         }
     }
 
-    /// Async install is HTTP 202 + job envelope; generated install is typed for sync result.
+    /// Async install via typed `installMarketplacePackAsyncV2` (HTTP 202 + job envelope).
     private static func startInstallAsync(baseURL: String, id: String, token: String?) async throws -> MarketplaceInstallJob {
-        let encId = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-        let urlString = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            + "/v2/marketplace/\(encId)/install?async=true"
-        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let token, !token.isEmpty {
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        let http = resp as? HTTPURLResponse
-        guard let http, (200..<300).contains(http.statusCode) else {
-            if let err = try? JSONDecoder().decode(AIDungeonMasterClient.ErrorEnvelope.self, from: data),
-               let msg = err.payload.message {
-                throw NSError(domain: "marketplace", code: http?.statusCode ?? -1,
-                              userInfo: [NSLocalizedDescriptionKey: msg])
-            }
-            throw URLError(.badServerResponse)
-        }
-        let env = try JSONDecoder().decode(AIDungeonMasterClient.MarketplaceInstallJobEnvelope.self, from: data)
+        // baseURL/token already applied via AIDungeonMasterAPIConfiguration in ensureSession
+        _ = baseURL
+        _ = token
+        let env = try await V2API.installMarketplacePackAsyncV2(id: id)
         return env.payload.toApp()
     }
 

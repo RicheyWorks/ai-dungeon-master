@@ -335,7 +335,11 @@ start) remain open. Multi-node Redis snapshots store `ownerSessionId`.
 **Security audit:** foreign job poll/cancel emits
 `security_audit outcome=forbidden` on logger `dm.security.audit` (caller + owner
 session ids, no JWTs). Metrics scrape failures emit
-`security_audit outcome=unauthorized path=/metrics`.
+`security_audit outcome=unauthorized path=/metrics`. Failed health-detail ops
+tokens (`X-Metrics-Token` / `X-Admin-Token` present but wrong) emit
+`unauthorized` on `/v2/health` and readiness paths while the response stays lean.
+Rate-limit bursts emit `security_audit outcome=rate_limited` with bucket, count,
+and retry-after (logger `dm.security.audit`).
 
 ### Marketplace install job store
 
