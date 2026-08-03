@@ -61,6 +61,8 @@ Play path covered by `launch-smoke.sh`:
 | Rate-limit spike (`DmRateLimitSpike`) | check Grafana rate-limit panels; temporarily raise `game.rate-limit.*-per-minute` or block abusive IP at nginx |
 | Inspect receipts | `GET /v2/admin/receipts?limit=50` + `X-Admin-Token` |
 | Inspect session packs | `GET /v2/admin/session-packs?sessionId=…` + `X-Admin-Token` |
+| List sessions | `GET /v2/admin/sessions?limit=100` + `X-Admin-Token` |
+| Revoke session | `DELETE /v2/admin/sessions/{sessionId}` + `X-Admin-Token` |
 | Rollback | redeploy previous image tag; keep Postgres + `saves` volumes |
 
 ### 4. Abuse surface (prod defaults)
@@ -483,6 +485,17 @@ Drops the session, clears session pack overrides, and destroys the live game eng
 Clients should discard the token and mint a new session to continue.
 
 Ops: `GET /v2/admin/session-packs?sessionId=…` lists enabled packs + overrides (`X-Admin-Token`).
+`GET /v2/admin/sessions` lists active identities (no JWTs); `DELETE /v2/admin/sessions/{id}`
+revokes identity and destroys the session engine (save-on-evict).
+
+### Security audit surface (`dm.security.audit`)
+
+| Outcome | When |
+|---|---|
+| `forbidden` | Marketplace install job poll/cancel by non-owner |
+| `unauthorized` | Metrics scrape fail; health detail bad ops token |
+| `rate_limited` | HTTP 429 buckets; STOMP narrate/action budget denials |
+| `request_too_large` | HTTP 413 from `Content-Length` over max |
 
 ### Pack upload size
 
