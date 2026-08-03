@@ -437,6 +437,47 @@ open class V2API {
     }
 
     /**
+     Start an async marketplace pack install (always 202 + job).
+     
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: MarketplaceInstallJobEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func installMarketplacePackAsyncV2(id: String, xRequestId: String? = nil) async throws -> MarketplaceInstallJobEnvelope {
+        return try await installMarketplacePackAsyncV2WithRequestBuilder(id: id, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Start an async marketplace pack install (always 202 + job).
+     - POST /v2/marketplace/{id}/install-async
+     - Background download with progress polling via `GET /v2/marketplace/jobs/{jobId}`. Jobs bind to the caller session for poll/cancel ACL. Equivalent to `POST /v2/marketplace/{id}/install?async=true`. 
+     - parameter id: (path)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<MarketplaceInstallJobEnvelope> 
+     */
+    open class func installMarketplacePackAsyncV2WithRequestBuilder(id: String, xRequestId: String? = nil) -> RequestBuilder<MarketplaceInstallJobEnvelope> {
+        var localVariablePath = "/v2/marketplace/{id}/install-async"
+        let idPreEscape = "\(APIHelper.mapValueToPathItem(id))"
+        let idPostEscape = idPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{id}", with: idPostEscape, options: .literal, range: nil)
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<MarketplaceInstallJobEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Install a marketplace pack into the live catalog.
      
      - parameter id: (path)  

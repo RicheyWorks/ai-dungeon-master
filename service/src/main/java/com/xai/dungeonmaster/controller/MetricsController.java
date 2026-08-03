@@ -1,6 +1,8 @@
 package com.xai.dungeonmaster.controller;
 
+import com.xai.dungeonmaster.auth.RateLimitFilter;
 import com.xai.dungeonmaster.auth.RateLimitMetrics;
+import com.xai.dungeonmaster.auth.SecurityAudit;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.service.AuthDependencyProbe;
 import com.xai.dungeonmaster.service.GameInstanceService;
@@ -64,6 +66,12 @@ public class MetricsController {
     @GetMapping(value = "/metrics", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<String> metrics(HttpServletRequest request) {
         if (!scrapeToken.isEmpty() && !tokenMatches(request)) {
+            SecurityAudit.log(
+                    "unauthorized",
+                    "/metrics",
+                    RateLimitFilter.clientIp(request, false),
+                    request != null ? request.getHeader("X-Request-Id") : null,
+                    "scrape_token_required");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .contentType(MediaType.TEXT_PLAIN)
                     .body("unauthorized\n");

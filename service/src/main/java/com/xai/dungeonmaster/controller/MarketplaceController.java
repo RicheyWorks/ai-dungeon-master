@@ -1,6 +1,8 @@
 package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.auth.JwtAuthFilter;
+import com.xai.dungeonmaster.auth.RateLimitFilter;
+import com.xai.dungeonmaster.auth.SecurityAudit;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.dto.ErrorPayload;
@@ -9,6 +11,7 @@ import com.xai.dungeonmaster.dto.MarketplaceListing;
 import com.xai.dungeonmaster.dto.MarketplacePayload;
 import com.xai.dungeonmaster.service.MarketplaceJobStore;
 import com.xai.dungeonmaster.service.MarketplaceService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +35,7 @@ import java.util.Optional;
  *   <li>{@code GET  /v2/marketplace/{id}} — pack detail</li>
  *   <li>{@code POST /v2/marketplace/{id}/install} — sync install (default)</li>
  *   <li>{@code POST /v2/marketplace/{id}/install?async=true} — background job (202)</li>
+ *   <li>{@code POST /v2/marketplace/{id}/install-async} — same as async=true (typed clients)</li>
  *   <li>{@code GET  /v2/marketplace/jobs/{jobId}} — install progress (owner only)</li>
  *   <li>{@code DELETE /v2/marketplace/jobs/{jobId}} — cancel install (owner only)</li>
  * </ul>
@@ -57,33 +61,24 @@ public class MarketplaceController {
     public ResponseEntity<Envelope<?>> job(
             @PathVariable("jobId") String jobId,
             @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
-            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        Optional<MarketplaceJobStore.JobRecord> rec = marketplace.jobRecord(jobId);
-        if (rec.isEmpty()) {
-            return ResponseEntity.status(404).body(
-                    Envelope.of("error", new ErrorPayload("Unknown install job: " + jobId), requestId));
-        }
-        if (!rec.get().ownedBy(sessionId(session))) {
-            return ResponseEntity.status(403).body(
-                    Envelope.of("error", new ErrorPayload("Install job belongs to another session."), requestId));
-        }
-        Optional<MarketplaceInstallJob> job = marketplace.job(jobId);
-        return ResponseEntity.ok(Envelope.of("marketplace_install_job", job.orElse(null), requestId));
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        return authorizeJob(jobId, session, requestId, request, "GET")
+                .orElseGet(() -> {
+                    Optional<MarketplaceInstallJob> job = marketplace.job(jobId);
+                    return ResponseEntity.ok(Envelope.of("marketplace_install_job", job.orElse(null), requestId));
+                });
     }
 
     @DeleteMapping("/jobs/{jobId}")
     public ResponseEntity<Envelope<?>> cancelJob(
             @PathVariable("jobId") String jobId,
             @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
-            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
-        Optional<MarketplaceJobStore.JobRecord> rec = marketplace.jobRecord(jobId);
-        if (rec.isEmpty()) {
-            return ResponseEntity.status(404).body(
-                    Envelope.of("error", new ErrorPayload("Unknown install job: " + jobId), requestId));
-        }
-        if (!rec.get().ownedBy(sessionId(session))) {
-            return ResponseEntity.status(403).body(
-                    Envelope.of("error", new ErrorPayload("Install job belongs to another session."), requestId));
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        Optional<ResponseEntity<Envelope<?>>> denied = authorizeJob(jobId, session, requestId, request, "DELETE");
+        if (denied.isPresent()) {
+            return denied.get();
         }
         if (!marketplace.cancelJob(jobId)) {
             return ResponseEntity.status(404).body(
@@ -105,6 +100,18 @@ public class MarketplaceController {
         return ResponseEntity.ok(Envelope.of("marketplace_pack", listing.get(), requestId));
     }
 
+    /**
+     * Explicit async install path for typed SDKs (always HTTP 202 + job envelope).
+     * Equivalent to {@code POST …/install?async=true}.
+     */
+    @PostMapping("/{id}/install-async")
+    public ResponseEntity<Envelope<?>> installAsync(
+            @PathVariable("id") String id,
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        return startAsync(id, session, requestId);
+    }
+
     @PostMapping("/{id}/install")
     public ResponseEntity<Envelope<?>> install(
             @PathVariable("id") String id,
@@ -112,15 +119,7 @@ public class MarketplaceController {
             @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         if (async) {
-            try {
-                MarketplaceInstallJob job = marketplace.startInstallAsync(id, sessionId(session));
-                return ResponseEntity.accepted()
-                        .body(Envelope.of("marketplace_install_job", job, requestId));
-            } catch (IllegalArgumentException e) {
-                int code = e.getMessage() != null && e.getMessage().startsWith("Unknown") ? 404 : 400;
-                return ResponseEntity.status(code).body(
-                        Envelope.of("error", new ErrorPayload(e.getMessage()), requestId));
-            }
+            return startAsync(id, session, requestId);
         }
         MarketplaceService.InstallResult result = marketplace.install(id);
         if (!result.ok()) {
@@ -135,6 +134,54 @@ public class MarketplaceController {
         payload.put("marketplace", marketplace.list(null));
         return ResponseEntity.status(result.alreadyInstalled() ? 200 : 201)
                 .body(Envelope.of("marketplace_install", payload, requestId));
+    }
+
+    private ResponseEntity<Envelope<?>> startAsync(
+            String id, SessionService.Session session, String requestId) {
+        try {
+            MarketplaceInstallJob job = marketplace.startInstallAsync(id, sessionId(session));
+            return ResponseEntity.accepted()
+                    .body(Envelope.of("marketplace_install_job", job, requestId));
+        } catch (IllegalArgumentException e) {
+            int code = e.getMessage() != null && e.getMessage().startsWith("Unknown") ? 404 : 400;
+            return ResponseEntity.status(code).body(
+                    Envelope.of("error", new ErrorPayload(e.getMessage()), requestId));
+        }
+    }
+
+    /**
+     * @return empty when authorized; otherwise a 404/403 response entity
+     */
+    private Optional<ResponseEntity<Envelope<?>>> authorizeJob(
+            String jobId,
+            SessionService.Session session,
+            String requestId,
+            HttpServletRequest request,
+            String method) {
+        Optional<MarketplaceJobStore.JobRecord> rec = marketplace.jobRecord(jobId);
+        if (rec.isEmpty()) {
+            return Optional.of(ResponseEntity.status(404).body(
+                    Envelope.of("error", new ErrorPayload("Unknown install job: " + jobId), requestId)));
+        }
+        String caller = sessionId(session);
+        if (!rec.get().ownedBy(caller)) {
+            String path = "/v2/marketplace/jobs/" + jobId;
+            SecurityAudit.log(
+                    "forbidden",
+                    path,
+                    RateLimitFilter.clientIp(request, false),
+                    requestId,
+                    "method=" + method
+                            + " caller=" + (caller == null ? "none" : caller)
+                            + " owner=" + nullToNone(rec.get().ownerSessionId()));
+            return Optional.of(ResponseEntity.status(403).body(
+                    Envelope.of("error", new ErrorPayload("Install job belongs to another session."), requestId)));
+        }
+        return Optional.empty();
+    }
+
+    private static String nullToNone(String s) {
+        return s == null || s.isBlank() ? "none" : s;
     }
 
     private static String sessionId(SessionService.Session session) {

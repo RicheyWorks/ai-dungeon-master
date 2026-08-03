@@ -277,7 +277,7 @@ export async function installMarketplacePack(
 
 /**
  * Start async install; returns job snapshot (HTTP 202).
- * Uses Raw so the 202 job envelope is not forced through the sync install schema.
+ * Uses dedicated `install-async` OpenAPI op (typed job envelope).
  */
 export async function startMarketplaceInstall(
   baseUrl: string,
@@ -285,20 +285,9 @@ export async function startMarketplaceInstall(
   id: string,
 ): Promise<MarketplaceInstallJob> {
   try {
-    const res = await createApi(baseUrl, token).installMarketplacePackV2Raw({
-      id,
-      async: true,
-    });
-    const json = (await res.raw.json()) as {
-      type?: string;
-      payload?: SdkMarketplaceInstallJob;
-    };
-    if (json.type === "marketplace_install_job" || json.payload?.jobId) {
-      return asInstallJob(json.payload);
-    }
-    throw new Error("install job missing jobId");
+    const env = await createApi(baseUrl, token).installMarketplacePackAsyncV2({ id });
+    return asInstallJob(env.payload);
   } catch (e) {
-    if (e instanceof Error && e.message === "install job missing jobId") throw e;
     throw new Error(await sdkErrorMessage(e, "install async"));
   }
 }
