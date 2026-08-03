@@ -1,6 +1,6 @@
 # AI Dungeon Master — Roadmap Status
 
-_Last updated: 2026-07-31 · Baseline: `mvn test` green (153 tests) · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
+_Last updated: 2026-08-02 · `mvn test` + web SPA build green · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
 
 Grounded in the current code, not the May plan. Phases 0–1 are complete, Phase 2
 is essentially complete, and Phase 5 (content packs & mods) now has substantial
@@ -12,6 +12,12 @@ by reputation via optional `factionId` on pack data) and WorldMap wiring
 `/v2/status`). SDKs (TypeScript / Kotlin / Swift) expose `location` and
 `discoveredRifts` on `GameStatusV2`.
 
+**Production multi-tenant hardening (2026-08)** is on main: JWT session isolation,
+marketplace job ownership, STOMP subscription ACL, dual admin-token rotation,
+lean public health, metrics scrape token, launch-smoke (HTTP + STOMP + metrics),
+and web/Android/iOS marketplace wiring to generated SDKs. See
+[`PRODUCTION.md`](PRODUCTION.md).
+
 ## Snapshot
 
 | Phase | Scope | Status |
@@ -19,9 +25,9 @@ by reputation via optional `factionId` on pack data) and WorldMap wiring
 | 0 — Hygiene | headless, packages, tests, listeners, sync | ✅ Done |
 | 1 — Headless core + plugin SPI | core module, SPIs, registries, loaders, signing, sandbox | ✅ Done |
 | 2 — API v2 + LLM provider | envelope, PartyState, LLM stack + keyed providers, streaming, specs, SDKs, auth, sessions, entitlements | ✅ Done |
-| 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ v1 under `android/` — session+Bearer, STOMP live narrate, Mods (upload), Store (entitlements); polish + Play Billing remain |
-| 4 — Steam + iOS | Tauri, SwiftUI on the generated Swift SDK, storefronts | ◐ SwiftUI + web SPA on main; engine hosts `/app/`; `desktop/launch.sh` one-click play; Tauri scaffold under `desktop/tauri/` (full bundle later) |
-| 5 — Content packs & mods | packs, mod browser, signing, sandboxing | ✅ 4 packs + signing + sandbox + catalog + web mod-browser w/ enable-disable + runtime pack upload (`POST /v2/catalog/packs`) |
+| 3 — First native client (Android) | Compose UI on the generated Kotlin SDK | ◐ v1 under `android/` — session+Bearer, STOMP live narrate, marketplace jobs via SDK, Mods (upload), Store; Play Billing remains |
+| 4 — Steam + iOS | Tauri, SwiftUI on the generated Swift SDK, storefronts | ◐ SwiftUI + web SPA on main; engine hosts `/app/`; game tab keys 1–9 + live stream polish; `desktop/launch.sh`; Tauri scaffold under `desktop/tauri/` (full bundle later) |
+| 5 — Content packs & mods | packs, mod browser, signing, sandboxing | ✅ 4 packs + signing + sandbox + catalog + marketplace async install + web mod-browser w/ enable-disable + runtime pack upload (`POST /v2/catalog/packs`) |
 
 ## Phase 1 — Headless core + plugin SPI ✅
 
