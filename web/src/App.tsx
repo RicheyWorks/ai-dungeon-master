@@ -65,9 +65,20 @@ export function App() {
   const [healthOk, setHealthOk] = useState<boolean | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [healthAt, setHealthAt] = useState<string | null>(null);
+  const [serverOpen, setServerOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
   const stompRef = useRef<StompClient | null>(null);
+  const mainRef = useRef<HTMLElement | null>(null);
 
   const token = session?.token ?? null;
+  const installActive =
+    !!installJob &&
+    installJob.phase !== "DONE" &&
+    installJob.phase !== "FAILED" &&
+    installJob.phase !== "CANCELLED";
+  const marketCount = marketplace?.available ?? null;
+  const ownedCount = entitlements?.owned?.length ?? null;
 
   const pollHealth = useCallback(async (url = baseUrl) => {
     const ready = await api.fetchReadiness(url);
@@ -84,6 +95,19 @@ export function App() {
     const id = window.setInterval(() => void pollHealth(), 15_000);
     return () => window.clearInterval(id);
   }, [pollHealth]);
+
+  // Auto-dismiss informational banners (errors stay until dismissed).
+  useEffect(() => {
+    if (!info) return;
+    const t = window.setTimeout(() => setInfo(null), 5500);
+    return () => window.clearTimeout(t);
+  }, [info]);
+
+  const goTab = useCallback((next: Tab) => {
+    setTab(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.setTimeout(() => mainRef.current?.focus({ preventScroll: true }), 0);
+  }, []);
 
   const disconnectStomp = useCallback(() => {
     stompRef.current?.disconnect();
@@ -229,60 +253,107 @@ export function App() {
     })();
   };
 
+
+  const copySessionId = () => {
+    if (!session) return;
+    void navigator.clipboard?.writeText(session.sessionId).then(
+      () => {
+        setCopied(true);
+        setInfo(`Copied session ${shortId(session.sessionId)}`);
+        window.setTimeout(() => setCopied(false), 1600);
+      },
+      () => setError("Clipboard unavailable"),
+    );
+  };
+
+  const openMods = () => {
+    goTab("mods");
+    void (async () => {
+      try {
+        setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+      if (token) {
+        void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)));
+      }
+    })();
+  };
+
+  const openStore = () => {
+    goTab("store");
+    if (!entitlements) {
+      void run(async (s) => setEntitlements(await api.listEntitlements(baseUrl, s.token)));
+    }
+  };
+
   return (
-    <div className="app">
+    <div className={`app${busy ? " is-busy" : ""}`}>
+      <div className={`busy-bar${busy ? " on" : ""}`} aria-hidden />
+
       <header className="brand">
-        <h1>AI Dungeon Master</h1>
-        <p className="tagline">Session-scoped play · live narration · content packs</p>
+        <div className="brand-text">
+          <h1>AI Dungeon Master</h1>
+          <p className="tagline">Session-scoped play · live narration · content packs</p>
+        </div>
+        <div className="brand-actions">
+          <button type="button" className="ghost compact" onClick={refresh} disabled={busy}>
+            {busy ? "Syncing…" : "Sync"}
+          </button>
+          <button type="button" className="primary compact" onClick={startSession} disabled={busy}>
+            {session ? "New session" : "Start session"}
+          </button>
+        </div>
       </header>
 
-      <div className="bar">
-        <input
-          value={baseUrl}
-          onChange={(e) => onBaseUrlChange(e.target.value)}
-          placeholder="Server (empty = same origin)"
-          spellCheck={false}
-          aria-label="Engine base URL"
-        />
-        <button type="button" onClick={refresh} disabled={busy}>
-          {busy ? "…" : "Sync"}
-        </button>
-        <button type="button" className="primary" onClick={startSession} disabled={busy}>
-          {session ? "New session" : "Start session"}
-        </button>
-        {session ? (
-          <button
-            type="button"
-            className="ghost"
-            disabled={busy}
-            onClick={() =>
-              void (async () => {
-                setBusy(true);
-                setError(null);
-                try {
-                  if (session) {
-                    await api.logoutSession(baseUrl, session.token);
+      <details
+        className="server-details"
+        open={serverOpen}
+        onToggle={(e) => setServerOpen((e.target as HTMLDetailsElement).open)}
+      >
+        <summary>Server connection</summary>
+        <div className="bar">
+          <input
+            value={baseUrl}
+            onChange={(e) => onBaseUrlChange(e.target.value)}
+            placeholder="Empty = same origin"
+            spellCheck={false}
+            aria-label="Engine base URL"
+            autoComplete="off"
+          />
+          {session ? (
+            <button
+              type="button"
+              className="ghost"
+              disabled={busy}
+              onClick={() =>
+                void (async () => {
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    if (session) {
+                      await api.logoutSession(baseUrl, session.token);
+                    }
+                  } catch (e) {
+                    console.warn(e);
+                  } finally {
+                    disconnectStomp();
+                    sessionStore.clearSession();
+                    setSession(null);
+                    setCatalog(null);
+                    setEntitlements(null);
+                    setStatus(null);
+                    setInfo("Logged out");
+                    setBusy(false);
                   }
-                } catch (e) {
-                  // still clear local state if server already forgot us
-                  console.warn(e);
-                } finally {
-                  disconnectStomp();
-                  sessionStore.clearSession();
-                  setSession(null);
-                  setCatalog(null);
-                  setEntitlements(null);
-                  setStatus(null);
-                  setInfo("Logged out");
-                  setBusy(false);
-                }
-              })()
-            }
-          >
-            Log out
-          </button>
-        ) : null}
-      </div>
+                })()
+              }
+            >
+              Log out
+            </button>
+          ) : null}
+        </div>
+      </details>
 
       {session && (
         <div className={`session-line${stompConnected ? " live" : ""}`}>
@@ -290,6 +361,14 @@ export function App() {
             {session.displayName} · {shortId(session.sessionId)}
             {stompConnected ? " · LIVE" : ""}
           </span>
+          <button
+            type="button"
+            className="ghost compact"
+            onClick={copySessionId}
+            title="Copy full session id"
+          >
+            {copied ? "Copied" : "Copy id"}
+          </button>
           <span
             className={
               healthOk === true ? "pill up" : healthOk === false ? "pill down" : "pill"
@@ -298,6 +377,11 @@ export function App() {
           >
             {healthOk === true ? "READY" : healthOk === false ? "NOT READY" : "…"}
           </span>
+          {installActive && tab !== "mods" ? (
+            <button type="button" className="pill muted-pill job-chip" onClick={openMods}>
+              Install {installJob?.percent ?? 0}%
+            </button>
+          ) : null}
         </div>
       )}
       {!session && healthOk !== null && (
@@ -309,53 +393,59 @@ export function App() {
           {healthAt ? <span className="subtle">checked {healthAt}</span> : null}
         </div>
       )}
-      {info && <div className="banner" role="status">{info}</div>}
+
+      {info && (
+        <div className="banner" role="status">
+          <span className="banner-text">{info}</span>
+          <button type="button" className="banner-dismiss" onClick={() => setInfo(null)} aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      )}
       {error && (
         <div className="banner error" role="alert">
-          {error}
+          <span className="banner-text">{error}</span>
+          <button type="button" className="banner-dismiss" onClick={() => setError(null)} aria-label="Dismiss error">
+            ×
+          </button>
         </div>
       )}
 
       <nav className="tabs" aria-label="Main">
-        <button type="button" className={tab === "game" ? "active" : ""} onClick={() => setTab("game")}>
+        <button
+          type="button"
+          className={tab === "game" ? "active" : ""}
+          aria-current={tab === "game" ? "page" : undefined}
+          onClick={() => goTab("game")}
+        >
           Game
         </button>
         <button
           type="button"
           className={tab === "mods" ? "active" : ""}
-          onClick={() => {
-            setTab("mods");
-            void (async () => {
-              try {
-                setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
-              } catch (e) {
-                setError(e instanceof Error ? e.message : String(e));
-              }
-              if (token) {
-                void run(async (s) => setCatalog(await api.getCatalog(baseUrl, s.token)));
-              }
-            })();
-          }}
+          aria-current={tab === "mods" ? "page" : undefined}
+          onClick={openMods}
         >
           Mods
+          {marketCount != null ? <span className="tab-count">{marketCount}</span> : null}
         </button>
         <button
           type="button"
           className={tab === "store" ? "active" : ""}
-          onClick={() => {
-            setTab("store");
-            if (!entitlements) {
-              void run(async (s) => setEntitlements(await api.listEntitlements(baseUrl, s.token)));
-            }
-          }}
+          aria-current={tab === "store" ? "page" : undefined}
+          onClick={openStore}
         >
           Store
+          {ownedCount != null && ownedCount > 0 ? (
+            <span className="tab-count">{ownedCount}</span>
+          ) : null}
         </button>
         <button
           type="button"
           className={tab === "system" ? "active" : ""}
+          aria-current={tab === "system" ? "page" : undefined}
           onClick={() => {
-            setTab("system");
+            goTab("system");
             void pollHealth();
           }}
         >
@@ -363,6 +453,7 @@ export function App() {
         </button>
       </nav>
 
+      <main id="main" className="main" ref={mainRef} tabIndex={-1}>
       {tab === "game" && (
         <GameTab
           status={status}
@@ -372,6 +463,7 @@ export function App() {
           streamBuffer={streamBuffer}
           prompt={prompt}
           setPrompt={setPrompt}
+          onClearPrompt={() => setPrompt("")}
           onAct={(label) =>
             void run(async (s) => {
               connectStomp(s);
@@ -428,6 +520,8 @@ export function App() {
           busy={busy}
           replace={replace}
           setReplace={setReplace}
+          dropActive={dropActive}
+          setDropActive={setDropActive}
           onReload={() =>
             void (async () => {
               try {
@@ -511,10 +605,7 @@ export function App() {
                 ? `Unlock "${packLabel}" with product ${sku}`
                 : `Unlock with product ${sku}`,
             );
-            setTab("store");
-            if (!entitlements) {
-              void run(async (s) => setEntitlements(await api.listEntitlements(baseUrl, s.token)));
-            }
+            openStore();
             setInfo(`Store ready — buy ${sku} to unlock${packLabel ? ` ${packLabel}` : ""}.`);
           }}
         />
@@ -593,11 +684,19 @@ export function App() {
         />
       )}
 
-      {/* silence unused token lint in edge cases */}
-      {token ? null : null}
+
+      </main>
+
+      <footer className="app-footer">
+        <span className="subtle">
+          Game: keys <kbd>1</kbd>–<kbd>9</kbd> choose · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> narrate
+        </span>
+        <span className="subtle">SPA · /app</span>
+      </footer>
     </div>
   );
 }
+
 
 function GameTab(props: {
   status: GameStatusV2 | null;
@@ -609,6 +708,7 @@ function GameTab(props: {
   setPrompt: (v: string) => void;
   onAct: (label: string) => void;
   onNarrate: () => void;
+  onClearPrompt: () => void;
   onSave: () => void;
   onLoad: () => void;
   onReset: () => void;
@@ -694,12 +794,25 @@ function GameTab(props: {
         {status?.combatActive ? <span className="pill down">COMBAT</span> : null}
       </div>
 
-      {!status ? (
+      {!status && props.busy ? (
+        <div className="stack" aria-busy="true" aria-label="Loading adventure">
+          <div className="skeleton sk-title" />
+          <div className="skeleton sk-block" />
+          <div className="party-grid">
+            <div className="skeleton sk-card" />
+            <div className="skeleton sk-card" />
+          </div>
+        </div>
+      ) : null}
+
+      {!status && !props.busy ? (
         <div className="empty">
           <strong>No adventure yet</strong>
           Start or restore a session, then Sync to load party and choices.
         </div>
-      ) : (
+      ) : null}
+
+      {status ? (
         <>
           <div className={`card quest-card${status.combatActive ? " combat" : ""}`}>
             <h2>{quest?.title ?? "No active quest"}</h2>
@@ -726,7 +839,14 @@ function GameTab(props: {
                 </span>
               ) : null}
             </div>
-            <div className="progress" aria-hidden>
+            <div
+              className="progress"
+              role="progressbar"
+              aria-valuenow={Math.round(progress * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Quest progress"
+            >
               <span style={{ width: `${progress * 100}%` }} />
             </div>
             <div className="subtle" style={{ marginTop: 6 }}>
@@ -768,7 +888,14 @@ function GameTab(props: {
                           {m.role ?? ""} · L{m.level ?? 1}
                         </span>
                       </div>
-                      <div className="progress hp" aria-hidden>
+                      <div
+                        className="progress hp"
+                        role="progressbar"
+                        aria-valuenow={hp}
+                        aria-valuemin={0}
+                        aria-valuemax={maxHp}
+                        aria-label={`${m.name ?? "Member"} hit points`}
+                      >
                         <span style={{ width: `${ratio * 100}%` }} />
                       </div>
                       <div className="muted" style={{ marginTop: 6 }}>
@@ -842,7 +969,7 @@ function GameTab(props: {
             )}
           </section>
         </>
-      )}
+      ) : null}
 
       <section className="narrate-panel">
         <h3>
@@ -871,6 +998,11 @@ function GameTab(props: {
           >
             {props.stompConnected ? "Stream narrate" : "Narrate"}
           </button>
+          {props.prompt ? (
+            <button type="button" className="ghost" onClick={props.onClearPrompt}>
+              Clear
+            </button>
+          ) : null}
           {props.streamBuffer ? (
             <span className="pill muted-pill">Streaming…</span>
           ) : null}
@@ -903,6 +1035,8 @@ function ModsTab(props: {
   busy: boolean;
   replace: boolean;
   setReplace: (v: boolean) => void;
+  dropActive: boolean;
+  setDropActive: (v: boolean) => void;
   installJob: MarketplaceInstallJob | null;
   onReload: () => void;
   onSearch: () => void;
@@ -920,6 +1054,15 @@ function ModsTab(props: {
     job.phase !== "DONE" &&
     job.phase !== "FAILED" &&
     job.phase !== "CANCELLED";
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const acceptFile = (file: File | undefined | null) => {
+    if (!file) return;
+    const ok =
+      file.name.toLowerCase().endsWith(".zip") || file.type === "application/zip";
+    if (!ok) return;
+    props.onUpload(file);
+  };
 
   return (
     <div className="stack">
@@ -941,7 +1084,14 @@ function ModsTab(props: {
               </button>
             )}
           </div>
-          <div className="progress job" aria-hidden>
+          <div
+            className="progress job"
+            role="progressbar"
+            aria-valuenow={job.percent ?? 0}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Install progress"
+          >
             <span style={{ width: `${Math.min(100, Math.max(0, job.percent ?? 0))}%` }} />
           </div>
           <div className="muted">
@@ -1067,10 +1217,38 @@ function ModsTab(props: {
             disabled={props.busy}
           />
         </label>
+        <div
+          className={`dropzone${props.dropActive ? " active" : ""}${props.busy ? " disabled" : ""}`}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            if (!props.busy) props.setDropActive(true);
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDragLeave={() => props.setDropActive(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            props.setDropActive(false);
+            if (!props.busy) acceptFile(e.dataTransfer.files?.[0]);
+          }}
+          onClick={() => !props.busy && fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+        >
+          <strong>Drop a .zip here</strong>
+          <span className="subtle">or click to browse</span>
+        </div>
         <input
+          ref={fileInputRef}
           type="file"
           accept=".zip,application/zip"
           disabled={props.busy}
+          className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) props.onUpload(f);
@@ -1178,11 +1356,13 @@ function StoreTab(props: {
         {owned.length === 0 ? (
           <p className="muted">None yet — buy via Steam/desktop, sandbox, or verify a receipt.</p>
         ) : (
-          <ul style={{ margin: "8px 0 0", paddingLeft: "1.2rem" }}>
+          <div className="chip-row">
             {owned.map((sku) => (
-              <li key={sku}>{sku}</li>
+              <span key={sku} className="chip">
+                {sku}
+              </span>
             ))}
-          </ul>
+          </div>
         )}
         {props.entitlements?.reason && (
           <div className="muted">Last: {props.entitlements.reason}</div>
@@ -1463,9 +1643,28 @@ function SystemTab(props: {
           </span>
         </div>
         {mem && (
-          <div className="muted" style={{ marginTop: "0.5rem" }}>
-            Heap free {fmtBytes(mem.freeBytes)} / total {fmtBytes(mem.totalBytes)} (max{" "}
-            {fmtBytes(mem.maxBytes)})
+          <div className="mem-block">
+            <div className="muted" style={{ marginTop: "0.5rem" }}>
+              Heap free {fmtBytes(mem.freeBytes)} / total {fmtBytes(mem.totalBytes)} (max{" "}
+              {fmtBytes(mem.maxBytes)})
+            </div>
+            {mem.maxBytes && mem.maxBytes > 0 ? (
+              <div
+                className="progress"
+                role="progressbar"
+                aria-valuenow={Math.round(((mem.totalBytes ?? 0) / mem.maxBytes) * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Heap usage vs max"
+                style={{ marginTop: 8 }}
+              >
+                <span
+                  style={{
+                    width: `${Math.min(100, ((mem.totalBytes ?? 0) / mem.maxBytes) * 100)}%`,
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
         )}
       </div>
