@@ -177,6 +177,7 @@ GAME_PRODUCTION=true GAME_AUTH_ENABLED=true \
 dependency maps, and memory stats are **not** exposed without an ops token:
 
 - `X-Metrics-Token: <game.metrics.scrape-token>` or `Authorization: Bearer …`
+  (also accepts `game.metrics.scrape-token.previous` during rotation)
 - `X-Admin-Token: <game.admin.token>` (or `game.admin.token.previous` during rotation)
 
 `AuthDependencyProbe` only checks backends your store config actually uses
@@ -226,11 +227,16 @@ See `deploy/alertmanager/alertmanager.receivers.yml` and `templates/dm.tmpl`.
 
 When `game.metrics.scrape-token` is set (required in production), scrapers must send:
 
+
 ```http
 GET /metrics
 X-Metrics-Token: <token>
 # or Authorization: Bearer <token>
 ```
+
+During rotation, set `GAME_METRICS_SCRAPE_TOKEN` to the new secret and
+`GAME_METRICS_SCRAPE_TOKEN_PREVIOUS` (`game.metrics.scrape-token.previous`) to the
+old one so scrapers can roll without downtime. Health detail accepts the same pair.
 
 Launch smoke asserts this when `METRICS_TOKEN` is set (`launch-check` always sets one):
 unauthenticated scrapes must get **401**, and both header forms must return **200**.

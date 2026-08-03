@@ -27,6 +27,7 @@ import java.util.Map;
  *
  * <p>When {@code game.metrics.scrape-token} is set, scrapers must send
  * {@code Authorization: Bearer <token>} or {@code X-Metrics-Token: <token>}.
+ * During rotation, {@code game.metrics.scrape-token.previous} is also accepted.
  * When blank, the endpoint stays open for private-network scrapes (dev default).
  */
 @RestController
@@ -37,6 +38,7 @@ public class MetricsController {
     private final AuthDependencyProbe dependencies;
     private final RateLimitMetrics rateLimits;
     private final String scrapeToken;
+    private final String previousScrapeToken;
     private final long startedAtMs;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -45,12 +47,14 @@ public class MetricsController {
             GameInstanceService instances,
             AuthDependencyProbe dependencies,
             RateLimitMetrics rateLimits,
-            @Value("${game.metrics.scrape-token:}") String scrapeToken) {
+            @Value("${game.metrics.scrape-token:}") String scrapeToken,
+            @Value("${game.metrics.scrape-token.previous:}") String previousScrapeToken) {
         this.sessions = sessions;
         this.instances = instances;
         this.dependencies = dependencies;
         this.rateLimits = rateLimits;
         this.scrapeToken = scrapeToken == null ? "" : scrapeToken.trim();
+        this.previousScrapeToken = previousScrapeToken == null ? "" : previousScrapeToken.trim();
         this.startedAtMs = ManagementFactory.getRuntimeMXBean().getStartTime();
     }
 
@@ -60,7 +64,17 @@ public class MetricsController {
             GameInstanceService instances,
             AuthDependencyProbe dependencies,
             RateLimitMetrics rateLimits) {
-        this(sessions, instances, dependencies, rateLimits, "");
+        this(sessions, instances, dependencies, rateLimits, "", "");
+    }
+
+    /** Test helper with primary scrape token only. */
+    public MetricsController(
+            SessionService sessions,
+            GameInstanceService instances,
+            AuthDependencyProbe dependencies,
+            RateLimitMetrics rateLimits,
+            String scrapeToken) {
+        this(sessions, instances, dependencies, rateLimits, scrapeToken, "");
     }
 
     @GetMapping(value = "/metrics", produces = MediaType.TEXT_PLAIN_VALUE)
@@ -147,14 +161,19 @@ public class MetricsController {
     private boolean tokenMatches(HttpServletRequest request) {
         if (request == null) return false;
         String header = request.getHeader("X-Metrics-Token");
-        if (header != null && constantTimeEquals(scrapeToken, header.trim())) {
+        if (header != null && scrapeTokenAccepted(header.trim())) {
             return true;
         }
         String auth = request.getHeader("Authorization");
         if (auth != null && auth.regionMatches(true, 0, "Bearer ", 0, 7)) {
-            return constantTimeEquals(scrapeToken, auth.substring(7).trim());
+            return scrapeTokenAccepted(auth.substring(7).trim());
         }
         return false;
+    }
+
+    private boolean scrapeTokenAccepted(String presented) {
+        if (constantTimeEquals(scrapeToken, presented)) return true;
+        return !previousScrapeToken.isEmpty() && constantTimeEquals(previousScrapeToken, presented);
     }
 
     private static boolean constantTimeEquals(String expected, String actual) {

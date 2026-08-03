@@ -40,12 +40,40 @@ export function resolveBase(baseUrl: string): string {
   return "http://127.0.0.1:8080";
 }
 
+/** Correlation id for X-Request-Id (opaque, short). */
+export function newRequestId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function clientHeaders(token: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    "X-Request-Id": newRequestId(),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
 /** Create a configured V2 client. */
 export function createApi(baseUrl: string, token: string | null): V2Api {
   return new V2Api(
     new Configuration({
       basePath: resolveBase(baseUrl),
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      headers: clientHeaders(token),
+    }),
+  );
+}
+
+function createAdminApi(baseUrl: string, adminToken: string): AdminApi {
+  return new AdminApi(
+    new Configuration({
+      basePath: resolveBase(baseUrl),
+      headers: {
+        "X-Admin-Token": adminToken,
+        "X-Request-Id": newRequestId(),
+      },
     }),
   );
 }
@@ -396,7 +424,10 @@ export async function fetchReadiness(
 }> {
   const base = resolveBase(baseUrl);
   try {
-    const headers: Record<string, string> = { Accept: "application/json" };
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "X-Request-Id": newRequestId(),
+    };
     if (opts?.metricsToken?.trim()) headers["X-Metrics-Token"] = opts.metricsToken.trim();
     if (opts?.adminToken?.trim()) headers["X-Admin-Token"] = opts.adminToken.trim();
     const res = await fetch(`${base}/health/ready`, { headers });
@@ -422,7 +453,10 @@ export async function fetchHealthV2(
 }> {
   const base = resolveBase(baseUrl);
   try {
-    const headers: Record<string, string> = { Accept: "application/json" };
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "X-Request-Id": newRequestId(),
+    };
     if (opts?.metricsToken?.trim()) {
       headers["X-Metrics-Token"] = opts.metricsToken.trim();
     }
@@ -455,15 +489,6 @@ export type AdminSessionsPayload = {
   limit?: number;
   sessions?: AdminSessionRow[];
 };
-
-function createAdminApi(baseUrl: string, adminToken: string): AdminApi {
-  return new AdminApi(
-    new Configuration({
-      basePath: resolveBase(baseUrl),
-      headers: { "X-Admin-Token": adminToken },
-    }),
-  );
-}
 
 export async function listAdminSessions(
   baseUrl: string,
@@ -582,7 +607,10 @@ export async function probeMetrics(
   metricsToken?: string,
 ): Promise<{ ok: boolean; status: number; bytes: number; sample?: string }> {
   const base = resolveBase(baseUrl);
-  const headers: Record<string, string> = { Accept: "text/plain" };
+  const headers: Record<string, string> = {
+    Accept: "text/plain",
+    "X-Request-Id": newRequestId(),
+  };
   if (metricsToken?.trim()) {
     headers["X-Metrics-Token"] = metricsToken.trim();
   }

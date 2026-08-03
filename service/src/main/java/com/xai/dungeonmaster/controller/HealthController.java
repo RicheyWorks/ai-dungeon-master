@@ -44,6 +44,7 @@ public class HealthController {
     private final GameInstanceService instances;
     private final AuthDependencyProbe dependencies;
     private final String metricsScrapeToken;
+    private final String previousMetricsScrapeToken;
     private final String adminToken;
     private final String previousAdminToken;
     private final long startedAtMs;
@@ -54,12 +55,15 @@ public class HealthController {
             GameInstanceService instances,
             AuthDependencyProbe dependencies,
             @Value("${game.metrics.scrape-token:}") String metricsScrapeToken,
+            @Value("${game.metrics.scrape-token.previous:}") String previousMetricsScrapeToken,
             @Value("${game.admin.token:}") String adminToken,
             @Value("${game.admin.token.previous:}") String previousAdminToken) {
         this.sessions = sessions;
         this.instances = instances;
         this.dependencies = dependencies;
         this.metricsScrapeToken = metricsScrapeToken == null ? "" : metricsScrapeToken.trim();
+        this.previousMetricsScrapeToken =
+                previousMetricsScrapeToken == null ? "" : previousMetricsScrapeToken.trim();
         this.adminToken = adminToken == null ? "" : adminToken.trim();
         this.previousAdminToken = previousAdminToken == null ? "" : previousAdminToken.trim();
         this.startedAtMs = ManagementFactory.getRuntimeMXBean().getStartTime();
@@ -70,7 +74,18 @@ public class HealthController {
             SessionService sessions,
             GameInstanceService instances,
             AuthDependencyProbe dependencies) {
-        this(sessions, instances, dependencies, "", "", "");
+        this(sessions, instances, dependencies, "", "", "", "");
+    }
+
+    /** Test helper with primary metrics + admin tokens. */
+    public HealthController(
+            SessionService sessions,
+            GameInstanceService instances,
+            AuthDependencyProbe dependencies,
+            String metricsScrapeToken,
+            String adminToken,
+            String previousAdminToken) {
+        this(sessions, instances, dependencies, metricsScrapeToken, "", adminToken, previousAdminToken);
     }
 
     /** Liveness: 200 when the JVM is accepting HTTP. */
@@ -134,12 +149,12 @@ public class HealthController {
     private boolean detailAllowed(HttpServletRequest request) {
         if (request == null) return false;
         String metricsHeader = request.getHeader("X-Metrics-Token");
-        if (metricsHeader != null && tokenOk(metricsScrapeToken, metricsHeader.trim())) {
+        if (metricsHeader != null && metricsTokenAccepted(metricsHeader.trim())) {
             return true;
         }
         String auth = request.getHeader("Authorization");
         if (auth != null && auth.regionMatches(true, 0, "Bearer ", 0, 7)
-                && tokenOk(metricsScrapeToken, auth.substring(7).trim())) {
+                && metricsTokenAccepted(auth.substring(7).trim())) {
             return true;
         }
         String admin = request.getHeader("X-Admin-Token");
@@ -152,6 +167,11 @@ public class HealthController {
         return false;
     }
 
+    private boolean metricsTokenAccepted(String presented) {
+        if (tokenOk(metricsScrapeToken, presented)) return true;
+        return tokenOk(previousMetricsScrapeToken, presented);
+    }
+
     /**
      * Audit only explicit ops-token attempts that failed (not plain public probes,
      * and not session JWT on {@code Authorization}).
@@ -160,7 +180,7 @@ public class HealthController {
         if (request == null) return;
         String metricsHeader = request.getHeader("X-Metrics-Token");
         if (metricsHeader != null && !metricsHeader.isBlank()
-                && !tokenOk(metricsScrapeToken, metricsHeader.trim())) {
+                && !metricsTokenAccepted(metricsHeader.trim())) {
             SecurityAudit.log(
                     "unauthorized",
                     path,

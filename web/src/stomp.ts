@@ -3,6 +3,19 @@ export type StompListener = {
   onMessage: (destination: string, body: string) => void;
   onError: (message: string) => void;
   onClosed: () => void;
+  /** Fired when a reconnect attempt is scheduled (attempt is 1-based). */
+  onReconnecting?: (attempt: number, delayMs: number) => void;
+};
+
+export type StompClientOptions = {
+  /** Auto-reconnect after unexpected close (default true). */
+  autoReconnect?: boolean;
+  /** Max reconnect attempts (default 8). */
+  maxReconnectAttempts?: number;
+  /** Base delay ms for exponential backoff (default 800). */
+  reconnectBaseMs?: number;
+  /** Cap delay ms (default 15000). */
+  reconnectMaxMs?: number;
 };
 
 /** Minimal STOMP 1.2 over native WebSocket (`/ws-stomp`). */
@@ -10,13 +23,27 @@ export class StompClient {
   private ws: WebSocket | null = null;
   private buffer = "";
   private subSeq = 0;
+  private intentionalClose = false;
+  private reconnectAttempt = 0;
+  private reconnectTimer: number | null = null;
   connected = false;
+
+  private readonly autoReconnect: boolean;
+  private readonly maxReconnectAttempts: number;
+  private readonly reconnectBaseMs: number;
+  private readonly reconnectMaxMs: number;
 
   constructor(
     private readonly url: string,
-    private readonly token: string | null,
+    private token: string | null,
     private readonly listener: StompListener,
-  ) {}
+    options: StompClientOptions = {},
+  ) {
+    this.autoReconnect = options.autoReconnect !== false;
+    this.maxReconnectAttempts = options.maxReconnectAttempts ?? 8;
+    this.reconnectBaseMs = options.reconnectBaseMs ?? 800;
+    this.reconnectMaxMs = options.reconnectMaxMs ?? 15_000;
+  }
 
   static stompUrl(httpBase: string): string {
     let base = httpBase.replace(/\/$/, "");
@@ -31,15 +58,23 @@ export class StompClient {
     return base + "/ws-stomp";
   }
 
+  /** Update Bearer token (e.g. after session refresh) before reconnect. */
+  setToken(token: string | null) {
+    this.token = token;
+  }
+
   connect() {
     if (this.ws) return;
+    this.intentionalClose = false;
     this.ws = new WebSocket(this.url);
     this.ws.onopen = () => this.sendRaw(this.buildConnect());
     this.ws.onmessage = (ev) => this.handleIncoming(String(ev.data));
     this.ws.onerror = () => this.listener.onError("WebSocket error");
     this.ws.onclose = () => {
       this.connected = false;
+      this.ws = null;
       this.listener.onClosed();
+      this.scheduleReconnect();
     };
   }
 
@@ -66,6 +101,9 @@ export class StompClient {
   }
 
   disconnect() {
+    this.intentionalClose = true;
+    this.clearReconnectTimer();
+    this.reconnectAttempt = 0;
     try {
       if (this.connected) this.sendRaw(this.frame("DISCONNECT", { receipt: "bye" }, null));
     } catch {
@@ -74,6 +112,34 @@ export class StompClient {
     this.ws?.close();
     this.ws = null;
     this.connected = false;
+  }
+
+  private scheduleReconnect() {
+    if (this.intentionalClose || !this.autoReconnect) return;
+    if (this.reconnectAttempt >= this.maxReconnectAttempts) {
+      this.listener.onError(`Live stream offline after ${this.maxReconnectAttempts} reconnects`);
+      return;
+    }
+    this.reconnectAttempt += 1;
+    const exp = Math.min(
+      this.reconnectMaxMs,
+      this.reconnectBaseMs * Math.pow(2, this.reconnectAttempt - 1),
+    );
+    const jitter = Math.floor(Math.random() * 200);
+    const delay = exp + jitter;
+    this.listener.onReconnecting?.(this.reconnectAttempt, delay);
+    this.clearReconnectTimer();
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, delay);
+  }
+
+  private clearReconnectTimer() {
+    if (this.reconnectTimer != null) {
+      window.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   }
 
   private sendRaw(frame: string) {
@@ -106,6 +172,7 @@ export class StompClient {
     }
     if (command === "CONNECTED") {
       this.connected = true;
+      this.reconnectAttempt = 0;
       this.listener.onConnected();
     } else if (command === "MESSAGE") {
       this.listener.onMessage(headers.destination ?? "", body);
