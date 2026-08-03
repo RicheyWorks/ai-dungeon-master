@@ -28,6 +28,7 @@ import com.xai.dungeonmaster.client.models.GameSaveEnvelope
 import com.xai.dungeonmaster.client.models.GameStatusEnvelope
 import com.xai.dungeonmaster.client.models.HealthEnvelope
 import com.xai.dungeonmaster.client.models.MarketplaceEnvelope
+import com.xai.dungeonmaster.client.models.MarketplaceInstallEnvelope
 import com.xai.dungeonmaster.client.models.MarketplaceInstallJobEnvelope
 import com.xai.dungeonmaster.client.models.MarketplacePackEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
@@ -885,19 +886,20 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
      * @param id 
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
      * @param async When true, returns 202 + job id for progress polling. (optional, default to false)
-     * @return void
+     * @return MarketplaceInstallEnvelope
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
      * @throws UnsupportedOperationException If the API returns an informational or redirection response
      * @throws ClientException If the API returns a client error response
      * @throws ServerException If the API returns a server error response
      */
+    @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
-    fun installMarketplacePackV2(id: kotlin.String, xRequestId: kotlin.String? = null, async: kotlin.Boolean? = false) : Unit {
+    fun installMarketplacePackV2(id: kotlin.String, xRequestId: kotlin.String? = null, async: kotlin.Boolean? = false) : MarketplaceInstallEnvelope {
         val localVarResponse = installMarketplacePackV2WithHttpInfo(id = id, xRequestId = xRequestId, async = async)
 
         return when (localVarResponse.responseType) {
-            ResponseType.Success -> Unit
+            ResponseType.Success -> (localVarResponse as Success<*>).data as MarketplaceInstallEnvelope
             ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
             ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
             ResponseType.ClientError -> {
@@ -917,15 +919,16 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
      * @param id 
      * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
      * @param async When true, returns 202 + job id for progress polling. (optional, default to false)
-     * @return ApiResponse<Unit?>
+     * @return ApiResponse<MarketplaceInstallEnvelope?>
      * @throws IllegalStateException If the request is not correctly configured
      * @throws IOException Rethrows the OkHttp execute method exception
      */
+    @Suppress("UNCHECKED_CAST")
     @Throws(IllegalStateException::class, IOException::class)
-    fun installMarketplacePackV2WithHttpInfo(id: kotlin.String, xRequestId: kotlin.String?, async: kotlin.Boolean?) : ApiResponse<Unit?> {
+    fun installMarketplacePackV2WithHttpInfo(id: kotlin.String, xRequestId: kotlin.String?, async: kotlin.Boolean?) : ApiResponse<MarketplaceInstallEnvelope?> {
         val localVariableConfig = installMarketplacePackV2RequestConfig(id = id, xRequestId = xRequestId, async = async)
 
-        return request<Unit, Unit>(
+        return request<Unit, MarketplaceInstallEnvelope>(
             localVariableConfig
         )
     }

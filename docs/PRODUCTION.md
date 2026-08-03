@@ -77,8 +77,10 @@ Play path covered by `launch-smoke.sh`:
 ### 5. Client parity
 
 Web (`web/src/api.ts`) uses the generated TS SDK for session/action/narrate/save/load/logout/catalog/entitlements
-**and marketplace list/install/jobs**. Kotlin/Swift SDKs expose the same OpenAPI operations under
-`clients/kotlin` and `clients/swift`.
+**and marketplace list/install/jobs**. Android and iOS ViewModels call the regenerated Kotlin/Swift
+`V2Api`/`V2API` for marketplace list, job poll, and cancel (async start still decodes the 202 job
+envelope until OpenAPI models a dual response). SDKs live under `clients/kotlin` and `clients/swift`.
+
 
 ---
 ## Fail-fast security guard

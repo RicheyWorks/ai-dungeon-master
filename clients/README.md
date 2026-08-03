@@ -12,9 +12,15 @@ with [openapi-generator](https://openapi-generator.tech) **7.7.0**.
 
 All three expose the same surface: a `V2Api`/`V2API` covering every `/v2`
 operation — game status/action/narrate, sessions, catalog and pack toggles,
-marketplace browse/install/jobs, entitlements, and health — plus `HealthApi`/
-`HealthAPI`, `AdminApi`/`AdminAPI`, and `LegacyApi`/`LegacyAPI`, over the typed
-`Envelope { type, version, payload, requestId }` models.
+marketplace browse/install (sync typed + async jobs), entitlements, and health —
+plus `HealthApi`/`HealthAPI`, `AdminApi`/`AdminAPI`, and `LegacyApi`/`LegacyAPI`,
+over the typed `Envelope { type, version, payload, requestId }` models.
+
+Native apps: Android sources the Kotlin client via `sourceSets`; iOS depends on
+the SwiftPM package. Marketplace list / job poll / cancel go through the generated
+API; async install (`?async=true`) returns a 202 job envelope decoded at the edge
+because the install operation's primary schema is the sync install result.
+
 
 ## Regenerate
 

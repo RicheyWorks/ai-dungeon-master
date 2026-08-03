@@ -540,7 +540,7 @@ No authorization required
 
 <a id="installMarketplacePackV2"></a>
 # **installMarketplacePackV2**
-> installMarketplacePackV2(id, xRequestId, async)
+> MarketplaceInstallEnvelope installMarketplacePackV2(id, xRequestId, async)
 
 Install a marketplace pack into the live catalog.
 
@@ -557,7 +557,8 @@ val id : kotlin.String = id_example // kotlin.String |
 val xRequestId : kotlin.String = xRequestId_example // kotlin.String | Optional correlation id echoed back in the response envelope's requestId. A server-generated UUID is used when omitted. 
 val async : kotlin.Boolean = true // kotlin.Boolean | When true, returns 202 + job id for progress polling.
 try {
-    apiInstance.installMarketplacePackV2(id, xRequestId, async)
+    val result : MarketplaceInstallEnvelope = apiInstance.installMarketplacePackV2(id, xRequestId, async)
+    println(result)
 } catch (e: ClientException) {
     println("4xx response calling V2Api#installMarketplacePackV2")
     e.printStackTrace()
@@ -576,7 +577,7 @@ try {
 
 ### Return type
 
-null (empty response body)
+[**MarketplaceInstallEnvelope**](MarketplaceInstallEnvelope.md)
 
 ### Authorization
 
