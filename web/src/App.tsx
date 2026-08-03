@@ -129,29 +129,72 @@ export function App() {
     return () => window.clearTimeout(t);
   }, [info]);
 
-  // ? opens keyboard help (ignore when typing).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      const tag = t?.tagName?.toLowerCase();
-      const inField =
-        tag === "input" || tag === "textarea" || tag === "select" || t?.isContentEditable;
-      if (inField) return;
-      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
-        e.preventDefault();
-        setHelpOpen((v) => !v);
-      }
-      if (e.key === "Escape") setHelpOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   const goTab = useCallback((next: Tab) => {
     setTab(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
     window.setTimeout(() => mainRef.current?.focus({ preventScroll: true }), 0);
   }, []);
+
+  // ? opens keyboard help (ignore when typing). Escape dismisses help/banners.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName?.toLowerCase();
+      const inField =
+        tag === "input" || tag === "textarea" || tag === "select" || el?.isContentEditable;
+      if (e.key === "Escape") {
+        if (helpOpen) {
+          e.preventDefault();
+          setHelpOpen(false);
+          return;
+        }
+        if (error) {
+          e.preventDefault();
+          setError(null);
+          return;
+        }
+        if (info) {
+          e.preventDefault();
+          setInfo(null);
+        }
+        return;
+      }
+      if (inField) return;
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setHelpOpen((v) => !v);
+        return;
+      }
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (e.key === "1") {
+          e.preventDefault();
+          goTab("game");
+        } else if (e.key === "2") {
+          e.preventDefault();
+          goTab("mods");
+        } else if (e.key === "3") {
+          e.preventDefault();
+          goTab("store");
+        } else if (e.key === "4") {
+          e.preventDefault();
+          goTab("system");
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [helpOpen, error, info, goTab]);
+
+  // Lock body scroll while help modal is open.
+  useEffect(() => {
+    if (!helpOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [helpOpen]);
+
 
   const disconnectStomp = useCallback(() => {
     stompRef.current?.disconnect();
@@ -459,19 +502,32 @@ export function App() {
         </div>
       )}
 
-      <nav className="tabs" aria-label="Main">
+      {busy ? (
+        <div className="busy-bar" role="status" aria-live="polite">
+          <span className="busy-bar-fill" />
+          <span className="sr-only">Working…</span>
+        </div>
+      ) : null}
+
+      <nav className="tabs" aria-label="Main" role="tablist">
         <button
           type="button"
+          role="tab"
+          id="tab-game"
+          aria-selected={tab === "game"}
+          aria-controls="panel-game"
           className={tab === "game" ? "active" : ""}
-          aria-current={tab === "game" ? "page" : undefined}
           onClick={() => goTab("game")}
         >
           Game
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-mods"
+          aria-selected={tab === "mods"}
+          aria-controls="panel-mods"
           className={tab === "mods" ? "active" : ""}
-          aria-current={tab === "mods" ? "page" : undefined}
           onClick={openMods}
         >
           Mods
@@ -479,8 +535,11 @@ export function App() {
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-store"
+          aria-selected={tab === "store"}
+          aria-controls="panel-store"
           className={tab === "store" ? "active" : ""}
-          aria-current={tab === "store" ? "page" : undefined}
           onClick={openStore}
         >
           Store
@@ -490,8 +549,11 @@ export function App() {
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-system"
+          aria-selected={tab === "system"}
+          aria-controls="panel-system"
           className={tab === "system" ? "active" : ""}
-          aria-current={tab === "system" ? "page" : undefined}
           onClick={() => {
             goTab("system");
             void pollHealth();
@@ -501,8 +563,9 @@ export function App() {
         </button>
       </nav>
 
-      <main id="main" className="main" ref={mainRef} tabIndex={-1}>
+      <main id="main" className="main" ref={mainRef} tabIndex={-1} aria-busy={busy}>
       {tab === "game" && (
+        <div role="tabpanel" id="panel-game" aria-labelledby="tab-game">
         <GameTab
           status={status}
           busy={busy}
@@ -557,9 +620,11 @@ export function App() {
             })
           }
         />
+        </div>
       )}
 
       {tab === "mods" && (
+        <div role="tabpanel" id="panel-mods" aria-labelledby="tab-mods">
         <ModsTab
           catalog={catalog}
           marketplace={marketplace}
@@ -657,9 +722,11 @@ export function App() {
             setInfo(`Store ready — buy ${sku} to unlock${packLabel ? ` ${packLabel}` : ""}.`);
           }}
         />
+        </div>
       )}
 
       {tab === "store" && (
+        <div role="tabpanel" id="panel-store" aria-labelledby="tab-store">
         <StoreTab
           entitlements={entitlements}
           busy={busy}
@@ -718,9 +785,11 @@ export function App() {
             })
           }
         />
+        </div>
       )}
 
       {tab === "system" && (
+        <div role="tabpanel" id="panel-system" aria-labelledby="tab-system">
         <SystemTab
           readiness={readiness}
           health={health}
@@ -888,6 +957,7 @@ export function App() {
             );
           }}
         />
+        </div>
       )}
 
 
@@ -930,10 +1000,13 @@ export function App() {
                 <kbd>?</kbd> — toggle this help
               </li>
               <li>
-                <kbd>Esc</kbd> — close dialogs
+                <kbd>Esc</kbd> — close help / dismiss banners
+              </li>
+              <li>
+                <kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>4</kbd> — Game / Mods / Store / System
               </li>
             </ul>
-            <p className="muted" style={{ margin: 0 }}>
+            <p className="muted tight">
               Ops: System tab stores admin / metrics tokens locally (this browser only) for health
               detail, session list/revoke, and metrics probe.
             </p>
@@ -1094,15 +1167,15 @@ function GameTab(props: {
               aria-valuemax={100}
               aria-label="Quest progress"
             >
-              <span style={{ width: `${progress * 100}%` }} />
+              <span className="progress-fill" style={{ width: `${progress * 100}%` }} />
             </div>
-            <div className="subtle" style={{ marginTop: 6 }}>
+            <div className="subtle mt-1">
               Quest progress {Math.round(progress * 100)}%
             </div>
             {rifts.length > 0 && (
               <div className="rift-row">
                 <span className="subtle">Discovered rifts</span>
-                <div className="row" style={{ marginTop: 6 }}>
+                <div className="row mt-1">
                   {rifts.map((r) => (
                     <span key={r} className="pill muted-pill" title={r}>
                       {r}
@@ -1143,9 +1216,9 @@ function GameTab(props: {
                         aria-valuemax={maxHp}
                         aria-label={`${m.name ?? "Member"} hit points`}
                       >
-                        <span style={{ width: `${ratio * 100}%` }} />
+                        <span className="progress-fill" style={{ width: `${ratio * 100}%` }} />
                       </div>
-                      <div className="muted" style={{ marginTop: 6 }}>
+                      <div className="muted mt-1">
                         HP {hp}/{maxHp}
                         {m.mana != null ? ` · MP ${m.mana}/${m.maxMana ?? m.mana}` : ""}
                         {m.alive === false ? <span className="fallen"> · FALLEN</span> : null}
@@ -1236,7 +1309,7 @@ function GameTab(props: {
           placeholder="What do you do? (Ctrl/⌘+Enter to send)"
           aria-label="Narration prompt"
         />
-        <div className="row" style={{ marginTop: 8 }}>
+        <div className="row mt-2">
           <button
             type="button"
             className="primary"
@@ -1255,7 +1328,7 @@ function GameTab(props: {
           ) : null}
         </div>
         {(props.streamBuffer || props.narration) && (
-          <div className="card stream-panel" ref={streamRef}>
+          <div className="card stream-panel" aria-live="polite" aria-relevant="additions text" ref={streamRef}>
             {props.streamBuffer ? (
               <div className="stream">{props.streamBuffer}</div>
             ) : null}
@@ -1263,7 +1336,7 @@ function GameTab(props: {
               <div className="narration">{props.narration}</div>
             ) : null}
             {props.narration && props.streamBuffer ? (
-              <div className="narration" style={{ marginTop: 12, opacity: 0.85 }}>
+              <div className="narration mt-3 opacity-soft">
                 {props.narration}
               </div>
             ) : null}
@@ -1339,7 +1412,7 @@ function ModsTab(props: {
             aria-valuemax={100}
             aria-label="Install progress"
           >
-            <span style={{ width: `${Math.min(100, Math.max(0, job.percent ?? 0))}%` }} />
+            <span className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, job.percent ?? 0))}%` }} />
           </div>
           <div className="muted">
             {job.percent ?? 0}%
@@ -1417,7 +1490,7 @@ function ModsTab(props: {
                 {pack.enabled ? " · enabled" : ""}
               </div>
               {pack.source === "remote" && pack.downloadUrl && (
-                <div className="subtle" style={{ wordBreak: "break-all" }}>
+                <div className="subtle break-all">
                   {pack.downloadUrl}
                 </div>
               )}
@@ -1441,17 +1514,17 @@ function ModsTab(props: {
               <span className="pill up">Installed</span>
             )}
           </div>
-          {pack.description && <p className="muted" style={{ margin: 0 }}>{pack.description}</p>}
+          {pack.description && <p className="muted tight">{pack.description}</p>}
         </div>
       ))}
 
-      <div className="section-head" style={{ marginTop: "0.5rem" }}>
+      <div className="section-head mt-2">
         <h3>Live catalog</h3>
       </div>
 
       <div className="card stack">
         <strong>Upload pack zip</strong>
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted tight">
           Multipart <code>POST /v2/catalog/packs</code>
           {` — may require admin token in multi-tenant prod.`}
         </p>
@@ -1529,7 +1602,7 @@ function ModsTab(props: {
                 : ""}
             </div>
           </div>
-          <div className="stack" style={{ alignItems: "flex-end", gap: 6 }}>
+          <div className="stack end-stack">
             <input
               type="checkbox"
               checked={pack.enabled === true}
@@ -1617,9 +1690,9 @@ function StoreTab(props: {
       </div>
 
       {props.unlockHint ? (
-        <div className="card stack" style={{ borderColor: "var(--border-strong)" }}>
+        <div className="card stack card-emphasis">
           <strong>Unlock pack</strong>
-          <p className="muted" style={{ margin: 0 }}>{props.unlockHint}</p>
+          <p className="muted tight">{props.unlockHint}</p>
           <div className="row">
             <button
               type="button"
@@ -1640,7 +1713,7 @@ function StoreTab(props: {
 
       <div className="card stack">
         <strong>Steam desktop (orderId)</strong>
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted tight">
           Steamworks MicroTxn: paste orderId from InitTxn, then verify storefront{" "}
           <code>steam</code>. See <code>desktop/STEAM.md</code>.
         </p>
@@ -1656,7 +1729,7 @@ function StoreTab(props: {
 
       <div className="card stack">
         <strong>Sandbox purchase</strong>
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted tight">
           Mints a storefront-shaped receipt and posts it to{" "}
           <code>POST /v2/entitlements/verify</code>.
         </p>
@@ -1916,7 +1989,7 @@ function SystemTab(props: {
             Clear tokens
           </button>
         </div>
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted tight">
           Stored in this browser only. Used for health detail, admin inventory, and metrics probe.
         </p>
         <label className="field">
@@ -1979,21 +2052,21 @@ function SystemTab(props: {
         </div>
         {mem && (
           <div className="mem-block">
-            <div className="muted" style={{ marginTop: "0.5rem" }}>
+            <div className="muted mt-2">
               Heap free {fmtBytes(mem.freeBytes)} / total {fmtBytes(mem.totalBytes)} (max{" "}
               {fmtBytes(mem.maxBytes)})
             </div>
             {mem.maxBytes && mem.maxBytes > 0 ? (
               <div
-                className="progress"
+                className="progress mt-2"
                 role="progressbar"
                 aria-valuenow={Math.round(((mem.totalBytes ?? 0) / mem.maxBytes) * 100)}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-label="Heap usage vs max"
-                style={{ marginTop: 8 }}
               >
                 <span
+                  className="progress-fill"
                   style={{
                     width: `${Math.min(100, ((mem.totalBytes ?? 0) / mem.maxBytes) * 100)}%`,
                   }}
@@ -2060,7 +2133,7 @@ function SystemTab(props: {
             </button>
           </div>
         </div>
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted tight">
           <code>GET /v2/admin/sessions</code> ·{" "}
           <code>POST /v2/admin/sessions/purge-idle</code> · revoke via DELETE
         </p>
@@ -2150,7 +2223,7 @@ function SystemTab(props: {
             Load receipts
           </button>
         </div>
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted tight">
           Fingerprints only — <code>GET /v2/admin/receipts</code>
         </p>
         {receipts.length > 0 ? (
@@ -2229,7 +2302,7 @@ function SystemTab(props: {
 
       <div className="card">
         <strong>Audit logs</strong>
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted tight">
           Server emits <code>dm.admin.audit</code> and <code>dm.security.audit</code> (job ACL,
           rate limits, oversize bodies, bad ops tokens). Tail process logs in ops — not exposed
           here. Rate-limit responses include <code>X-RateLimit-Reset</code>.
