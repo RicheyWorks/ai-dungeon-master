@@ -109,4 +109,23 @@ class MetricsControllerTest {
         locked.perform(get("/metrics").header("Authorization", "Bearer scrape-secret-token"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void previousScrapeTokenAcceptedDuringRotation() throws Exception {
+        SessionService sessions = new SessionService(new JwtService("metrics-test-secret-abcdefghij", 3600));
+        DungeonMasterEngine engine = new DungeonMasterEngine(4, 4, new String[]{"Kael"}, new String[]{"Warrior"});
+        GameInstanceService instances = GameInstanceService.singleton(engine);
+        AuthDependencyProbe probe = new AuthDependencyProbe(
+                new UnusedDataSource(), new MemoryRedisOps(), "memory", "memory");
+        MockMvc dual = standaloneSetup(new MetricsController(
+                sessions, instances, probe, new RateLimitMetrics(),
+                "current-metrics-token!!", "previous-metrics-token!!")).build();
+        dual.perform(get("/metrics").header("X-Metrics-Token", "previous-metrics-token!!"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("dm_up 1")));
+        dual.perform(get("/metrics").header("X-Metrics-Token", "current-metrics-token!!"))
+                .andExpect(status().isOk());
+        dual.perform(get("/metrics").header("X-Metrics-Token", "wrong"))
+                .andExpect(status().isUnauthorized());
+    }
 }

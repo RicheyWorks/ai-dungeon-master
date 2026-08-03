@@ -214,12 +214,19 @@ export function App() {
       if (stompRef.current?.connected) return;
       disconnectStomp();
       const url = StompClient.stompUrl(baseUrl || window.location.origin);
-      const client = new StompClient(url, s.token, {
+      const client = new StompClient(
+        url,
+        s.token,
+        {
         onConnected: () => {
           client.subscribe("/topic/narrative");
           client.subscribe(`/topic/narrative/${s.sessionId}`);
           setStompConnected(true);
           setInfo("Live stream connected");
+        },
+        onReconnecting: (attempt, delayMs) => {
+          setStompConnected(false);
+          setInfo(`Live stream reconnecting (${attempt}) in ${Math.ceil(delayMs / 1000)}s…`);
         },
         onMessage: (_dest, body) => {
           const trimmed = body.trim();
@@ -254,7 +261,9 @@ export function App() {
           setError(`WS: ${msg}`);
         },
         onClosed: () => setStompConnected(false),
-      });
+        },
+        { autoReconnect: true, maxReconnectAttempts: 8 },
+      );
       stompRef.current = client;
       client.connect();
     },
@@ -291,9 +300,12 @@ export function App() {
         const next = await api.refreshSession(baseUrl, session.token);
         sessionStore.saveSession(next);
         setSession(next);
-        if (stompRef.current?.connected) {
-          disconnectStomp();
-          connectStomp(next);
+        if (stompRef.current) {
+          stompRef.current.setToken(next.token);
+          if (!stompRef.current.connected) {
+            disconnectStomp();
+            connectStomp(next);
+          }
         }
         setInfo(`Session renewed · expires in ${formatTtl(secondsUntilExpiry(next))}`);
       } catch (e) {
@@ -528,9 +540,12 @@ export function App() {
                   const next = await api.refreshSession(baseUrl, session.token);
                   sessionStore.saveSession(next);
                   setSession(next);
-                  if (stompRef.current?.connected) {
-                    disconnectStomp();
-                    connectStomp(next);
+                  if (stompRef.current) {
+                    stompRef.current.setToken(next.token);
+                    if (!stompRef.current.connected) {
+                      disconnectStomp();
+                      connectStomp(next);
+                    }
                   }
                   setInfo(`Session renewed · ${formatTtl(secondsUntilExpiry(next))}`);
                 } catch (e) {
