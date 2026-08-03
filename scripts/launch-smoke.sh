@@ -120,6 +120,19 @@ info "sessionId=$SESSION_ID"
 http GET /v2/session/me "$TOKEN"
 expect 200 "GET /v2/session/me"
 
+http POST /v2/session/refresh "$TOKEN"
+expect 200 "POST /v2/session/refresh"
+NEW_TOKEN="$(json_get payload.token)"
+NEW_SID="$(json_get payload.sessionId)"
+if [[ -n "$NEW_TOKEN" ]]; then
+  if [[ -n "$SESSION_ID" && -n "$NEW_SID" && "$NEW_SID" != "$SESSION_ID" ]]; then
+    red "FAIL refresh changed sessionId"
+    exit 1
+  fi
+  TOKEN="$NEW_TOKEN"
+  green "OK  session refresh kept id, rotated token"
+fi
+
 http GET /v2/catalog "$TOKEN"
 expect 200 "GET /v2/catalog"
 PACK_ID="$(pick_pack)"

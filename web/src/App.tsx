@@ -22,8 +22,10 @@ import {
 import { steamBridge, steamReceipt } from "./steamPurchase";
 
 import {
+  formatTtl,
   isExpired,
   relativeEpoch,
+  secondsUntilExpiry,
   sessionStore,
   shortId,
   type SessionInfo,
@@ -88,8 +90,13 @@ export function App() {
     sample?: string;
   } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [online, setOnline] = useState(
+    () => (typeof navigator === "undefined" ? true : navigator.onLine),
+  );
+  const [nowTick, setNowTick] = useState(() => Math.floor(Date.now() / 1000));
   const stompRef = useRef<StompClient | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
+  const refreshInFlight = useRef(false);
 
   const token = session?.token ?? null;
   const installActive =
@@ -253,6 +260,51 @@ export function App() {
     },
     [baseUrl, disconnectStomp],
   );
+
+  // Online / offline banner.
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+
+  // Session TTL clock.
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Math.floor(Date.now() / 1000)), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Silent JWT refresh when < 2 minutes remain (same session id).
+  useEffect(() => {
+    if (!session || !online) return;
+    const left = secondsUntilExpiry(session, nowTick);
+    if (left <= 0 || left > 120) return;
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
+    void (async () => {
+      try {
+        const next = await api.refreshSession(baseUrl, session.token);
+        sessionStore.saveSession(next);
+        setSession(next);
+        if (stompRef.current?.connected) {
+          disconnectStomp();
+          connectStomp(next);
+        }
+        setInfo(`Session renewed · expires in ${formatTtl(secondsUntilExpiry(next))}`);
+      } catch (e) {
+        if (left < 30) {
+          setError(e instanceof Error ? e.message : "Session refresh failed");
+        }
+      } finally {
+        refreshInFlight.current = false;
+      }
+    })();
+  }, [session, nowTick, online, baseUrl, disconnectStomp, connectStomp]);
 
   const ensureSession = useCallback(async (): Promise<SessionInfo> => {
     let candidate = session;
@@ -451,6 +503,9 @@ export function App() {
           <span>
             {session.displayName} · {shortId(session.sessionId)}
             {stompConnected ? " · LIVE" : ""}
+            {session.expiresAtEpochSeconds
+              ? ` · TTL ${formatTtl(secondsUntilExpiry(session, nowTick))}`
+              : ""}
           </span>
           <button
             type="button"
@@ -459,6 +514,34 @@ export function App() {
             title="Copy full session id"
           >
             {copied ? "Copied" : "Copy id"}
+          </button>
+          <button
+            type="button"
+            className="ghost compact"
+            disabled={busy || !online}
+            title="Refresh JWT (same session)"
+            onClick={() =>
+              void (async () => {
+                try {
+                  setError(null);
+                  setBusy(true);
+                  const next = await api.refreshSession(baseUrl, session.token);
+                  sessionStore.saveSession(next);
+                  setSession(next);
+                  if (stompRef.current?.connected) {
+                    disconnectStomp();
+                    connectStomp(next);
+                  }
+                  setInfo(`Session renewed · ${formatTtl(secondsUntilExpiry(next))}`);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            Renew
           </button>
           <span
             className={
@@ -485,6 +568,11 @@ export function App() {
         </div>
       )}
 
+      {!online && (
+        <div className="banner warn" role="status">
+          <span className="banner-text">You are offline — actions will fail until the network returns.</span>
+        </div>
+      )}
       {info && (
         <div className="banner" role="status">
           <span className="banner-text">{info}</span>
@@ -1005,6 +1093,7 @@ export function App() {
               <li>
                 <kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>4</kbd> — Game / Mods / Store / System
               </li>
+              <li>Session TTL auto-renews under 2 minutes (same id)</li>
             </ul>
             <p className="muted tight">
               Ops: System tab stores admin / metrics tokens locally (this browser only) for health

@@ -706,6 +706,42 @@ open class V2API {
     }
 
     /**
+     Re-issue a JWT for the current session (same session id).
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: SessionEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func refreshSessionV2(xRequestId: String? = nil) async throws -> SessionEnvelope {
+        return try await refreshSessionV2WithRequestBuilder(xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Re-issue a JWT for the current session (same session id).
+     - POST /v2/session/refresh
+     - Requires a valid Bearer token. Returns a new token with a fresh expiry while keeping the same session identity and game state. Prefer this over minting a new guest when the JWT is near expiry. 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<SessionEnvelope> 
+     */
+    open class func refreshSessionV2WithRequestBuilder(xRequestId: String? = nil) -> RequestBuilder<SessionEnvelope> {
+        let localVariablePath = "/v2/session/refresh"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<SessionEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Start a fresh engine for the caller (new party/quest).
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)

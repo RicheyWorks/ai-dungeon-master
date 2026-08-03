@@ -78,4 +78,32 @@ class AuthFlowTest {
                 .andExpect(jsonPath("$.type").value("session"))
                 .andExpect(jsonPath("$.payload.displayName").value("Adventurer"));
     }
+
+    @Test
+    void refreshReissuesTokenSameSession() throws Exception {
+        String body = mvc.perform(post("/v2/session").contentType(APPLICATION_JSON).content("{\"displayName\":\"Ryn\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String sessionId = json.readTree(body).path("payload").path("sessionId").asText();
+        String token = json.readTree(body).path("payload").path("token").asText();
+
+        String refreshed = mvc.perform(post("/v2/session/refresh").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("session"))
+                .andExpect(jsonPath("$.payload.sessionId").value(sessionId))
+                .andExpect(jsonPath("$.payload.displayName").value("Ryn"))
+                .andExpect(jsonPath("$.payload.token").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        String newToken = json.readTree(refreshed).path("payload").path("token").asText();
+        assertFalse(newToken.isBlank());
+
+        mvc.perform(get("/v2/status").header("Authorization", "Bearer " + newToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void refreshRequiresAuth() throws Exception {
+        mvc.perform(post("/v2/session/refresh"))
+                .andExpect(status().isUnauthorized());
+    }
 }

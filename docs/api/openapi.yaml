@@ -396,6 +396,32 @@ paths:
           description: Not authenticated.
         '429':
           description: Rate limited.
+  /v2/session/refresh:
+    post:
+      tags: [v2]
+      operationId: refreshSessionV2
+      summary: Re-issue a JWT for the current session (same session id).
+      description: |
+        Requires a valid Bearer token. Returns a new token with a fresh expiry
+        while keeping the same session identity and game state. Prefer this over
+        minting a new guest when the JWT is near expiry.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Session envelope with a fresh JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionEnvelope'
+        '401':
+          description: Not authenticated or session revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited.
   /v2/session/me:
     get:
       tags: [v2]

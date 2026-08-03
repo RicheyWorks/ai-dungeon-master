@@ -16,9 +16,10 @@ import java.util.Map;
 /**
  * Session identity endpoints for the v2 API.
  *
- * POST   /v2/session      — create a guest session, returns { sessionId, token, ... }
- * GET    /v2/session/me   — echo the caller's session (requires a valid Bearer token)
- * DELETE /v2/session      — logout: drop identity, pack prefs, and live engine
+ * POST   /v2/session         — create a guest session, returns { sessionId, token, ... }
+ * POST   /v2/session/refresh — re-issue JWT for the current session (same id)
+ * GET    /v2/session/me      — echo the caller's session (requires a valid Bearer token)
+ * DELETE /v2/session         — logout: drop identity, pack prefs, and live engine
  *
  * The login endpoint is intentionally public so a fresh client can obtain a
  * token; {@link JwtAuthFilter} enforces auth on every other /v2 route when
@@ -56,6 +57,33 @@ public class SessionController {
                 issued.expiresAtEpochSeconds(),
                 issued.session().createdAtEpoch());
         return Envelope.of("session", payload, requestId);
+    }
+
+    /**
+     * Extend the caller's session with a fresh JWT (same session id / identity).
+     * Prefer this over minting a new guest when the token is near expiry.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<Envelope<?>> refresh(
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+
+        if (session == null) {
+            return ResponseEntity.status(401).body(
+                    Envelope.of("error", new ErrorPayload("Not authenticated."), requestId));
+        }
+        return sessions.refreshSession(session.id())
+                .<ResponseEntity<Envelope<?>>>map(issued -> {
+                    SessionPayload payload = new SessionPayload(
+                            issued.session().id(),
+                            issued.token(),
+                            issued.session().displayName(),
+                            issued.expiresAtEpochSeconds(),
+                            issued.session().createdAtEpoch());
+                    return ResponseEntity.ok(Envelope.of("session", payload, requestId));
+                })
+                .orElseGet(() -> ResponseEntity.status(401).body(
+                        Envelope.of("error", new ErrorPayload("Session no longer exists."), requestId)));
     }
 
     @GetMapping("/me")

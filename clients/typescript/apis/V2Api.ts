@@ -151,6 +151,10 @@ export interface NarrateV2Request {
     narrateRequest?: NarrateRequest;
 }
 
+export interface RefreshSessionV2Request {
+    xRequestId?: string;
+}
+
 export interface ResetGameV2Request {
     xRequestId?: string;
 }
@@ -800,6 +804,38 @@ export class V2Api extends runtime.BaseAPI {
      */
     async narrateV2(requestParameters: NarrateV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<NarrativeEnvelope> {
         const response = await this.narrateV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Requires a valid Bearer token. Returns a new token with a fresh expiry while keeping the same session identity and game state. Prefer this over minting a new guest when the JWT is near expiry. 
+     * Re-issue a JWT for the current session (same session id).
+     */
+    async refreshSessionV2Raw(requestParameters: RefreshSessionV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SessionEnvelope>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/session/refresh`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SessionEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Requires a valid Bearer token. Returns a new token with a fresh expiry while keeping the same session identity and game state. Prefer this over minting a new guest when the JWT is near expiry. 
+     * Re-issue a JWT for the current session (same session id).
+     */
+    async refreshSessionV2(requestParameters: RefreshSessionV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SessionEnvelope> {
+        const response = await this.refreshSessionV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 
