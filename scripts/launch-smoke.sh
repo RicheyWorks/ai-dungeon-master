@@ -201,8 +201,37 @@ fi
 tmp="$(mktemp)"
 HTTP_CODE="$(curl -sS -m "$TIMEOUT" -o "$tmp" -w "%{http_code}" "${BASE_URL}/metrics" || echo 000)"
 BODY="$(cat "$tmp")"; rm -f "$tmp"
-if [[ "$HTTP_CODE" == "200" ]] && printf '%s' "$BODY" | grep -qE 'dm_up|dm_sessions'; then
-  green "OK  GET /metrics"
+if [[ -n "${METRICS_TOKEN:-}" ]]; then
+  if [[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" ]]; then
+    green "OK  GET /metrics rejects unauthenticated (HTTP $HTTP_CODE)"
+  else
+    red "FAIL GET /metrics without token: expected 401/403 got $HTTP_CODE"
+    exit 1
+  fi
+  tmp="$(mktemp)"
+  HTTP_CODE="$(curl -sS -m "$TIMEOUT" -H "X-Metrics-Token: $METRICS_TOKEN" -o "$tmp" -w "%{http_code}" \
+    "${BASE_URL}/metrics" || echo 000)"
+  BODY="$(cat "$tmp")"; rm -f "$tmp"
+  if [[ "$HTTP_CODE" == "200" ]] && printf '%s' "$BODY" | grep -qE 'dm_up|dm_sessions'; then
+    green "OK  GET /metrics with X-Metrics-Token"
+  else
+    red "FAIL GET /metrics with token: HTTP $HTTP_CODE"
+    printf '%s\n' "$BODY" | head -c 300; echo
+    exit 1
+  fi
+  # Bearer form
+  tmp="$(mktemp)"
+  HTTP_CODE="$(curl -sS -m "$TIMEOUT" -H "Authorization: Bearer $METRICS_TOKEN" -o "$tmp" -w "%{http_code}" \
+    "${BASE_URL}/metrics" || echo 000)"
+  BODY="$(cat "$tmp")"; rm -f "$tmp"
+  if [[ "$HTTP_CODE" == "200" ]] && printf '%s' "$BODY" | grep -q dm_up; then
+    green "OK  GET /metrics with Bearer scrape token"
+  else
+    red "FAIL GET /metrics Bearer: HTTP $HTTP_CODE"
+    exit 1
+  fi
+elif [[ "$HTTP_CODE" == "200" ]] && printf '%s' "$BODY" | grep -qE 'dm_up|dm_sessions'; then
+  green "OK  GET /metrics (open — no METRICS_TOKEN)"
 else
   info "metrics soft-fail HTTP $HTTP_CODE"
 fi
