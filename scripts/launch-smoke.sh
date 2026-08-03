@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # End-to-end play path smoke against a running engine:
 #   mint → me → catalog → enable pack → status → action → narrate →
-#   save → load → entitlements → admin receipts → logout
+#   save → load → entitlements → admin receipts → STOMP ACL → logout
 #
 #   BASE_URL=http://127.0.0.1:8080 ADMIN_TOKEN=... ./scripts/launch-smoke.sh
+#   SKIP_STOMP=1 to skip WebSocket ACL checks (when Node WebSocket unavailable)
 set -eo pipefail
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
@@ -12,6 +13,7 @@ REQUEST_ID="smoke-$(date +%s)-$$"
 TIMEOUT="${SMOKE_TIMEOUT:-8}"
 HTTP_CODE=""
 BODY=""
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 red() { printf '\033[31m%s\033[0m\n' "$*"; }
 green() { printf '\033[32m%s\033[0m\n' "$*"; }
@@ -97,6 +99,14 @@ for _ in $(seq 1 15); do
 done
 expect 200 "GET /health"
 
+# Public health must stay lean (no recon detail without ops token).
+if printf '%s' "$BODY" | python3 -c "import json,sys; o=json.load(sys.stdin); sys.exit(0 if 'sessions' not in o and 'dependencies' not in o else 1)"; then
+  green "OK  GET /health lean (no sessions/dependencies)"
+else
+  red "FAIL /health leaked recon fields without token"
+  exit 1
+fi
+
 http POST /v2/session "" '{"displayName":"SmokeTester"}'
 expect 200 "POST /v2/session"
 TOKEN="$(json_get payload.token)"
@@ -150,6 +160,28 @@ if [[ -n "${ADMIN_TOKEN:-}" ]]; then
     -o "$tmp" -w "%{http_code}" "${BASE_URL}/v2/admin/receipts?limit=5" || echo 000)"
   BODY="$(cat "$tmp")"; rm -f "$tmp"
   expect 200 "GET /v2/admin/receipts"
+fi
+
+# STOMP JWT CONNECT + subscription ACL (requires Node 22+ WebSocket).
+if [[ "${SKIP_STOMP:-0}" != "1" ]] && command -v node >/dev/null 2>&1; then
+  info "STOMP ACL smoke"
+  # Mint a second session so we have a real foreign session id to deny.
+  http POST /v2/session "" '{"displayName":"SmokeOther"}'
+  OTHER_SESSION_ID="$(json_get payload.sessionId)"
+  OTHER_TOKEN="$(json_get payload.token)"
+  if [[ -z "$OTHER_SESSION_ID" ]]; then
+    OTHER_SESSION_ID="00000000-foreign-session"
+  fi
+  BASE_URL="$BASE_URL" TOKEN="$TOKEN" SESSION_ID="$SESSION_ID" \
+    OTHER_SESSION_ID="$OTHER_SESSION_ID" \
+    STOMP_TIMEOUT_MS="${STOMP_TIMEOUT_MS:-8000}" \
+    node "$ROOT/scripts/stomp-smoke.mjs"
+  # Best-effort logout of the foreign session (ignore failures).
+  if [[ -n "${OTHER_TOKEN:-}" ]]; then
+    http DELETE /v2/session "$OTHER_TOKEN" || true
+  fi
+else
+  info "STOMP smoke skipped (SKIP_STOMP=1 or node missing)"
 fi
 
 http DELETE /v2/session "$TOKEN"

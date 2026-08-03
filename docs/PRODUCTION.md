@@ -77,7 +77,7 @@ Play path covered by `launch-smoke.sh`:
 ### 5. Client parity
 
 Web (`web/src/api.ts`) uses the generated TS SDK for session/action/narrate/save/load/logout/catalog/entitlements.
-Marketplace list/install still uses raw `fetch` until OpenAPI regen adds those ops to `V2Api`.
+Marketplace list/install/jobs are on the generated `V2Api` (OpenAPI regen); web may still use raw `fetch` until wired.
 Kotlin/Swift SDKs expose the same OpenAPI operations under `clients/kotlin` and `clients/swift`.
 
 ---
@@ -239,7 +239,27 @@ scrape_configs:
 
 With auth on, clients may only `SUBSCRIBE` to `/topic/narrative/{theirSessionId}`.
 Cross-session narrative eavesdropping is rejected by `StompAuthChannelInterceptor`.
-WebSocket frames are size-capped (`game.ws.message-size-limit`, default 256 KiB).
+Anonymous `CONNECT` is rejected when `game.auth.enabled=true`. Shared
+`/topic/narrative` is disabled under auth. WebSocket frames are size-capped
+(`game.ws.message-size-limit`, default 256 KiB).
+
+Native endpoint: `ws(s)://host/ws-stomp`. SockJS fallback: `/ws`.
+
+### STOMP smoke (launch gate)
+
+With a running engine (auth on):
+
+```bash
+# full play path + STOMP ACL (mint/session already inside launch-smoke)
+BASE_URL=http://127.0.0.1:8080 ADMIN_TOKEN=… ./scripts/launch-smoke.sh
+
+# or STOMP-only against an existing session
+BASE_URL=… TOKEN=… SESSION_ID=… node scripts/stomp-smoke.mjs
+```
+
+`scripts/stomp-smoke.mjs` (Node 22+ WebSocket) verifies JWT CONNECT, own-topic
+subscribe, foreign-topic deny, shared-topic deny, and anonymous CONNECT reject.
+Set `SKIP_STOMP=1` to skip when Node is unavailable.
 
 ## Marketplace SSRF guard
 

@@ -13,7 +13,12 @@ info:
       - subscribe to `/topic/narrative/{sessionId}` for your world only
       - SEND actions to `/app/action` and narration requests to `/app/narrate`
 
-    Unauthenticated connections keep the legacy single-player path:
+    When `game.auth.enabled=true` (production):
+      - CONNECT without a valid JWT is rejected
+      - SUBSCRIBE to another session's topic is denied
+      - shared `/topic/narrative` is disabled
+
+    Unauthenticated connections (auth off / local dev) keep the legacy single-player path:
       - subscribe to `/topic/narrative`
       - share the process-default engine
 
