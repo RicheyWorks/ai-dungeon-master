@@ -57,15 +57,7 @@ public final class GameEngineFactory {
         bootstrapActiveOnce();
         engine.setNarrator(buildNarrator());
 
-        if (campaignId != null && !campaignId.isBlank()) {
-            Campaign campaign = CampaignRegistry.get(campaignId);
-            if (campaign != null) {
-                engine.setCampaign(campaign);
-            } else {
-                System.err.println("[campaign] Unknown campaign id '" + campaignId
-                        + "' — starting without one.");
-            }
-        }
+        attachDefaultCampaign(engine);
 
         if (messaging != null) {
             String topic = (sessionId == null || sessionId.isBlank())
@@ -98,6 +90,29 @@ public final class GameEngineFactory {
     }
 
     /** Process-default engine (legacy single-player + unauthenticated v2). */
+
+    /**
+     * Goal G9 — attach configured campaign, else First Light arc when registered,
+     * so cold-open → noon chains without ops config.
+     */
+    private void attachDefaultCampaign(DungeonMasterEngine engine) {
+        String id = campaignId;
+        if (id == null || id.isBlank()) {
+            if (CampaignRegistry.get("first-light-arc") != null) {
+                id = "first-light-arc";
+            } else {
+                return;
+            }
+        }
+        Campaign campaign = CampaignRegistry.get(id);
+        if (campaign != null) {
+            engine.setCampaign(campaign);
+        } else {
+            System.err.println("[campaign] Unknown campaign id '" + id
+                    + "' — starting without one.");
+        }
+    }
+
     public DungeonMasterEngine createDefault() {
         return create(null);
     }

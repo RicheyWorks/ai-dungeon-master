@@ -55,6 +55,12 @@ export interface QuestInfo {
      * @memberof QuestInfo
      */
     sceneDescription?: string | null;
+    /**
+     * Quest-level blurb
+     * @type {string}
+     * @memberof QuestInfo
+     */
+    description?: string | null;
 }
 
 /**
@@ -80,6 +86,7 @@ export function QuestInfoFromJSONTyped(json: any, ignoreDiscriminator: boolean):
         'progress': json['progress'] == null ? undefined : json['progress'],
         'sceneId': json['sceneId'] == null ? undefined : json['sceneId'],
         'sceneDescription': json['sceneDescription'] == null ? undefined : json['sceneDescription'],
+        'description': json['description'] == null ? undefined : json['description'],
     };
 }
 
@@ -95,6 +102,7 @@ export function QuestInfoToJSON(value?: QuestInfo | null): any {
         'progress': value['progress'],
         'sceneId': value['sceneId'],
         'sceneDescription': value['sceneDescription'],
+        'description': value['description'],
     };
 }
 

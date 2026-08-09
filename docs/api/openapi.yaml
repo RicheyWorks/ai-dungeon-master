@@ -1906,6 +1906,9 @@ components:
           $ref: '#/components/schemas/StoryMemoryPayload'
         lastCheck:
           $ref: '#/components/schemas/CheckResultDto'
+        campaignId: { type: string, nullable: true }
+        campaignTitle: { type: string, nullable: true }
+        playHint: { type: string, nullable: true, description: G9 cool-path next-step hint }
     StoryMemoryPayload:
       type: object
       nullable: true
@@ -1976,6 +1979,10 @@ components:
           nullable: true
           description: Current scene prose for cold-open / stakes framing.
     NarrativePayload:
+        description:
+          type: string
+          nullable: true
+          description: Quest-level blurb for SPA framing.
       type: object
       properties:
         text: { type: string }

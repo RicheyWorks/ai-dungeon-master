@@ -280,6 +280,9 @@ public class GameV2Controller {
                 List.copyOf(engine.getWorldMap().getDiscoveredRifts()),
                 choiceDetails,
                 story,
-                com.xai.dungeonmaster.dto.CheckResultDto.from(engine.getLastCheck()));
+                com.xai.dungeonmaster.dto.CheckResultDto.from(engine.getLastCheck()),
+                engine.getCampaign() != null ? engine.getCampaign().getId() : null,
+                engine.getCampaign() != null ? engine.getCampaign().getTitle() : null,
+                engine.playHint());
     }
 }

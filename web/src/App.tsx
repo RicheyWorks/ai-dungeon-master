@@ -1501,9 +1501,13 @@ function GameTab(props: {
       ) : null}
 
       {!status && !props.busy ? (
-        <div className="empty">
-          <strong>No adventure yet</strong>
-          Start or restore a session, then Sync to load party and choices.
+        <div className="empty cool-empty">
+          <strong>Your story is one click away</strong>
+          <p className="muted">
+            Start a session (or Sync) to open <b>First Light</b> — mid-chase in the rain,
+            letter still warm. No empty lobby: you are already in the scene.
+          </p>
+          <p className="subtle">Tip: after Sync, read the scene prose, then pick a numbered choice.</p>
         </div>
       ) : null}
 
@@ -1511,8 +1515,18 @@ function GameTab(props: {
         <>
           <div className={`card quest-card${status.combatActive ? " combat" : ""}`}>
             <h2>{quest?.title ?? "No active quest"}</h2>
+            {status.campaignTitle ? (
+              <div className="campaign-chip">
+                <span className="pill accent-pill" title={status.campaignId ?? "campaign"}>
+                  Campaign · {status.campaignTitle}
+                </span>
+              </div>
+            ) : null}
             {status.story?.partyTitle ? (
               <div className="story-title-sub muted">{status.story.partyTitle}</div>
+            ) : null}
+            {quest?.description ? (
+              <p className="quest-desc muted">{quest.description}</p>
             ) : null}
             <div className="quest-meta muted">
               <span
@@ -1550,6 +1564,12 @@ function GameTab(props: {
             <div className="subtle mt-1">
               Quest progress {Math.round(progress * 100)}%
             </div>
+            {status.playHint ? (
+              <div className="play-hint mt-2" role="status">
+                <span className="scene-kicker">What to do</span>
+                <p className="subtle">{status.playHint}</p>
+              </div>
+            ) : null}
             {quest?.sceneDescription ? (
               <div className="scene-frame mt-2">
                 {(quest.title === "The Sealed Letter" || quest.sceneId === "rain-alley") && (
@@ -1779,7 +1799,14 @@ function GameTab(props: {
             {choices.length === 0 ? (
               <div className="empty">
                 <strong>No choices right now</strong>
-                Narrate below or wait for the next beat.
+                <p className="muted">
+                  {status.playHint ??
+                    (status.combatActive
+                      ? "Combat may still be resolving — Sync to refresh."
+                      : quest?.completed
+                        ? "Chapter closed — Sync if the next quest does not appear."
+                        : "Narrate below or Sync for the next beat.")}
+                </p>
               </div>
             ) : (
               choices.map((label, idx) => {

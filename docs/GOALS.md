@@ -167,6 +167,7 @@ Record the current session here (newest on top).
 
 | Date | Goal | Status | Notes / PRs |
 |---|---|---|---|
+| 2026-08-09 | G9 Cool-path polish | done | Campaign chain, playHint, SPA empty states |
 | 2026-08-09 | G6+G7+G8 finish board | done | Android parity, storefront smoke, launch checklist |
 | 2026-08-09 | G3+G4+G5 cool stack | done | Checks, flagship First Light 1.1, audio+share |
 | 2026-08-09 | G2 Memory you can feel | done | StoryMemory recap/epithets/scars + SPA + save/load |
@@ -233,3 +234,17 @@ Done when:
   - [ ] SPA shows scene stakes / context for opening
   - [ ] mvn test green + web build
 ```
+
+### G9 — Cool-path polish  `done` · **M**
+
+**North star:** First Light is fun end-to-end with zero confusion.
+
+| | |
+|---|---|
+| **In scope** | Campaign auto-chain; SPA empty/error/playHint; narration framing; ambient combat vs story |
+| **Primary paths** | core engine, GameEngineFactory, SPA Game tab, First Light campaign |
+| **Out of scope** | New packs, storefronts, mobile IAP, admin |
+| **Done when** | Letter → noon chain tested; playHint on status; no ambient combat mid-arc; tests green |
+
+---
+
