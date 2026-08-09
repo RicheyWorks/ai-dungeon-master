@@ -221,6 +221,14 @@ else:
       if [[ -n "$JOB_ID" ]]; then
         http GET "/v2/marketplace/jobs/${JOB_ID}" "$TOKEN"
         expect 200 "GET install job (owner)"
+        http GET "/v2/marketplace/jobs?limit=10" "$TOKEN"
+        expect 200 "GET install jobs list"
+        COUNT="$(json_get payload.count)"
+        if [[ -n "$COUNT" && "$COUNT" -lt 1 ]]; then
+          red "FAIL jobs list empty after async install"
+          exit 1
+        fi
+        green "OK  marketplace jobs list (count=${COUNT:-?})"
       fi
     else
       info "install-async returned HTTP $HTTP_CODE (pack may already be installing / gated) — non-fatal"

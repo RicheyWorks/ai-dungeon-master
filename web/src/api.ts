@@ -413,6 +413,28 @@ export async function cancelMarketplaceInstall(
   }
 }
 
+/** List install jobs owned by the current session (most recent first). */
+export async function listMarketplaceJobs(
+  baseUrl: string,
+  token: string | null,
+  limit = 20,
+): Promise<{ count: number; limit: number; jobs: MarketplaceInstallJob[] }> {
+  try {
+    const env = await createApi(baseUrl, token).listMarketplaceInstallJobsV2({ limit });
+    const p = env.payload;
+    const jobs = (p?.jobs ?? [])
+      .filter((j): j is NonNullable<typeof j> => !!j?.jobId)
+      .map((j) => asInstallJob(j));
+    return {
+      count: p?.count ?? jobs.length,
+      limit: p?.limit ?? limit,
+      jobs,
+    };
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "list jobs"));
+  }
+}
+
 /** Poll async install until terminal phase. */
 export async function pollMarketplaceInstall(
   baseUrl: string,

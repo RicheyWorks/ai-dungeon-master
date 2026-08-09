@@ -715,6 +715,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /v2/marketplace/jobs:
+    get:
+      tags: [v2]
+      operationId: listMarketplaceInstallJobsV2
+      summary: List async install jobs for the caller's session.
+      description: |
+        Returns jobs owned by the Bearer session (most recently updated first).
+        Unauthenticated callers get an empty list. Legacy ownerless jobs are
+        excluded. Use `GET /v2/marketplace/jobs/{jobId}` for a single poll.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Job list envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceInstallJobsEnvelope'
+        '429':
+          description: Rate limited.
+
   /v2/marketplace/jobs/{jobId}:
     get:
       tags: [v2]
@@ -1399,6 +1423,25 @@ components:
               enum: [marketplace_install_job]
             payload:
               $ref: '#/components/schemas/MarketplaceInstallJob'
+    MarketplaceInstallJobsPayload:
+      type: object
+      properties:
+        count: { type: integer }
+        limit: { type: integer }
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceInstallJob'
+    MarketplaceInstallJobsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [marketplace_install_jobs]
+            payload:
+              $ref: '#/components/schemas/MarketplaceInstallJobsPayload'
     MarketplaceInstallResult:
       type: object
       properties:

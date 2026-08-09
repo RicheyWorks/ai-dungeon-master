@@ -630,6 +630,47 @@ open class V2API {
     }
 
     /**
+     List async install jobs for the caller's session.
+     
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter limit: (query)  (optional, default to 20)
+     - returns: MarketplaceInstallJobsEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func listMarketplaceInstallJobsV2(xRequestId: String? = nil, limit: Int? = nil) async throws -> MarketplaceInstallJobsEnvelope {
+        return try await listMarketplaceInstallJobsV2WithRequestBuilder(xRequestId: xRequestId, limit: limit).execute().body
+    }
+
+    /**
+     List async install jobs for the caller's session.
+     - GET /v2/marketplace/jobs
+     - Returns jobs owned by the Bearer session (most recently updated first). Unauthenticated callers get an empty list. Legacy ownerless jobs are excluded. Use `GET /v2/marketplace/jobs/{jobId}` for a single poll. 
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - parameter limit: (query)  (optional, default to 20)
+     - returns: RequestBuilder<MarketplaceInstallJobsEnvelope> 
+     */
+    open class func listMarketplaceInstallJobsV2WithRequestBuilder(xRequestId: String? = nil, limit: Int? = nil) -> RequestBuilder<MarketplaceInstallJobsEnvelope> {
+        let localVariablePath = "/v2/marketplace/jobs"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "limit": (wrappedValue: limit?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<MarketplaceInstallJobsEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      List local marketplace content packs.
      
      - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)

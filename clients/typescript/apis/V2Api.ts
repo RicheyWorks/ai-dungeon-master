@@ -28,6 +28,7 @@ import type {
   MarketplaceEnvelope,
   MarketplaceInstallEnvelope,
   MarketplaceInstallJobEnvelope,
+  MarketplaceInstallJobsEnvelope,
   MarketplacePackEnvelope,
   NarrateRequest,
   NarrativeEnvelope,
@@ -62,6 +63,8 @@ import {
     MarketplaceInstallEnvelopeToJSON,
     MarketplaceInstallJobEnvelopeFromJSON,
     MarketplaceInstallJobEnvelopeToJSON,
+    MarketplaceInstallJobsEnvelopeFromJSON,
+    MarketplaceInstallJobsEnvelopeToJSON,
     MarketplacePackEnvelopeFromJSON,
     MarketplacePackEnvelopeToJSON,
     NarrateRequestFromJSON,
@@ -149,6 +152,11 @@ export interface InstallMarketplacePackV2Request {
 
 export interface ListEntitlementsV2Request {
     xRequestId?: string;
+}
+
+export interface ListMarketplaceInstallJobsV2Request {
+    xRequestId?: string;
+    limit?: number;
 }
 
 export interface ListMarketplaceV2Request {
@@ -761,6 +769,42 @@ export class V2Api extends runtime.BaseAPI {
      */
     async listEntitlementsV2(requestParameters: ListEntitlementsV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EntitlementEnvelope> {
         const response = await this.listEntitlementsV2Raw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Returns jobs owned by the Bearer session (most recently updated first). Unauthenticated callers get an empty list. Legacy ownerless jobs are excluded. Use `GET /v2/marketplace/jobs/{jobId}` for a single poll. 
+     * List async install jobs for the caller\'s session.
+     */
+    async listMarketplaceInstallJobsV2Raw(requestParameters: ListMarketplaceInstallJobsV2Request, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MarketplaceInstallJobsEnvelope>> {
+        const queryParameters: any = {};
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/marketplace/jobs`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MarketplaceInstallJobsEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Returns jobs owned by the Bearer session (most recently updated first). Unauthenticated callers get an empty list. Legacy ownerless jobs are excluded. Use `GET /v2/marketplace/jobs/{jobId}` for a single poll. 
+     * List async install jobs for the caller\'s session.
+     */
+    async listMarketplaceInstallJobsV2(requestParameters: ListMarketplaceInstallJobsV2Request = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MarketplaceInstallJobsEnvelope> {
+        const response = await this.listMarketplaceInstallJobsV2Raw(requestParameters, initOverrides);
         return await response.value();
     }
 

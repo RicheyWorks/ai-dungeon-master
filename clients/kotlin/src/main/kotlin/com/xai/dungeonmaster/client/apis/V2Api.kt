@@ -32,6 +32,7 @@ import com.xai.dungeonmaster.client.models.HealthEnvelope
 import com.xai.dungeonmaster.client.models.MarketplaceEnvelope
 import com.xai.dungeonmaster.client.models.MarketplaceInstallEnvelope
 import com.xai.dungeonmaster.client.models.MarketplaceInstallJobEnvelope
+import com.xai.dungeonmaster.client.models.MarketplaceInstallJobsEnvelope
 import com.xai.dungeonmaster.client.models.MarketplacePackEnvelope
 import com.xai.dungeonmaster.client.models.NarrateRequest
 import com.xai.dungeonmaster.client.models.NarrativeEnvelope
@@ -1249,6 +1250,86 @@ class V2Api(basePath: kotlin.String = defaultBasePath, client: OkHttpClient = Ap
         return RequestConfig(
             method = RequestMethod.GET,
             path = "/v2/entitlements",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * List async install jobs for the caller&#39;s session.
+     * Returns jobs owned by the Bearer session (most recently updated first). Unauthenticated callers get an empty list. Legacy ownerless jobs are excluded. Use &#x60;GET /v2/marketplace/jobs/{jobId}&#x60; for a single poll. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param limit  (optional, default to 20)
+     * @return MarketplaceInstallJobsEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun listMarketplaceInstallJobsV2(xRequestId: kotlin.String? = null, limit: kotlin.Int? = 20) : MarketplaceInstallJobsEnvelope {
+        val localVarResponse = listMarketplaceInstallJobsV2WithHttpInfo(xRequestId = xRequestId, limit = limit)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as MarketplaceInstallJobsEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * List async install jobs for the caller&#39;s session.
+     * Returns jobs owned by the Bearer session (most recently updated first). Unauthenticated callers get an empty list. Legacy ownerless jobs are excluded. Use &#x60;GET /v2/marketplace/jobs/{jobId}&#x60; for a single poll. 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param limit  (optional, default to 20)
+     * @return ApiResponse<MarketplaceInstallJobsEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun listMarketplaceInstallJobsV2WithHttpInfo(xRequestId: kotlin.String?, limit: kotlin.Int?) : ApiResponse<MarketplaceInstallJobsEnvelope?> {
+        val localVariableConfig = listMarketplaceInstallJobsV2RequestConfig(xRequestId = xRequestId, limit = limit)
+
+        return request<Unit, MarketplaceInstallJobsEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation listMarketplaceInstallJobsV2
+     *
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @param limit  (optional, default to 20)
+     * @return RequestConfig
+     */
+    fun listMarketplaceInstallJobsV2RequestConfig(xRequestId: kotlin.String?, limit: kotlin.Int?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
+            .apply {
+                if (limit != null) {
+                    put("limit", listOf(limit.toString()))
+                }
+            }
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/marketplace/jobs",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,

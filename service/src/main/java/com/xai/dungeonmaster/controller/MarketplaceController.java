@@ -36,6 +36,7 @@ import java.util.Optional;
  *   <li>{@code POST /v2/marketplace/{id}/install} — sync install (default)</li>
  *   <li>{@code POST /v2/marketplace/{id}/install?async=true} — background job (202)</li>
  *   <li>{@code POST /v2/marketplace/{id}/install-async} — same as async=true (typed clients)</li>
+ *   <li>{@code GET  /v2/marketplace/jobs} — list caller's install jobs</li>
  *   <li>{@code GET  /v2/marketplace/jobs/{jobId}} — install progress (owner only)</li>
  *   <li>{@code DELETE /v2/marketplace/jobs/{jobId}} — cancel install (owner only)</li>
  * </ul>
@@ -55,6 +56,24 @@ public class MarketplaceController {
             @RequestParam(value = "q", required = false) String query,
             @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
         return Envelope.of("marketplace", marketplace.list(query), requestId);
+    }
+
+    /**
+     * List install jobs owned by the caller (most recent first). Empty when
+     * unauthenticated or no jobs for this session.
+     */
+    @GetMapping("/jobs")
+    public Envelope<Map<String, Object>> listJobs(
+            @RequestParam(value = "limit", required = false, defaultValue = "20") int limit,
+            @RequestAttribute(value = JwtAuthFilter.SESSION_ATTR, required = false) SessionService.Session session,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId) {
+        String sid = session == null ? null : session.id();
+        var jobs = marketplace.listJobsForSession(sid, limit);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("count", jobs.size());
+        payload.put("limit", Math.min(100, Math.max(1, limit <= 0 ? 20 : limit)));
+        payload.put("jobs", jobs);
+        return Envelope.of("marketplace_install_jobs", payload, requestId);
     }
 
     @GetMapping("/jobs/{jobId}")

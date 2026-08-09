@@ -120,6 +120,7 @@ Full contract: [`docs/api/openapi.yaml`](docs/api/openapi.yaml) ·
 | `GET /v2/save` · `DELETE /v2/save` | Save presence / clear slot |
 | `GET /v2/marketplace` | Discover local + remote packs |
 | `POST /v2/marketplace/{id}/install` | Install (`?async=true` → job + poll) |
+| `GET /v2/marketplace/jobs` | List install jobs for this session |
 | `GET/DELETE /v2/marketplace/jobs/{jobId}` | Progress / cancel (**owner session only**) |
 | `GET /v2/catalog` | Installed packs + plugins |
 | `POST /v2/catalog/packs` | Upload zip (admin-gated when required) |

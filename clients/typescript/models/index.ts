@@ -40,6 +40,8 @@ export * from './MarketplaceEnvelope';
 export * from './MarketplaceInstallEnvelope';
 export * from './MarketplaceInstallJob';
 export * from './MarketplaceInstallJobEnvelope';
+export * from './MarketplaceInstallJobsEnvelope';
+export * from './MarketplaceInstallJobsPayload';
 export * from './MarketplaceInstallResult';
 export * from './MarketplaceListing';
 export * from './MarketplacePackEnvelope';
