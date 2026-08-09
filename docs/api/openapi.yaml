@@ -1902,6 +1902,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ChoiceDetail'
+        story:
+          $ref: '#/components/schemas/StoryMemoryPayload'
+    StoryMemoryPayload:
+      type: object
+      nullable: true
+      description: Goal G2 — player-facing identity and session recap.
+      properties:
+        partyTitle:
+          type: string
+          description: e.g. "Ryn the Ash-Handed"
+        epithets:
+          type: array
+          items: { type: string }
+        scars:
+          type: array
+          items: { type: string }
+        recap:
+          type: array
+          items: { type: string }
+          description: Up to ~3 short sentences for load / chrome.
     ChoiceDetail:
       type: object
       properties:

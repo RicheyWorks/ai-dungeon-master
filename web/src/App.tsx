@@ -1497,6 +1497,9 @@ function GameTab(props: {
         <>
           <div className={`card quest-card${status.combatActive ? " combat" : ""}`}>
             <h2>{quest?.title ?? "No active quest"}</h2>
+            {status.story?.partyTitle ? (
+              <div className="story-title-sub muted">{status.story.partyTitle}</div>
+            ) : null}
             <div className="quest-meta muted">
               <span
                 className={
@@ -1539,6 +1542,54 @@ function GameTab(props: {
                   <div className="scene-kicker">You are already in the story</div>
                 )}
                 <p className="scene-prose">{quest.sceneDescription}</p>
+              </div>
+            ) : null}
+            {status.story && (status.story.partyTitle || (status.story.recap?.length ?? 0) > 0) ? (
+              <div className="story-memory mt-2">
+                {status.story.partyTitle ? (
+                  <div className="story-title">{status.story.partyTitle}</div>
+                ) : null}
+                {(status.story.epithets?.length ?? 0) > 0 ? (
+                  <div className="row mt-1 wrap">
+                    {status.story.epithets!.map((e) => (
+                      <span key={e} className="pill accent-pill" title="Epithet">
+                        {e}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {(status.story.scars?.length ?? 0) > 0 ? (
+                  <div className="row mt-1 wrap">
+                    {status.story.scars!.map((s) => (
+                      <span key={s} className="pill muted-pill" title="Scar">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {(status.story.recap?.length ?? 0) > 0 ? (
+                  <div className="recap-block mt-2">
+                    <div className="row between">
+                      <span className="scene-kicker">Last time…</span>
+                      <button
+                        type="button"
+                        className="linkish"
+                        onClick={() => {
+                          const text = (status.story?.recap ?? []).join(" ");
+                          void navigator.clipboard?.writeText(text);
+                          /* optional toast via setInfo if available in GameTab — use window */
+                        }}
+                      >
+                        Copy recap
+                      </button>
+                    </div>
+                    <ul className="recap-list">
+                      {(status.story.recap ?? []).map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {rifts.length > 0 && (

@@ -22,7 +22,9 @@ public record GameStatusV2(
         /** Rifts the party has discovered (includes starting + completed quests). */
         List<String> discoveredRifts,
         /** Rich choice rows (stakes / irreversible); parallel to availableChoices. */
-        List<ChoiceDetail> choiceDetails
+        List<ChoiceDetail> choiceDetails,
+        /** Goal G2 — epithets, scars, session recap. */
+        StoryMemoryPayload story
 ) {
     /** Backward-compatible constructor used by older tests. */
     public GameStatusV2(
@@ -36,6 +38,21 @@ public record GameStatusV2(
             String location,
             List<String> discoveredRifts) {
         this(party, chaosLevel, combatActive, availableChoices, recentHistory,
-                quest, recentEvents, location, discoveredRifts, List.of());
+                quest, recentEvents, location, discoveredRifts, List.of(), null);
+    }
+
+    public GameStatusV2(
+            List<MemberState> party,
+            int chaosLevel,
+            boolean combatActive,
+            List<String> availableChoices,
+            List<String> recentHistory,
+            QuestInfo quest,
+            List<String> recentEvents,
+            String location,
+            List<String> discoveredRifts,
+            List<ChoiceDetail> choiceDetails) {
+        this(party, chaosLevel, combatActive, availableChoices, recentHistory,
+                quest, recentEvents, location, discoveredRifts, choiceDetails, null);
     }
 }

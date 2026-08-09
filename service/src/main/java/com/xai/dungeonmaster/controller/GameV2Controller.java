@@ -257,6 +257,17 @@ public class GameV2Controller {
         int start = Math.max(0, history.size() - RECENT_HISTORY_LIMIT);
         List<String> recent = new ArrayList<>(history.subList(start, history.size()));
 
+        var epithets = com.xai.dungeonmaster.StoryMemory.epithets(
+                engine.getWorldState(), engine.getChronicle(), engine.getParty());
+        var scars = com.xai.dungeonmaster.StoryMemory.scars(
+                engine.getWorldState(), engine.getChronicle());
+        var recap = engine.getChronicle().renderRecap(3);
+        var story = new com.xai.dungeonmaster.dto.StoryMemoryPayload(
+                com.xai.dungeonmaster.StoryMemory.partyTitle(engine.getParty(), epithets),
+                epithets,
+                scars,
+                recap);
+
         return new GameStatusV2(
                 party.members(),
                 engine.getChaosLevel(),
@@ -267,6 +278,7 @@ public class GameV2Controller {
                 engine.getChronicle().renderFacts(6),
                 engine.getWorldMap().getCurrentLocation(),
                 List.copyOf(engine.getWorldMap().getDiscoveredRifts()),
-                choiceDetails);
+                choiceDetails,
+                story);
     }
 }

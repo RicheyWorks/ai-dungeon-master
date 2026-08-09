@@ -25,6 +25,12 @@ import {
     QuestInfoFromJSONTyped,
     QuestInfoToJSON,
 } from './QuestInfo';
+import type { StoryMemoryPayload } from './StoryMemoryPayload';
+import {
+    StoryMemoryPayloadFromJSON,
+    StoryMemoryPayloadFromJSONTyped,
+    StoryMemoryPayloadToJSON,
+} from './StoryMemoryPayload';
 import type { ChoiceDetail } from './ChoiceDetail';
 import {
     ChoiceDetailFromJSON,
@@ -98,6 +104,12 @@ export interface GameStatusV2 {
      * @memberof GameStatusV2
      */
     choiceDetails?: Array<ChoiceDetail>;
+    /**
+     * 
+     * @type {StoryMemoryPayload}
+     * @memberof GameStatusV2
+     */
+    story?: StoryMemoryPayload | null;
 }
 
 /**
@@ -127,6 +139,7 @@ export function GameStatusV2FromJSONTyped(json: any, ignoreDiscriminator: boolea
         'location': json['location'] == null ? undefined : json['location'],
         'discoveredRifts': json['discoveredRifts'] == null ? undefined : json['discoveredRifts'],
         'choiceDetails': json['choiceDetails'] == null ? undefined : ((json['choiceDetails'] as Array<any>).map(ChoiceDetailFromJSON)),
+        'story': json['story'] == null ? undefined : StoryMemoryPayloadFromJSON(json['story']),
     };
 }
 
@@ -146,6 +159,7 @@ export function GameStatusV2ToJSON(value?: GameStatusV2 | null): any {
         'location': value['location'],
         'discoveredRifts': value['discoveredRifts'],
         'choiceDetails': value['choiceDetails'] == null ? undefined : ((value['choiceDetails'] as Array<any>).map(ChoiceDetailToJSON)),
+        'story': StoryMemoryPayloadToJSON(value['story']),
     };
 }
 

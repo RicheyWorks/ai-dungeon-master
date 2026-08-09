@@ -1409,3 +1409,51 @@ button.linkish {
 .choice-irreversible {
   border-color: color-mix(in srgb, #e8a54b 50%, var(--border));
 }
+
+/* G2 — story memory */
+.story-memory {
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--panel) 90%, #000);
+}
+.story-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+.story-title-sub {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+.accent-pill {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.recap-block {
+  border-top: 1px solid var(--border);
+  padding-top: 0.55rem;
+}
+.recap-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--text);
+  line-height: 1.45;
+  font-size: 0.92rem;
+}
+.recap-list li + li {
+  margin-top: 0.25rem;
+}
+.linkish {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.78rem;
+  text-decoration: underline;
+  padding: 0;
+}
+.wrap {
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
