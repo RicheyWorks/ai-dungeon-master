@@ -1,0 +1,124 @@
+{
+  "id": "first-light-noon-square",
+  "title": "Noon in the Square",
+  "description": "The letter's fate is public now — or its ash is. Noon will decide which story the city tells.",
+  "scenes": [
+    {
+      "id": "bells-before-noon",
+      "description": "Market stalls fold under the heat. Bells count toward noon. House Veyra's grey cloaks ring the square like a polite noose. Your name is already on the wind.",
+      "choices": [
+        {
+          "label": "Climb the fountain and speak",
+          "resultText": "You take the high stone. Every face turns. This is theater with real knives.",
+          "stakes": "Public voice — maximum heat.",
+          "effects": [
+            { "type": "ADD_FLAG", "arg": "city_heat=2" },
+            { "type": "SKILL_CHECK", "arg": "charisma=12" }
+          ],
+          "nextSceneId": "voice-or-steel"
+        },
+        {
+          "label": "Slip the crowd and cut for the counting-house",
+          "resultText": "You vanish into bodies and awnings. The square will have its show without you — the captain waits inside.",
+          "stakes": "Quiet approach; face the boss in stone halls.",
+          "effects": [
+            { "type": "SKILL_CHECK", "arg": "dexterity=11" },
+            { "type": "ADD_FLAG", "arg": "counting_house_path" }
+          ],
+          "nextSceneId": "counting-house-door"
+        }
+      ]
+    },
+    {
+      "id": "voice-or-steel",
+      "description": "The crowd is a living thing. Grey cloaks tighten. Somewhere a crossbow clicks.",
+      "choices": [
+        {
+          "label": "Reveal what the letter held (or its ash)",
+          "resultText": "Truth, or the shape of it, hits the square like a thrown stone.",
+          "stakes": "End in speech — one of two endings.",
+          "effects": [
+            { "type": "SET_FLAG", "arg": "noon_ending=1" },
+            { "type": "MODIFY_REPUTATION", "arg": "street-shadows=2" },
+            { "type": "MODIFY_REPUTATION", "arg": "house-veyra=-2" }
+          ],
+          "nextSceneId": "ending-tribune"
+        },
+        {
+          "label": "Draw steel when the cloaks rush",
+          "resultText": "Polite nooses become honest fights.",
+          "stakes": "Boss fight in the open square.",
+          "effects": [
+            { "type": "TRIGGER_COMBAT" },
+            { "type": "SET_FLAG", "arg": "noon_ending=2" }
+          ],
+          "nextSceneId": "ending-blood-square"
+        }
+      ]
+    },
+    {
+      "id": "counting-house-door",
+      "npcId": "veyra-handler",
+      "description": "Marble and ledgers. Handler Veyra waits with tea that no one drinks. The Captain of the counting-house stands behind the desk like a verdict.",
+      "choices": [
+        {
+          "label": "Accept Veyra's pact",
+          "resultText": "A pin for your collar. A leash that cuts both ways.",
+          "stakes": "Power ending — partner, not free.",
+          "effects": [
+            { "type": "SET_FLAG", "arg": "noon_ending=3" },
+            { "type": "MODIFY_DISPOSITION", "arg": "veyra-handler=2" },
+            { "type": "GIVE_LOOT" }
+          ],
+          "nextSceneId": "ending-pact"
+        },
+        {
+          "label": "Challenge the Captain",
+          "resultText": "Ledgers spill. Steel sings in the marble.",
+          "stakes": "Boss fight for the house's heart.",
+          "effects": [
+            { "type": "TRIGGER_COMBAT" },
+            { "type": "SET_FLAG", "arg": "noon_ending=2" }
+          ],
+          "nextSceneId": "ending-blood-square"
+        }
+      ]
+    },
+    {
+      "id": "ending-tribune",
+      "description": "Noon. The city hears you. Whether the letter lived or died, your voice is now a scar on House Veyra's ledgers. This ending is called The Tribune.",
+      "isFinalScene": true,
+      "choices": [
+        {
+          "label": "Step down into the roar",
+          "resultText": "You are not free — but you are loud. The streets will retell this noon for years.",
+          "effects": [{ "type": "SET_FLAG", "arg": "flagship_ending=1" }]
+        }
+      ]
+    },
+    {
+      "id": "ending-blood-square",
+      "description": "Blood on marble or cobble. The Captain falls or flees. House Veyra will not forget. This ending is called The Open Blade.",
+      "isFinalScene": true,
+      "choices": [
+        {
+          "label": "Wipe the blade and walk",
+          "resultText": "Steel wrote the last line. The city makes room for the one who did the writing.",
+          "effects": [{ "type": "SET_FLAG", "arg": "flagship_ending=2" }]
+        }
+      ]
+    },
+    {
+      "id": "ending-pact",
+      "description": "Silver at your throat. Handler Veyra smiles as if they invented the weather. This ending is called The Pin.",
+      "isFinalScene": true,
+      "choices": [
+        {
+          "label": "Wear the pin into the rain",
+          "resultText": "Partnership is a story you tell yourself on the way to someone else's victory — unless you rewrite it later.",
+          "effects": [{ "type": "SET_FLAG", "arg": "flagship_ending=3" }]
+        }
+      ]
+    }
+  ]
+}

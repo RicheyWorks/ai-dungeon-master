@@ -1,0 +1,12 @@
+{
+  "house-veyra": {
+    "id": "house-veyra",
+    "displayName": "House Veyra",
+    "description": "Counting-house power. Silver pins and grey cloaks. They buy silence and sell futures."
+  },
+  "street-shadows": {
+    "id": "street-shadows",
+    "displayName": "Street Shadows",
+    "description": "Alleys, bakers, cutpurses — the city that doesn't file receipts."
+  }
+}

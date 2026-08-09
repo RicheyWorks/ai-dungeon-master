@@ -1457,3 +1457,38 @@ button.linkish {
   flex-wrap: wrap;
   gap: 0.35rem;
 }
+
+/* G3 cinematic check + G5 share/sound */
+.cinematic-check {
+  margin: 0.75rem 0;
+  border-left: 3px solid var(--accent);
+}
+.cinematic-check.is-crit {
+  border-left-color: #e8a54b;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #e8a54b 30%, transparent);
+}
+.cinematic-check.is-miss {
+  border-left-color: #c45c5c;
+}
+.check-stakes {
+  font-size: 0.9rem;
+  margin: 0.35rem 0;
+  color: var(--text);
+}
+.check-roll {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.4rem 0;
+}
+.check-die {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+}
+.check-narration {
+  margin: 0.5rem 0 0;
+  line-height: 1.45;
+}
+.gap { gap: 0.5rem; }

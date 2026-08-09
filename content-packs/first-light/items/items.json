@@ -1,0 +1,42 @@
+{
+  "fl_sealed_letter": {
+    "name": "Sealed Letter (wax still warm)",
+    "description": "House Veyra's seal. The wax smells of iron and night rain.",
+    "type": "KEY_ITEM",
+    "rarity": "RARE",
+    "effectKey": "NONE",
+    "power": 1
+  },
+  "fl_ash_sachet": {
+    "name": "Sachet of Letter-Ash",
+    "description": "What remains of words that died in a baker's oven. Steadying, in a grim way.",
+    "type": "CONSUMABLE",
+    "rarity": "UNCOMMON",
+    "effectKey": "HEAL",
+    "power": 16
+  },
+  "fl_silver_pin": {
+    "name": "Veyra Silver Pin",
+    "description": "A house mark. Wear it and doors open — or close forever.",
+    "type": "EQUIPMENT",
+    "rarity": "RARE",
+    "effectKey": "BUFF_AC",
+    "power": 12
+  },
+  "fl_courier_purse": {
+    "name": "Courier's Blood-Money",
+    "description": "A purse paid for silence. The coins are clean; the reason is not.",
+    "type": "CONSUMABLE",
+    "rarity": "COMMON",
+    "effectKey": "RESTORE_MANA",
+    "power": 14
+  },
+  "fl_raincloak": {
+    "name": "Raincloak of the Alleys",
+    "description": "Oilskin that drinks the weather. Hides a blade, a letter, a name.",
+    "type": "EQUIPMENT",
+    "rarity": "UNCOMMON",
+    "effectKey": "BUFF_AC",
+    "power": 8
+  }
+}

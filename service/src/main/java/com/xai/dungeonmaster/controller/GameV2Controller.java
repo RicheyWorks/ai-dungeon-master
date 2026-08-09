@@ -279,6 +279,7 @@ public class GameV2Controller {
                 engine.getWorldMap().getCurrentLocation(),
                 List.copyOf(engine.getWorldMap().getDiscoveredRifts()),
                 choiceDetails,
-                story);
+                story,
+                com.xai.dungeonmaster.dto.CheckResultDto.from(engine.getLastCheck()));
     }
 }

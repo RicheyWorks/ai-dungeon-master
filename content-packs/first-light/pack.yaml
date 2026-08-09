@@ -1,9 +1,9 @@
-# First Light — free legendary opener (Goal G1).
-# Ships the default cold-open story when the engine boots with content packs.
+# First Light — free flagship opener + noon climax (Goals G1 + G4).
 id: "first-light"
 displayName: "First Light"
-version: "1.0.0"
+version: "1.1.0"
 minEngineVersion: "1.0.0"
 description: >
-  A free opening adventure: you are already mid-heist in the rain, a sealed letter
-  burning your palm, and one choice that the city will not forget.
+  Flagship free adventure: mid-heist cold open with an irreversible letter choice,
+  delayed dawn callback, then Noon in the Square — skill checks, boss pressure,
+  and three endings (Tribune, Open Blade, Pin). Ships items, monsters, NPCs, factions.

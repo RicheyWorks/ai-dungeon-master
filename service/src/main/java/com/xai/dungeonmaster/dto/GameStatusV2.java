@@ -5,9 +5,7 @@ import com.xai.dungeonmaster.MemberState;
 import java.util.List;
 
 /**
- * Structured v2 game-status payload. Replaces the legacy
- * {@link GameStatusResponse} flat {@code partySummary} string with a typed
- * {@code party} array so native clients never parse server-formatted text.
+ * Structured v2 game-status payload.
  */
 public record GameStatusV2(
         List<MemberState> party,
@@ -17,16 +15,13 @@ public record GameStatusV2(
         List<String> recentHistory,
         QuestInfo quest,
         List<String> recentEvents,
-        /** Current party location from the engine WorldMap. */
         String location,
-        /** Rifts the party has discovered (includes starting + completed quests). */
         List<String> discoveredRifts,
-        /** Rich choice rows (stakes / irreversible); parallel to availableChoices. */
         List<ChoiceDetail> choiceDetails,
-        /** Goal G2 — epithets, scars, session recap. */
-        StoryMemoryPayload story
+        StoryMemoryPayload story,
+        /** Goal G3 — last cinematic check (stakes → roll → result). */
+        CheckResultDto lastCheck
 ) {
-    /** Backward-compatible constructor used by older tests. */
     public GameStatusV2(
             List<MemberState> party,
             int chaosLevel,
@@ -38,7 +33,7 @@ public record GameStatusV2(
             String location,
             List<String> discoveredRifts) {
         this(party, chaosLevel, combatActive, availableChoices, recentHistory,
-                quest, recentEvents, location, discoveredRifts, List.of(), null);
+                quest, recentEvents, location, discoveredRifts, List.of(), null, null);
     }
 
     public GameStatusV2(
@@ -53,6 +48,22 @@ public record GameStatusV2(
             List<String> discoveredRifts,
             List<ChoiceDetail> choiceDetails) {
         this(party, chaosLevel, combatActive, availableChoices, recentHistory,
-                quest, recentEvents, location, discoveredRifts, choiceDetails, null);
+                quest, recentEvents, location, discoveredRifts, choiceDetails, null, null);
+    }
+
+    public GameStatusV2(
+            List<MemberState> party,
+            int chaosLevel,
+            boolean combatActive,
+            List<String> availableChoices,
+            List<String> recentHistory,
+            QuestInfo quest,
+            List<String> recentEvents,
+            String location,
+            List<String> discoveredRifts,
+            List<ChoiceDetail> choiceDetails,
+            StoryMemoryPayload story) {
+        this(party, chaosLevel, combatActive, availableChoices, recentHistory,
+                quest, recentEvents, location, discoveredRifts, choiceDetails, story, null);
     }
 }

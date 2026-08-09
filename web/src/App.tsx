@@ -1,3 +1,5 @@
+import * as audio from "./audio";
+import { buildShareMarkdown, downloadSharePng, downloadText } from "./shareCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AdminReceiptsPayload,
@@ -1372,6 +1374,8 @@ function GameTab(props: {
 }) {
   const { status } = props;
   const quest = status?.quest;
+  const [soundOn, setSoundOn] = useState(false);
+
   const progress = Math.min(Math.max(quest?.progress ?? 0, 0), 1);
   const outcome =
     quest?.completed
@@ -1386,6 +1390,16 @@ function GameTab(props: {
   const choiceSignature = choices.join("\u0001");
   const detailFor = (label: string, idx: number) =>
     choiceDetails.find((c) => c.label === label) ?? choiceDetails[idx];
+
+  useEffect(() => {
+    const c = status?.lastCheck;
+    if (!c || !soundOn) return;
+    if (c.critical) audio.playSting("crit");
+    else if (c.kind === "skill") audio.playSting("check");
+    else if (c.success) audio.playSting("discover");
+    else audio.playSting("miss");
+  }, [status?.lastCheck?.atEpochMs, soundOn]);
+
 
   const rifts = status?.discoveredRifts ?? [];
   const history = status?.recentHistory ?? [];
@@ -1571,17 +1585,51 @@ function GameTab(props: {
                   <div className="recap-block mt-2">
                     <div className="row between">
                       <span className="scene-kicker">Last time…</span>
-                      <button
-                        type="button"
-                        className="linkish"
-                        onClick={() => {
-                          const text = (status.story?.recap ?? []).join(" ");
-                          void navigator.clipboard?.writeText(text);
-                          /* optional toast via setInfo if available in GameTab — use window */
-                        }}
-                      >
-                        Copy recap
-                      </button>
+                      <div className="row gap">
+                        <button
+                          type="button"
+                          className="linkish"
+                          onClick={() => {
+                            const text = (status.story?.recap ?? []).join(" ");
+                            void navigator.clipboard?.writeText(text);
+                          }}
+                        >
+                          Copy recap
+                        </button>
+                        <button
+                          type="button"
+                          className="linkish"
+                          onClick={() => {
+                            const payload = {
+                              partyTitle: status.story?.partyTitle,
+                              questTitle: quest?.title,
+                              epithets: status.story?.epithets ?? [],
+                              scars: status.story?.scars ?? [],
+                              recap: status.story?.recap ?? [],
+                              lastCheck: status.lastCheck,
+                            };
+                            downloadText("run-card.md", buildShareMarkdown(payload));
+                          }}
+                        >
+                          Export .md
+                        </button>
+                        <button
+                          type="button"
+                          className="linkish"
+                          onClick={() => {
+                            downloadSharePng({
+                              partyTitle: status.story?.partyTitle,
+                              questTitle: quest?.title,
+                              epithets: status.story?.epithets ?? [],
+                              scars: status.story?.scars ?? [],
+                              recap: status.story?.recap ?? [],
+                              lastCheck: status.lastCheck,
+                            });
+                          }}
+                        >
+                          Share card PNG
+                        </button>
+                      </div>
                     </div>
                     <ul className="recap-list">
                       {(status.story.recap ?? []).map((line, i) => (
@@ -1679,12 +1727,54 @@ function GameTab(props: {
             </details>
           )}
 
+          {status.lastCheck ? (
+            <div className={`card cinematic-check${status.lastCheck.critical ? " is-crit" : ""}${status.lastCheck.success ? " is-hit" : " is-miss"}`}>
+              <div className="scene-kicker">Cinematic check</div>
+              {status.lastCheck.stakes ? (
+                <div className="check-stakes">Stakes: {status.lastCheck.stakes}</div>
+              ) : null}
+              <div className="check-roll">
+                <span className="check-die">d20 {status.lastCheck.roll}</span>
+                <span className="muted">
+                  {(status.lastCheck.modifier ?? 0) >= 0 ? "+" : ""}
+                  {status.lastCheck.modifier ?? 0} = {status.lastCheck.total} vs {status.lastCheck.difficulty}
+                </span>
+                <span className={`pill ${status.lastCheck.critical ? "up" : status.lastCheck.success ? "up" : "down"}`}>
+                  {status.lastCheck.critical ? "CRIT" : status.lastCheck.fumble ? "FUMBLE" : status.lastCheck.success ? "HIT" : "MISS"}
+                </span>
+              </div>
+              {status.lastCheck.effect ? (
+                <div className="subtle">{status.lastCheck.effect}</div>
+              ) : null}
+              {status.lastCheck.narration ? (
+                <p className="check-narration">{status.lastCheck.narration}</p>
+              ) : null}
+            </div>
+          ) : null}
+
           <section>
             <div className="section-head">
               <h3>Choices</h3>
-              {choices.length > 0 ? (
-                <span className="subtle">Keys 1–{Math.min(9, choices.length)}</span>
-              ) : null}
+              <div className="row gap">
+                {choices.length > 0 ? (
+                  <span className="subtle">Keys 1–{Math.min(9, choices.length)}</span>
+                ) : null}
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={() => {
+                    const next = !soundOn;
+                    setSoundOn(next);
+                    audio.setMuted(!next);
+                    if (next) {
+                      void audio.unlockFromGesture();
+                      audio.startAmbient(status.combatActive ? "combat" : "alley");
+                    }
+                  }}
+                >
+                  {soundOn ? "Sound on" : "Sound off"}
+                </button>
+              </div>
             </div>
             {choices.length === 0 ? (
               <div className="empty">
@@ -1702,7 +1792,11 @@ function GameTab(props: {
                   type="button"
                   className={`choice primary${irreversible ? " choice-irreversible" : ""}`}
                   disabled={props.busy}
-                  onClick={() => props.onAct(label)}
+                  onClick={() => {
+                    void audio.unlockFromGesture();
+                    if (soundOn) audio.startAmbient(status.combatActive ? "combat" : "alley");
+                    props.onAct(label);
+                  }}
                 >
                   <span className="choice-key" aria-hidden>
                     {idx < 9 ? idx + 1 : "·"}

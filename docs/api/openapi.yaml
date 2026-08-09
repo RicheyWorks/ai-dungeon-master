@@ -1904,6 +1904,8 @@ components:
             $ref: '#/components/schemas/ChoiceDetail'
         story:
           $ref: '#/components/schemas/StoryMemoryPayload'
+        lastCheck:
+          $ref: '#/components/schemas/CheckResultDto'
     StoryMemoryPayload:
       type: object
       nullable: true
@@ -1922,6 +1924,27 @@ components:
           type: array
           items: { type: string }
           description: Up to ~3 short sentences for load / chrome.
+
+    CheckResultDto:
+      type: object
+      nullable: true
+      description: Goal G3 cinematic check (stakes → roll → result).
+      properties:
+        kind: { type: string }
+        actor: { type: string }
+        target: { type: string }
+        stakes: { type: string }
+        roll: { type: integer }
+        modifier: { type: integer }
+        total: { type: integer }
+        difficulty: { type: integer }
+        success: { type: boolean }
+        critical: { type: boolean }
+        fumble: { type: boolean }
+        effect: { type: string }
+        narration: { type: string }
+        atEpochMs: { type: integer, format: int64 }
+        pushedLuck: { type: boolean }
     ChoiceDetail:
       type: object
       properties:

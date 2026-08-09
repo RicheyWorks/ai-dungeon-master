@@ -13,6 +13,12 @@
  */
 
 import { mapValues } from '../runtime';
+import type { CheckResultDto } from './CheckResultDto';
+import {
+    CheckResultDtoFromJSON,
+    CheckResultDtoFromJSONTyped,
+    CheckResultDtoToJSON,
+} from './CheckResultDto';
 import type { MemberState } from './MemberState';
 import {
     MemberStateFromJSON,
@@ -110,6 +116,12 @@ export interface GameStatusV2 {
      * @memberof GameStatusV2
      */
     story?: StoryMemoryPayload | null;
+    /**
+     * 
+     * @type {CheckResultDto}
+     * @memberof GameStatusV2
+     */
+    lastCheck?: CheckResultDto | null;
 }
 
 /**
@@ -140,6 +152,7 @@ export function GameStatusV2FromJSONTyped(json: any, ignoreDiscriminator: boolea
         'discoveredRifts': json['discoveredRifts'] == null ? undefined : json['discoveredRifts'],
         'choiceDetails': json['choiceDetails'] == null ? undefined : ((json['choiceDetails'] as Array<any>).map(ChoiceDetailFromJSON)),
         'story': json['story'] == null ? undefined : StoryMemoryPayloadFromJSON(json['story']),
+        'lastCheck': json['lastCheck'] == null ? undefined : CheckResultDtoFromJSON(json['lastCheck']),
     };
 }
 
@@ -160,6 +173,7 @@ export function GameStatusV2ToJSON(value?: GameStatusV2 | null): any {
         'discoveredRifts': value['discoveredRifts'],
         'choiceDetails': value['choiceDetails'] == null ? undefined : ((value['choiceDetails'] as Array<any>).map(ChoiceDetailToJSON)),
         'story': StoryMemoryPayloadToJSON(value['story']),
+        'lastCheck': CheckResultDtoToJSON(value['lastCheck']),
     };
 }
 

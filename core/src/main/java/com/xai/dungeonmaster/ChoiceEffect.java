@@ -92,7 +92,65 @@ public final class ChoiceEffect {
                 KeyValue kv = parseArg(1);
                 if (kv != null) engine.getWorldState().addFlag(Faction.reputationFlag(kv.key), kv.value);
             }
+            case "SKILL_CHECK" -> {
+                // arg: "attribute=DC" e.g. "dexterity=12" or "strength=14"
+                applySkillCheck(engine, actor);
+            }
             default -> engine.log("Unknown choice effect: " + type);
+        }
+    }
+
+    private void applySkillCheck(DungeonMasterEngine engine, Adventurer actor) {
+        if (engine == null || actor == null) return;
+        String attr = "dexterity";
+        int dc = 12;
+        if (!arg.isEmpty()) {
+            int eq = arg.indexOf('=');
+            if (eq > 0) {
+                attr = arg.substring(0, eq).trim().toLowerCase(Locale.ROOT);
+                try {
+                    dc = Integer.parseInt(arg.substring(eq + 1).trim());
+                } catch (NumberFormatException ignored) { /* default */ }
+            } else {
+                attr = arg.trim().toLowerCase(Locale.ROOT);
+            }
+        }
+        int score = switch (attr) {
+            case "str", "strength" -> actor.getStrength();
+            case "dex", "dexterity" -> actor.getDexterity();
+            case "con", "constitution" -> actor.getConstitution();
+            case "int", "intelligence" -> actor.getIntelligence();
+            case "wis", "wisdom" -> actor.getWisdom();
+            case "cha", "charisma" -> actor.getCharisma();
+            default -> actor.getDexterity();
+        };
+        int mod = (score - 10) / 2;
+        int d20 = 1 + engine.getRandom().nextInt(20);
+        boolean crit = d20 == 20;
+        boolean fumble = d20 == 1;
+        int total = d20 + mod;
+        boolean success = !fumble && (crit || total >= dc);
+        String stakes = "Succeed on " + attr + " (DC " + dc + ") or suffer the consequence.";
+        String effect = success ? (crit ? "critical success" : "success") : (fumble ? "fumble" : "failure");
+        String narration = actor.getName() + " rolls " + d20 + (mod >= 0 ? "+" : "") + mod
+                + " = " + total + " vs DC " + dc + " (" + attr + ") — "
+                + (success ? "SUCCESS" : "FAILURE") + (crit ? "!" : ".");
+        if (success) {
+            engine.log(narration);
+        } else {
+            int wound = fumble ? 4 : 2;
+            actor.takeDamage(wound);
+            narration += " The world bites back (" + wound + " damage).";
+            engine.log(narration);
+        }
+        CheckResult check = CheckResult.of(
+                "skill", actor.getName(), attr, stakes,
+                d20, mod, dc, success, crit, fumble, effect, narration, false);
+        engine.setLastCheck(check);
+        if (success) {
+            engine.getWorldState().addFlag("check_success_" + attr, 1);
+        } else {
+            engine.getWorldState().addFlag("check_fail_" + attr, 1);
         }
     }
 

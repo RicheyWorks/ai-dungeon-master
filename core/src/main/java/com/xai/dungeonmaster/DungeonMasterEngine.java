@@ -64,6 +64,13 @@ public class DungeonMasterEngine {
     /** Structured narrative memory fed to the narrator (ADR-001 Phase 3). */
     private volatile Chronicle chronicle = new Chronicle();
 
+    /** Goal G3 — last cinematic check for status / SPA. */
+    private volatile CheckResult lastCheck;
+
+    /** Push-your-luck once per scene (combat or exploration). */
+    private volatile String pushLuckSceneId;
+    private volatile boolean pushLuckUsedThisScene = false;
+
     /** Facts handed to the narrator per request (bounded by Chronicle caps). */
     private static final int NARRATION_FACTS = 6;
 
@@ -180,29 +187,16 @@ public class DungeonMasterEngine {
         switch (action) {
 
             case "ATTACK": {
-                Entity target = combatState.getRandomEnemy();
-                if (target == null) return "No enemies remain.";
+                return resolveAttackCheck(actor, false);
+            }
 
-                int baseDmg = 5 + random.nextInt(10);
-                boolean crit = random.nextInt(100) < 15;
-                if (crit) baseDmg *= 2;
-
-                boolean dodged = random.nextInt(100) < 10;
-                if (dodged) return target.getName() + " evades the attack!";
-
-                if (chaosLevel > 5 && random.nextInt(100) < chaosLevel * 3) {
-                    baseDmg += random.nextInt(10);
+            case "PUSH YOUR LUCK":
+            case "PUSH_YOUR_LUCK": {
+                if (pushLuckUsedThisScene) {
+                    return actor.getName() + " has already pushed their luck this scene.";
                 }
-
-                target.takeDamage(baseDmg);
-                String result = actor.getName() + " strikes " + target.getName() + " for " + baseDmg + " damage.";
-                if (crit) result += " CRITICAL HIT!";
-
-                if (target.isAlive() && random.nextInt(100) < 30) {
-                    result += "\n" + target.getName() + " snarls: 'You will regret that...'";
-                }
-                if (!target.isAlive()) result += handleEnemyDefeated(actor, target);
-                return result;
+                pushLuckUsedThisScene = true;
+                return resolveAttackCheck(actor, true);
             }
 
             case "SPELL": {
@@ -247,6 +241,78 @@ public class DungeonMasterEngine {
         }
     }
 
+    /**
+     * Cinematic attack check (G3): stakes → d20 + mod vs AC → damage / miss / crit.
+     * {@code pushLuck} doubles damage on hit but wounds the attacker on miss.
+     */
+    private String resolveAttackCheck(Entity actor, boolean pushLuck) {
+        Entity target = combatState.getRandomEnemy();
+        if (target == null) return "No enemies remain.";
+
+        int mod = 0;
+        if (actor instanceof Adventurer adv) {
+            mod = Math.max(-1, (adv.getStrength() - 10) / 2) + Math.max(0, (adv.getLevel() - 1) / 2);
+        }
+        if (pushLuck) mod += 2;
+
+        int d20 = 1 + random.nextInt(20);
+        boolean crit = d20 == 20;
+        boolean fumble = d20 == 1;
+        int total = d20 + mod;
+        int ac = Math.max(8, target.getAC());
+        String stakes = pushLuck
+                ? "Double damage if you hit — a miss cuts you instead."
+                : "Land a blow on " + target.getName() + " or waste the opening.";
+
+        boolean hit = !fumble && (crit || total >= ac);
+        if (hit && !crit && !pushLuck && random.nextInt(100) < 10) {
+            hit = false;
+        }
+
+        String effect;
+        String narration;
+        if (hit) {
+            int baseDmg = 5 + random.nextInt(10) + Math.max(0, mod);
+            if (crit) baseDmg *= 2;
+            if (pushLuck) baseDmg *= 2;
+            if (chaosLevel > 5 && random.nextInt(100) < chaosLevel * 3) {
+                baseDmg += random.nextInt(10);
+            }
+            target.takeDamage(baseDmg);
+            effect = baseDmg + " damage" + (crit ? " (critical)" : "") + (pushLuck ? " (pushed)" : "");
+            narration = actor.getName() + " strikes " + target.getName() + " for " + baseDmg + " damage.";
+            if (crit) narration += " CRITICAL HIT!";
+            if (pushLuck) narration += " Fortune favors the bold.";
+            if (target.isAlive() && random.nextInt(100) < 30) {
+                narration += "\n" + target.getName() + " snarls: 'You will regret that...'";
+            }
+            if (!target.isAlive()) narration += handleEnemyDefeated(actor, target);
+        } else {
+            effect = fumble ? "fumble" : "miss";
+            narration = fumble
+                    ? actor.getName() + " fumbles — steel bites empty air!"
+                    : target.getName() + " evades the attack!";
+            if (pushLuck && actor instanceof Adventurer self) {
+                int wound = 3 + random.nextInt(4);
+                self.takeDamage(wound);
+                effect = "miss — " + wound + " self damage";
+                narration += " The risk backfires: " + wound + " damage to " + self.getName() + ".";
+            }
+        }
+
+        CheckResult check = CheckResult.of(
+                pushLuck ? "push" : "attack",
+                actor.getName(),
+                target.getName(),
+                stakes,
+                d20, mod, ac,
+                hit, crit, fumble,
+                effect, narration, pushLuck);
+        lastCheck = check;
+        if (crit) chronicle.record("scar", "critical_hit", "Crit on " + target.getName());
+        return narration;
+    }
+
     private String handleEnemyDefeated(Entity actor, Entity target) {
         StringBuilder result = new StringBuilder("\nDEFEATED: ").append(target.getName()).append(" has been slain.");
 
@@ -280,6 +346,8 @@ public class DungeonMasterEngine {
         String outcome = choice.execute(this, party.get(0));
         if (quest != null) {
             quest.advance(this, choice);
+            Scene sc = quest.getCurrentScene();
+            noteSceneForPushLuck(sc != null ? sc.getId() : null);
             if (!wasFinished && quest.isFinished() && quest == currentQuest) {
                 onQuestFinished(quest);
             } else {
@@ -588,12 +656,16 @@ public class DungeonMasterEngine {
 
     public List<Choice> getCurrentAvailableChoices() {
         if (combatState.isActive()) {
-            return List.of(
-                    new Choice("Attack", "Strike enemy"),
-                    new Choice("Spell",  "Cast magic"),
-                    new Choice("Item",   "Use first consumable"),
-                    new Choice("Flee",   "Retreat")
-            );
+            List<Choice> combat = new ArrayList<>();
+            combat.add(new Choice("Attack", "Strike — d20 vs armor. Miss and the foe smiles."));
+            combat.add(new Choice("Spell", "Cast magic — spend mana for power."));
+            combat.add(new Choice("Item", "Use first consumable."));
+            if (!pushLuckUsedThisScene) {
+                combat.add(new Choice("Push Your Luck",
+                        "Risk a wound for double damage on a hit."));
+            }
+            combat.add(new Choice("Flee", "Tear open reality and escape."));
+            return combat;
         }
         // Snapshot to avoid NPE if a concurrent loadGame() swaps the quest mid-read.
         Quest quest = currentQuest;
@@ -723,6 +795,22 @@ public class DungeonMasterEngine {
     public int getChaosLevel()               { return chaosLevel; }
     public List<String> getTurnHistory()     { return turnHistoryLog; }
     public CombatState getCombatState()      { return combatState; }
+
+    /** Goal G3 — most recent cinematic check (nullable). */
+    public CheckResult getLastCheck() { return lastCheck; }
+
+    public void setLastCheck(CheckResult check) { this.lastCheck = check; }
+
+    /** Shared RNG for skill checks / content. */
+    public Random getRandom() { return random; }
+
+    void noteSceneForPushLuck(String sceneId) {
+        String id = sceneId != null ? sceneId : "";
+        if (!id.equals(pushLuckSceneId)) {
+            pushLuckSceneId = id;
+            pushLuckUsedThisScene = false;
+        }
+    }
     /**
      * @deprecated Destructive: clears every existing listener before installing
      *             the new one. Callers that want to ADD a listener without
