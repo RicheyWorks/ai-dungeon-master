@@ -40,10 +40,10 @@ class MarketplaceJobOwnershipTest {
     }
 
     @Test
-    void nullOwnerIsOpen() {
+    void nullOwnerIsClosed() {
         MarketplaceJobStore.JobRecord rec = new MarketplaceJobStore.JobRecord(
                 "j1", "p", "QUEUED", 0, 0, "q", false, null, System.currentTimeMillis(), null);
-        assertTrue(rec.ownedBy(null));
-        assertTrue(rec.ownedBy("anyone"));
+        assertFalse(rec.ownedBy(null));
+        assertFalse(rec.ownedBy("anyone"));
     }
 }

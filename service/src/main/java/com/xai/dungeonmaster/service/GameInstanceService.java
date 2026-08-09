@@ -189,12 +189,24 @@ public class GameInstanceService {
      * A TTL of 0 disables idle eviction. Returns how many were removed.
      */
     public int evictIdle() {
-        return evictIdle(System.currentTimeMillis());
+        return evictIdleAt(System.currentTimeMillis(), policy.idleTtlSeconds());
     }
 
-    /** Test hook with injectable clock. */
+    /**
+     * Evict engines idle longer than {@code idleTtlSeconds} (ops purge can override policy).
+     * TTL of 0 disables idle eviction.
+     */
+    public int evictIdleWithTtl(long idleTtlSeconds) {
+        return evictIdleAt(System.currentTimeMillis(), idleTtlSeconds);
+    }
+
+    /** Test hook with injectable clock (uses policy TTL). */
     public int evictIdle(long nowMs) {
-        long ttlSec = policy.idleTtlSeconds();
+        return evictIdleAt(nowMs, policy.idleTtlSeconds());
+    }
+
+    public int evictIdleAt(long nowMs, long idleTtlSeconds) {
+        long ttlSec = idleTtlSeconds;
         if (ttlSec <= 0) {
             return 0;
         }

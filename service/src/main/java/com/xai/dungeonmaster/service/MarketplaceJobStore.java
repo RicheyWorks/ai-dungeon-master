@@ -47,9 +47,12 @@ public interface MarketplaceJobStore {
             return "DONE".equals(phase) || "FAILED".equals(phase) || "CANCELLED".equals(phase);
         }
 
-        /** True when the job has no owner (legacy) or the session matches. */
+        /**
+         * Fail-closed ownership: only the starting session may poll/cancel.
+         * Ownerless (legacy) jobs are not world-accessible — use admin tooling.
+         */
         public boolean ownedBy(String sessionId) {
-            if (ownerSessionId == null || ownerSessionId.isBlank()) return true;
+            if (ownerSessionId == null || ownerSessionId.isBlank()) return false;
             return sessionId != null && ownerSessionId.equals(sessionId);
         }
     }

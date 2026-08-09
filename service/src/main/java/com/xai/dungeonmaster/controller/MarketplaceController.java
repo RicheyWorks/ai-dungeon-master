@@ -157,8 +157,14 @@ public class MarketplaceController {
 
     private ResponseEntity<Envelope<?>> startAsync(
             String id, SessionService.Session session, String requestId) {
+        String owner = sessionId(session);
+        if (owner == null || owner.isBlank()) {
+            return ResponseEntity.status(401).body(
+                    Envelope.of("error", new ErrorPayload(
+                            "Async marketplace install requires a session (Bearer JWT)."), requestId));
+        }
         try {
-            MarketplaceInstallJob job = marketplace.startInstallAsync(id, sessionId(session));
+            MarketplaceInstallJob job = marketplace.startInstallAsync(id, owner);
             return ResponseEntity.accepted()
                     .body(Envelope.of("marketplace_install_job", job, requestId));
         } catch (IllegalArgumentException e) {
@@ -169,7 +175,7 @@ public class MarketplaceController {
     }
 
     /**
-     * @return empty when authorized; otherwise a 404/403 response entity
+     * @return empty when authorized; otherwise a 404 response (no existence leak)
      */
     private Optional<ResponseEntity<Envelope<?>>> authorizeJob(
             String jobId,
@@ -193,8 +199,9 @@ public class MarketplaceController {
                     "method=" + method
                             + " caller=" + (caller == null ? "none" : caller)
                             + " owner=" + nullToNone(rec.get().ownerSessionId()));
-            return Optional.of(ResponseEntity.status(403).body(
-                    Envelope.of("error", new ErrorPayload("Install job belongs to another session."), requestId)));
+            // Same 404 as missing — do not confirm job existence to other tenants.
+            return Optional.of(ResponseEntity.status(404).body(
+                    Envelope.of("error", new ErrorPayload("Unknown install job: " + jobId), requestId)));
         }
         return Optional.empty();
     }

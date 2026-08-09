@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -16,7 +15,10 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class AdminAudit {
     private static final Logger LOG = LoggerFactory.getLogger("dm.admin.audit");
     private static final int CAPACITY = 200;
-    private static final ConcurrentLinkedDeque<Event> RECENT = new ConcurrentLinkedDeque<>();
+    private static final Object LOCK = new Object();
+    private static final Event[] RING = new Event[CAPACITY];
+    private static int head;
+    private static int size;
     private static final AtomicLong SEQ = new AtomicLong();
 
     private AdminAudit() {}
@@ -40,26 +42,34 @@ public final class AdminAudit {
         LOG.info("admin_audit outcome={} path={} ip={} requestId={} {}",
                 o, p, ip, rid, d);
         Event e = new Event(SEQ.incrementAndGet(), System.currentTimeMillis(), o, p, ip, rid, d);
-        RECENT.addFirst(e);
-        while (RECENT.size() > CAPACITY) {
-            RECENT.pollLast();
+        synchronized (LOCK) {
+            RING[head] = e;
+            head = (head + 1) % CAPACITY;
+            if (size < CAPACITY) size++;
         }
     }
 
     /** Newest first. Cap 1–200. */
     public static List<Event> recent(int limit) {
         int cap = Math.min(CAPACITY, Math.max(1, limit <= 0 ? 50 : limit));
-        List<Event> out = new ArrayList<>(cap);
-        for (Event e : RECENT) {
-            out.add(e);
-            if (out.size() >= cap) break;
+        synchronized (LOCK) {
+            List<Event> out = new ArrayList<>(Math.min(cap, size));
+            for (int i = 0; i < size && out.size() < cap; i++) {
+                int idx = (head - 1 - i + CAPACITY) % CAPACITY;
+                Event e = RING[idx];
+                if (e != null) out.add(e);
+            }
+            return Collections.unmodifiableList(out);
         }
-        return Collections.unmodifiableList(out);
     }
 
     /** Test helper. */
     public static void clearForTests() {
-        RECENT.clear();
+        synchronized (LOCK) {
+            for (int i = 0; i < CAPACITY; i++) RING[i] = null;
+            head = 0;
+            size = 0;
+        }
         SEQ.set(0);
     }
 

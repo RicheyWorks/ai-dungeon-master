@@ -1,9 +1,15 @@
 package com.xai.dungeonmaster.config;
 
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -14,9 +20,6 @@ class RequestSizeFilterTest {
         RequestSizeFilter filter = new RequestSizeFilter(300, true);
         MockHttpServletRequest req = new MockHttpServletRequest("POST", "/v2/narrate");
         req.setContentType("application/json");
-        req.setContent(new byte[0]);
-        req.addHeader("Content-Length", "500");
-        // MockHttpServletRequest uses content length from content array; set via setContent
         req.setContent(new byte[500]);
         MockHttpServletResponse res = new MockHttpServletResponse();
         filter.doFilter(req, res, new MockFilterChain());
@@ -44,5 +47,34 @@ class RequestSizeFilterTest {
         MockHttpServletResponse res = new MockHttpServletResponse();
         filter.doFilter(req, res, new MockFilterChain());
         assertEquals(200, res.getStatus());
+    }
+
+    @Test
+    void limitedStreamThrowsWhenPastMax() throws Exception {
+        AtomicBoolean oversize = new AtomicBoolean(false);
+        ByteArrayInputStream raw = new ByteArrayInputStream(new byte[200]);
+        ServletInputStream delegate = new ServletInputStream() {
+            @Override
+            public int read() {
+                return raw.read();
+            }
+
+            @Override
+            public boolean isFinished() {
+                return raw.available() == 0;
+            }
+
+            @Override
+            public boolean isReady() {
+                return true;
+            }
+
+            @Override
+            public void setReadListener(ReadListener readListener) {}
+        };
+        RequestSizeFilter.LimitedServletInputStream limited =
+                new RequestSizeFilter.LimitedServletInputStream(delegate, 64, oversize);
+        assertThrows(RequestSizeFilter.OversizedBodyException.class, limited::readAllBytes);
+        assertTrue(oversize.get());
     }
 }

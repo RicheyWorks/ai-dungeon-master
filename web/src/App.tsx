@@ -105,6 +105,7 @@ export function App() {
   const stompRef = useRef<StompClient | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
   const refreshInFlight = useRef(false);
+  const ensureSessionInFlight = useRef<Promise<SessionInfo> | null>(null);
 
   const token = session?.token ?? null;
   const refreshRecentJobs = useCallback(async () => {
@@ -378,25 +379,46 @@ export function App() {
   }, [session, refreshSaveMeta]);
 
   const ensureSession = useCallback(async (): Promise<SessionInfo> => {
-    let candidate = session;
-    if (!candidate || isExpired(candidate)) {
-      const fromDisk = sessionStore.loadSession();
-      if (fromDisk && !isExpired(fromDisk)) candidate = fromDisk;
-    }
-    if (candidate && !isExpired(candidate)) {
-      const ok = await api.validateSession(baseUrl, candidate.token);
-      if (ok) {
-        sessionStore.saveSession(candidate);
-        setSession(candidate);
-        return candidate;
+    if (ensureSessionInFlight.current) return ensureSessionInFlight.current;
+    const work = (async (): Promise<SessionInfo> => {
+      let candidate = session;
+      if (!candidate || isExpired(candidate)) {
+        const fromDisk = sessionStore.loadSession();
+        if (fromDisk && !isExpired(fromDisk)) candidate = fromDisk;
       }
+      if (candidate && !isExpired(candidate)) {
+        // Refresh near-expiry instead of discarding
+        const left = secondsUntilExpiry(candidate);
+        if (left > 0 && left <= 120) {
+          try {
+            const next = await api.refreshSession(baseUrl, candidate.token);
+            sessionStore.saveSession(next);
+            setSession(next);
+            return next;
+          } catch {
+            /* fall through to validate / mint */
+          }
+        }
+        const ok = await api.validateSession(baseUrl, candidate.token);
+        if (ok) {
+          sessionStore.saveSession(candidate);
+          setSession(candidate);
+          return candidate;
+        }
+      }
+      sessionStore.clearSession();
+      const fresh = await api.mintSession(baseUrl, candidate?.displayName);
+      sessionStore.saveSession(fresh);
+      setSession(fresh);
+      setInfo(`New session ${shortId(fresh.sessionId)}`);
+      return fresh;
+    })();
+    ensureSessionInFlight.current = work;
+    try {
+      return await work;
+    } finally {
+      ensureSessionInFlight.current = null;
     }
-    sessionStore.clearSession();
-    const fresh = await api.mintSession(baseUrl, candidate?.displayName);
-    sessionStore.saveSession(fresh);
-    setSession(fresh);
-    setInfo(`New session ${shortId(fresh.sessionId)}`);
-    return fresh;
   }, [baseUrl, session]);
 
   const run = useCallback(

@@ -112,16 +112,25 @@ class MarketplaceControllerTest {
 
         mvc.perform(get("/v2/marketplace/jobs/" + jobId)
                         .requestAttr(JwtAuthFilter.SESSION_ATTR, other))
-                .andExpect(status().isForbidden())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.type", equalTo("error")));
 
         mvc.perform(delete("/v2/marketplace/jobs/" + jobId)
                         .requestAttr(JwtAuthFilter.SESSION_ATTR, other))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNotFound());
 
-        // unauthenticated also forbidden when job has an owner
+        // unauthenticated also not found (no existence leak)
         mvc.perform(get("/v2/marketplace/jobs/" + jobId))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void asyncInstallRequiresSession() throws Exception {
+        mvc.perform(post("/v2/marketplace/demo-pack/install-async"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.type", equalTo("error")));
+        mvc.perform(post("/v2/marketplace/demo-pack/install").param("async", "true"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

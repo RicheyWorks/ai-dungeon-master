@@ -278,7 +278,7 @@ public class AdminController {
         int removedSessions = sessions.purgeIdle(ttl);
         int removedEngines = 0;
         if (evictEngines && instances != null) {
-            removedEngines = instances.evictIdle();
+            removedEngines = instances.evictIdleWithTtl(ttl);
         }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("idleTtlSeconds", ttl);
