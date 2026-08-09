@@ -1,6 +1,6 @@
 # Multi-hour goals (`/goal`)
 
-_Last updated: 2026-08-09 · Architecture map: [ARCHITECTURE.md](ARCHITECTURE.md)_
+_Last updated: 2026-08-09 · Architecture: [ARCHITECTURE.md](ARCHITECTURE.md) · **Next builder: [HANDOFF.md](HANDOFF.md)**_
 
 This file turns “what next?” into **sustained build sessions**. Prefer one active
 goal over dozens of `next` micro-batches.

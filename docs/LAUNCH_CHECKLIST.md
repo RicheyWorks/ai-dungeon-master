@@ -1,5 +1,7 @@
 # Production launch freeze checklist (Goal G8)
 
+> Next builder onboarding: [HANDOFF.md](HANDOFF.md)
+
 Use this **only** when shipping a known build — no feature work mid-freeze.
 
 _Last updated: 2026-08-09 · Goals G1–G7 complete on `main`_

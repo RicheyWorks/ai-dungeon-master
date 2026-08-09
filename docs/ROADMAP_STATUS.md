@@ -1,8 +1,9 @@
 # AI Dungeon Master — Roadmap Status
 
-> Multi-hour work: use [`GOALS.md`](GOALS.md) (`/goal`) · design map: [`ARCHITECTURE.md`](ARCHITECTURE.md)
+> Multi-hour work: use [`GOALS.md`](GOALS.md) (`/goal`) · design map: [`ARCHITECTURE.md`](ARCHITECTURE.md) · **next builder: [`HANDOFF.md`](HANDOFF.md)**
 
-_Last updated: 2026-08-09 · `mvn test` + web SPA build green · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
+_Last updated: 2026-08-09 · G1–G9 complete on `main` · `mvn -pl core,service -am test` + web SPA build green · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
+
 
 Grounded in the current code, not the May plan. Phases 0–1 are complete, Phase 2
 is essentially complete, and Phase 5 (content packs & mods) now has substantial
@@ -25,6 +26,8 @@ auto-renew, offline banner, STOMP reconnect, `X-Request-Id` on clients, metrics
 token dual rotation, save meta/delete (`GET/DELETE /v2/save`), and
 `GET /v2/marketplace/jobs` (session-owned install job list) with Mods UI.
 Android/iOS shells now surface save meta/clear-save and install job list/resume.
+
+**Player cool path (G1–G9, 2026-08):** First Light free opener + campaign chain to Noon, story memory, cinematic checks, share/audio, storefront smoke, launch checklist, cool-path polish (`playHint`, no ambient combat during campaign). See [HANDOFF.md](HANDOFF.md) and [GOALS.md](GOALS.md).
 
 ## Snapshot
 

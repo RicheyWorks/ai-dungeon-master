@@ -10,7 +10,7 @@ content packs, and typed clients for web, Android, and iOS.
 | **API** | Versioned REST `/v2/*` + STOMP WebSocket · OpenAPI / AsyncAPI |
 | **Clients** | Web SPA (`/app/`) · Android (Compose) · iOS (SwiftUI) · generated TS / Kotlin / Swift SDKs |
 | **Tests** | `mvn clean test` · `scripts/launch-smoke.sh` (health + play + STOMP + metrics) |
-| **Status** | Phase 0–2 + story depth + production multi-tenant gates on `main` · clients ◐ |
+| **Status** | G1–G9 done on `main` · First Light cool path · production gates · clients ◐ · [handoff](docs/HANDOFF.md) |
 
 ---
 
@@ -24,7 +24,7 @@ content packs, and typed clients for web, Android, and iOS.
 6. [AI narration](#ai-narration)
 7. [Content packs & plugins](#content-packs--plugins)
 8. [Project layout](#project-layout)
-9. [Documentation](#documentation)
+9. [Documentation](#documentation) · **[Handoff](docs/HANDOFF.md)**
 10. [Configuration](#configuration-common)
 11. [Deploy](#deploy)
 12. [Roadmap](#roadmap)
@@ -52,6 +52,9 @@ content packs, and typed clients for web, Android, and iOS.
 - **Cinematic checks (G3)** — d20 stakes→roll→result; Push Your Luck; SPA card.
 - **Flagship First Light 1.1 (G4)** — noon climax, 3 endings, boss, items, NPCs.
 - **Sensory & share (G5)** — muteable ambient/stings; export markdown + PNG card.
+- **Mobile parity (G6)** — Android session TTL, story/check UI; see `android/PARITY.md`.
+- **Storefront vertical (G7)** — dev receipt → grant; `scripts/storefront-smoke.sh`.
+- **Cool-path (G9)** — First Light campaign auto-chain, `playHint`, no mid-arc ambush combat.
 - **Session resilience** — JWT mint / refresh / rename, SPA auto-renew near expiry,
   offline banner, STOMP auto-reconnect, per-request `X-Request-Id`.
 - **Save lifecycle** — session-scoped save/load/reset plus **GET/DELETE save meta**.
@@ -62,6 +65,8 @@ content packs, and typed clients for web, Android, and iOS.
 ---
 
 ## Quick start
+
+**New to the repo?** Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first (clone → test → play First Light → known gaps).
 
 ```bash
 # Build & test

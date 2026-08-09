@@ -1,6 +1,6 @@
 # Architecture — AI Dungeon Master
 
-_Last updated: 2026-08-09 · Companion: [GOALS.md](GOALS.md) (multi-hour `/goal` protocol) · [ADR-001](adr/ADR-001-story-depth.md) · [PRODUCTION.md](PRODUCTION.md)_
+_Last updated: 2026-08-09 · Companion: [HANDOFF.md](HANDOFF.md) (next builder) · [GOALS.md](GOALS.md) · [ADR-001](adr/ADR-001-story-depth.md) · [PRODUCTION.md](PRODUCTION.md)_
 
 This document is the **stable design map**. Use it to orient long build sessions.
 Use [GOALS.md](GOALS.md) to pick a multi-hour objective and stay on it.
