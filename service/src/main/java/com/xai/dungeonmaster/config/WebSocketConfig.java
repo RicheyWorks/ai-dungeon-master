@@ -36,21 +36,35 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final String[] allowedOriginPatterns;
     private final int messageSizeLimit;
     private final int sendBufferSizeLimit;
+    private final long heartbeatServerMs;
+    private final long heartbeatClientMs;
 
     public WebSocketConfig(
             StompAuthChannelInterceptor stompAuth,
             @Value("${game.cors.allowed-origins:*}") String allowedOrigins,
             @Value("${game.ws.message-size-limit:262144}") int messageSizeLimit,
-            @Value("${game.ws.send-buffer-size-limit:524288}") int sendBufferSizeLimit) {
+            @Value("${game.ws.send-buffer-size-limit:524288}") int sendBufferSizeLimit,
+            @Value("${game.ws.heartbeat.server-ms:10000}") long heartbeatServerMs,
+            @Value("${game.ws.heartbeat.client-ms:10000}") long heartbeatClientMs) {
         this.stompAuth = stompAuth;
         this.allowedOriginPatterns = CorsConfig.originPatterns(allowedOrigins);
         this.messageSizeLimit = Math.max(16 * 1024, messageSizeLimit);
         this.sendBufferSizeLimit = Math.max(32 * 1024, sendBufferSizeLimit);
+        this.heartbeatServerMs = Math.max(0L, heartbeatServerMs);
+        this.heartbeatClientMs = Math.max(0L, heartbeatClientMs);
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic");
+        org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler scheduler =
+                new org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1);
+        scheduler.setThreadNamePrefix("stomp-heartbeat-");
+        scheduler.setDaemon(true);
+        scheduler.initialize();
+        registry.enableSimpleBroker("/topic")
+                .setHeartbeatValue(new long[]{heartbeatServerMs, heartbeatClientMs})
+                .setTaskScheduler(scheduler);
         registry.setApplicationDestinationPrefixes("/app");
     }
 

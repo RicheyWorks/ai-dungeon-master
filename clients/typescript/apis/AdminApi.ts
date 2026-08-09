@@ -16,6 +16,7 @@
 import * as runtime from '../runtime';
 import type {
   AdminReceiptsEnvelope,
+  AdminSecurityEventsEnvelope,
   AdminSessionPacksEnvelope,
   AdminSessionRevokedEnvelope,
   AdminSessionsEnvelope,
@@ -25,6 +26,8 @@ import type {
 import {
     AdminReceiptsEnvelopeFromJSON,
     AdminReceiptsEnvelopeToJSON,
+    AdminSecurityEventsEnvelopeFromJSON,
+    AdminSecurityEventsEnvelopeToJSON,
     AdminSessionPacksEnvelopeFromJSON,
     AdminSessionPacksEnvelopeToJSON,
     AdminSessionRevokedEnvelopeFromJSON,
@@ -51,6 +54,12 @@ export interface ListAdminReceiptsRequest {
     sessionId?: string;
     since?: number;
     until?: number;
+    xRequestId?: string;
+}
+
+export interface ListAdminSecurityEventsRequest {
+    xAdminToken: string;
+    limit?: number;
     xRequestId?: string;
 }
 
@@ -192,6 +201,53 @@ export class AdminApi extends runtime.BaseAPI {
      */
     async listAdminReceipts(requestParameters: ListAdminReceiptsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminReceiptsEnvelope> {
         const response = await this.listAdminReceiptsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Process-local ring (newest first) of `SecurityAudit` outcomes (forbidden ownership, rate limits, scrape denials, etc.). No raw tokens. 
+     * Recent multi-tenant security audit events (ops)
+     */
+    async listAdminSecurityEventsRaw(requestParameters: ListAdminSecurityEventsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AdminSecurityEventsEnvelope>> {
+        if (requestParameters['xAdminToken'] == null) {
+            throw new runtime.RequiredError(
+                'xAdminToken',
+                'Required parameter "xAdminToken" was null or undefined when calling listAdminSecurityEvents().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xAdminToken'] != null) {
+            headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
+        }
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/admin/security-events`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AdminSecurityEventsEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Process-local ring (newest first) of `SecurityAudit` outcomes (forbidden ownership, rate limits, scrape denials, etc.). No raw tokens. 
+     * Recent multi-tenant security audit events (ops)
+     */
+    async listAdminSecurityEvents(requestParameters: ListAdminSecurityEventsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminSecurityEventsEnvelope> {
+        const response = await this.listAdminSecurityEventsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

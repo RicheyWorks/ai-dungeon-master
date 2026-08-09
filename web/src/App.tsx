@@ -5,6 +5,7 @@ import type {
   AdminSessionRow,
   AdminSessionsPayload,
   AdminSessionsPurgedPayload,
+  AdminSecurityEventsPayload,
   CatalogPayload,
   EntitlementPayload,
   GameStatusV2,
@@ -82,6 +83,7 @@ export function App() {
   const [metricsToken, setMetricsToken] = useState(() => sessionStore.loadMetricsToken());
   const [adminSessions, setAdminSessions] = useState<AdminSessionsPayload | null>(null);
   const [adminReceipts, setAdminReceipts] = useState<AdminReceiptsPayload | null>(null);
+  const [adminSecurityEvents, setAdminSecurityEvents] = useState<AdminSecurityEventsPayload | null>(null);
   const [sessionPacksLookup, setSessionPacksLookup] = useState("");
   const [adminSessionPacks, setAdminSessionPacks] = useState<AdminSessionPacksPayload | null>(null);
   const [purgeResult, setPurgeResult] = useState<AdminSessionsPurgedPayload | null>(null);
@@ -1032,6 +1034,7 @@ export function App() {
           }}
           adminSessions={adminSessions}
           adminReceipts={adminReceipts}
+          adminSecurityEvents={adminSecurityEvents}
           sessionPacksLookup={sessionPacksLookup}
           setSessionPacksLookup={setSessionPacksLookup}
           adminSessionPacks={adminSessionPacks}
@@ -1047,6 +1050,7 @@ export function App() {
             sessionStore.saveMetricsToken("");
             setAdminSessions(null);
             setAdminReceipts(null);
+            setAdminSecurityEvents(null);
             setAdminSessionPacks(null);
             setPurgeResult(null);
             setMetricsProbe(null);
@@ -1108,6 +1112,7 @@ export function App() {
                     readiness,
                     adminSessions,
                     adminReceipts,
+                    adminSecurityEvents,
                     adminSessionPacks,
                     metricsProbe,
                     session: session
@@ -1127,6 +1132,18 @@ export function App() {
             URL.revokeObjectURL(a.href);
             setInfo("Diagnostics exported");
           }}
+          onLoadSecurityEvents={() =>
+            void (async () => {
+              try {
+                setError(null);
+                const p = await api.listAdminSecurityEvents(baseUrl, adminToken, 50);
+                setAdminSecurityEvents(p);
+                setInfo(`Loaded ${p.count ?? p.events?.length ?? 0} security events`);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
           onLoadSessions={() =>
             void (async () => {
               try {
@@ -2196,6 +2213,7 @@ function SystemTab(props: {
   setMetricsToken: (v: string) => void;
   adminSessions: AdminSessionsPayload | null;
   adminReceipts: AdminReceiptsPayload | null;
+  adminSecurityEvents: AdminSecurityEventsPayload | null;
   sessionPacksLookup: string;
   setSessionPacksLookup: (v: string) => void;
   adminSessionPacks: AdminSessionPacksPayload | null;
@@ -2207,6 +2225,7 @@ function SystemTab(props: {
   onClearOpsTokens: () => void;
   onLoadSessions: () => void;
   onLoadReceipts: () => void;
+  onLoadSecurityEvents: () => void;
   onLoadSessionPacks: () => void;
   onPurgeIdle: () => void;
   onExportDiagnostics: () => void;
@@ -2220,6 +2239,7 @@ function SystemTab(props: {
   const detail = props.health?.detail === true;
   const sessions = props.adminSessions?.sessions ?? [];
   const receipts = props.adminReceipts?.receipts ?? [];
+  const secEvents = props.adminSecurityEvents?.events ?? [];
 
   return (
     <div className="stack system-tab">
@@ -2583,13 +2603,53 @@ function SystemTab(props: {
         ) : null}
       </div>
 
-      <div className="card">
-        <strong>Audit logs</strong>
+      <div className="card stack">
+        <div className="section-head">
+          <strong>Security events</strong>
+          <button
+            type="button"
+            disabled={props.busy || !props.adminToken.trim()}
+            onClick={props.onLoadSecurityEvents}
+          >
+            Load events
+          </button>
+        </div>
         <p className="muted tight">
-          Server emits <code>dm.admin.audit</code> and <code>dm.security.audit</code> (job ACL,
-          rate limits, oversize bodies, bad ops tokens). Tail process logs in ops — not exposed
-          here. Rate-limit responses include <code>X-RateLimit-Reset</code>.
+          Process-local ring from <code>dm.security.audit</code> (ownership denials, rate limits,
+          bad scrape tokens). Newest first. Also still on process logs.
         </p>
+        {secEvents.length > 0 ? (
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Outcome</th>
+                  <th>Path</th>
+                  <th>IP</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {secEvents.map((e) => (
+                  <tr key={String(e.id ?? e.requestId ?? Math.random())}>
+                    <td>
+                      <code>{e.outcome ?? "—"}</code>
+                    </td>
+                    <td>
+                      <code title={e.path}>{e.path ? e.path.slice(0, 28) : "—"}</code>
+                    </td>
+                    <td className="muted">{e.clientIp ?? "—"}</td>
+                    <td className="muted" title={e.detail}>
+                      {(e.detail ?? "").slice(0, 48) || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : props.adminSecurityEvents ? (
+          <div className="empty">No security events in ring yet.</div>
+        ) : null}
       </div>
     </div>
   );

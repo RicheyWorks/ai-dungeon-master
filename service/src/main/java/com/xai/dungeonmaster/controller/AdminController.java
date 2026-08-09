@@ -2,6 +2,7 @@ package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.auth.AdminAudit;
 import com.xai.dungeonmaster.auth.RateLimitFilter;
+import com.xai.dungeonmaster.auth.SecurityAudit;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.dto.Envelope;
@@ -282,6 +283,42 @@ public class AdminController {
                 requestId, "ttl=" + ttl + " sessions=" + removedSessions + " engines=" + removedEngines
                         + " token=" + AdminAudit.tokenFingerprint(token));
         return ResponseEntity.ok(Envelope.of("admin.sessions.purged", payload, requestId));
+    }
+
+    /**
+     * Recent multi-tenant security audit events (process-local ring, newest first).
+     *
+     * <pre>GET /v2/admin/security-events?limit=50
+     * Header: X-Admin-Token: …</pre>
+     */
+    @GetMapping("/security-events")
+    public ResponseEntity<Envelope<?>> securityEvents(
+            @RequestHeader(value = "X-Admin-Token", required = false) String token,
+            @RequestParam(value = "limit", required = false, defaultValue = "50") int limit,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId, "/v2/admin/security-events", request);
+        if (denied != null) return denied;
+        List<SecurityAudit.Event> events = SecurityAudit.recent(limit);
+        List<Map<String, Object>> rows = new ArrayList<>(events.size());
+        for (SecurityAudit.Event e : events) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", e.id());
+            row.put("atEpochMs", e.atEpochMs());
+            row.put("outcome", e.outcome());
+            row.put("path", e.path());
+            row.put("clientIp", e.clientIp());
+            row.put("requestId", e.requestId());
+            row.put("detail", e.detail());
+            rows.add(row);
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("count", rows.size());
+        payload.put("limit", Math.min(200, Math.max(1, limit <= 0 ? 50 : limit)));
+        payload.put("events", rows);
+        AdminAudit.log("ok", "/v2/admin/security-events", RateLimitFilter.clientIp(request, false),
+                requestId, "count=" + rows.size() + " token=" + AdminAudit.tokenFingerprint(token));
+        return ResponseEntity.ok(Envelope.of("admin.security_events", payload, requestId));
     }
 
     private ResponseEntity<Envelope<?>> authorize(
