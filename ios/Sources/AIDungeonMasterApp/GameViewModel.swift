@@ -25,6 +25,9 @@ public final class GameViewModel: ObservableObject {
     @Published public var healthError: String?
     @Published public var healthAt: Date?
     @Published public var lastSavePath: String?
+    @Published public var saveExists: Bool?
+    @Published public var saveBytes: Int64?
+    @Published public var recentJobs: [MarketplaceInstallJob] = []
     @Published public var busy: Bool = false
     @Published public var error: String?
     @Published public var info: String?
@@ -139,6 +142,7 @@ public final class GameViewModel: ObservableObject {
             self.connectStomp()
             let envelope = try await V2API.getStatusV2()
             self.status = envelope.payload
+            await self.refreshSaveMeta()
         }
     }
 
@@ -256,7 +260,10 @@ public final class GameViewModel: ObservableObject {
                 let done = try await Self.pollInstall(jobId: started.jobId) { job in
                     Task { @MainActor in self.installJob = job }
                 }
-                await MainActor.run { self.installJob = done }
+                await MainActor.run {
+                    self.installJob = done
+                    self.loadRecentJobs()
+                }
                 if done.phase == "DONE" {
                     let env = try await V2API.listMarketplaceV2(
                         q: marketQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : marketQuery
@@ -297,6 +304,7 @@ public final class GameViewModel: ObservableObject {
                 await MainActor.run {
                     self.installJob = j
                     self.info = "Cancel requested"
+                    self.loadRecentJobs()
                 }
             } catch {
                 await MainActor.run { self.error = error.localizedDescription }
@@ -433,6 +441,7 @@ public final class GameViewModel: ObservableObject {
             let envelope = try await V2API.saveGameV2()
             let p = envelope.payload
             self.lastSavePath = p.path
+            await self.refreshSaveMeta()
             if p.saved == true {
                 self.info = p.sessionScoped == true ? "Saved (session)" : "Saved"
             } else {
@@ -446,7 +455,67 @@ public final class GameViewModel: ObservableObject {
             try await self.ensureSession()
             let envelope = try await V2API.loadGameV2()
             self.status = envelope.payload
+            await self.refreshSaveMeta()
             self.info = "Loaded save"
+        }
+    }
+
+    public func deleteSave() {
+        run {
+            try await self.ensureSession()
+            let env = try await V2API.deleteSaveV2()
+            await self.refreshSaveMeta()
+            self.info = env.payload.deleted == true ? "Save deleted" : "No save to delete"
+        }
+    }
+
+    public func refreshSaveMeta() async {
+        do {
+            try await ensureSession()
+            let env = try await V2API.getSaveMetaV2()
+            let p = env.payload
+            self.saveExists = p.exists
+            self.saveBytes = p.bytes
+            if let path = p.path { self.lastSavePath = path }
+        } catch {
+            self.saveExists = nil
+            self.saveBytes = nil
+        }
+    }
+
+    public func loadRecentJobs() {
+        Task {
+            do {
+                try await ensureSession()
+                let env = try await V2API.listMarketplaceInstallJobsV2(limit: 10)
+                await MainActor.run {
+                    self.recentJobs = (env.payload.jobs ?? []).map { $0.toApp() }
+                }
+            } catch {
+                /* ignore list failures */
+            }
+        }
+    }
+
+    public func resumeInstallJob(jobId: String) {
+        run {
+            let j = try await Self.getInstallJob(jobId: jobId)
+            self.installJob = j
+            let terminal = j.phase == "DONE" || j.phase == "FAILED" || j.phase == "CANCELLED"
+            if terminal {
+                self.info = "\(j.packId ?? "job") · \(j.phase ?? "?")"
+                return
+            }
+            let done = try await Self.pollInstallJob(jobId: jobId) { job in
+                Task { @MainActor in self.installJob = job }
+            }
+            self.installJob = done
+            self.loadRecentJobs()
+            self.info = done.message ?? done.phase ?? "Job finished"
+            if done.phase == "DONE" {
+                self.loadMarketplace()
+                self.loadCatalog()
+            }
         }
     }
 

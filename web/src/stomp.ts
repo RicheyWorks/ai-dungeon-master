@@ -192,7 +192,7 @@ export class StompClient {
     const headers: Record<string, string> = {
       "accept-version": "1.2,1.1,1.0",
       host,
-      "heart-beat": "0,0",
+      "heart-beat": "10000,10000",
     };
     if (this.token) {
       headers.Authorization = `Bearer ${this.token}`;

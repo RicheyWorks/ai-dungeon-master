@@ -176,7 +176,7 @@ Send `X-Request-Id` to correlate request/response (clients generate one per call
 - CONNECT with `Authorization: Bearer <jwt>`
 - Subscribe: `/topic/narrative/{sessionId}` (foreign session ids are denied)
 - Send: `/app/action`, `/app/narrate`
-- SPA client auto-reconnects with exponential backoff
+- SPA client auto-reconnects with exponential backoff; STOMP heartbeats every 10s
 
 ---
 
@@ -188,8 +188,8 @@ Generated SDKs live under [`clients/`](clients/) — regenerate from OpenAPI
 | Path | Platform | Notes |
 |---|---|---|
 | [`web/`](web/) | Vite + React (TypeScript SDK) | Also staged at engine `/app/` |
-| [`android/`](android/) | Jetpack Compose (Kotlin SDK) | Session + STOMP + marketplace + store |
-| [`ios/`](ios/) | SwiftUI (Swift SDK) | Parity with Android shell |
+| [`android/`](android/) | Jetpack Compose (Kotlin SDK) | Session + STOMP + marketplace + save meta/jobs + store |
+| [`ios/`](ios/) | SwiftUI (Swift SDK) | Parity with Android shell (save meta, jobs list) |
 | [`desktop/`](desktop/) | Launcher + Tauri scaffold | `./desktop/launch.sh` |
 
 **Web SPA (`/app/`)** includes Game / Mods / Store / System tabs, keyboard shortcuts,

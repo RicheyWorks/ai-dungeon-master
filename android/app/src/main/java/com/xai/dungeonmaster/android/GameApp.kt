@@ -160,15 +160,19 @@ fun GameApp() {
                 marketplace = ui.marketplace,
                 marketQuery = ui.marketQuery,
                 installJob = ui.installJob,
+                recentJobs = ui.recentJobs,
                 busy = ui.busy,
                 onLoad = {
                     viewModel.loadMarketplace()
                     viewModel.loadCatalog()
+                    viewModel.loadRecentJobs()
                 },
                 onMarketQueryChange = viewModel::setMarketQuery,
                 onSearch = { viewModel.loadMarketplace() },
                 onInstall = viewModel::installMarketplacePack,
                 onCancelInstall = viewModel::cancelMarketplaceInstall,
+                onRefreshJobs = viewModel::loadRecentJobs,
+                onResumeJob = viewModel::resumeInstallJob,
                 onToggle = viewModel::togglePack,
                 onUpload = viewModel::uploadPack,
                 onBuyToUnlock = { sku, label ->
@@ -214,7 +218,7 @@ private fun GameScreen(ui: GameViewModel.UiState, viewModel: GameViewModel) {
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { SessionActions(ui.busy, viewModel) }
+        item { SessionActions(ui, viewModel) }
 
         ui.status?.let { status ->
             item { QuestCard(status) }
@@ -251,26 +255,53 @@ private fun GameScreen(ui: GameViewModel.UiState, viewModel: GameViewModel) {
 }
 
 @Composable
-private fun SessionActions(busy: Boolean, viewModel: GameViewModel) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedButton(
-            onClick = viewModel::saveGame,
-            enabled = !busy,
-            modifier = Modifier.weight(1f),
-        ) { Text("Save") }
-        OutlinedButton(
-            onClick = viewModel::loadGame,
-            enabled = !busy,
-            modifier = Modifier.weight(1f),
-        ) { Text("Load") }
-        OutlinedButton(
-            onClick = viewModel::resetGame,
-            enabled = !busy,
-            modifier = Modifier.weight(1f),
-        ) { Text("Reset") }
+private fun SessionActions(ui: GameViewModel.UiState, viewModel: GameViewModel) {
+    val busy = ui.busy
+    val hasSave = ui.saveExists == true
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(
+                onClick = viewModel::saveGame,
+                enabled = !busy,
+                modifier = Modifier.weight(1f),
+            ) { Text("Save") }
+            OutlinedButton(
+                onClick = viewModel::loadGame,
+                enabled = !busy && ui.saveExists != false,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(if (ui.saveExists == false) "Load · none" else "Load")
+            }
+            OutlinedButton(
+                onClick = viewModel::resetGame,
+                enabled = !busy,
+                modifier = Modifier.weight(1f),
+            ) { Text("Reset") }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                when {
+                    ui.saveExists == true ->
+                        "Save ready" + (ui.saveBytes?.let { " · $it bytes" } ?: "")
+                    ui.saveExists == false -> "No save for this session"
+                    else -> "Save status unknown"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedButton(
+                onClick = viewModel::deleteSave,
+                enabled = !busy && hasSave,
+            ) { Text("Clear save") }
+        }
     }
 }
 

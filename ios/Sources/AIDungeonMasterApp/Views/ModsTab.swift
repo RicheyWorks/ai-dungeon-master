@@ -17,6 +17,7 @@ struct ModsTab: View {
                     Button("Reload") {
                         model.loadMarketplace()
                         model.loadCatalog()
+                        model.loadRecentJobs()
                     }
                     .disabled(model.busy)
                 }
@@ -50,6 +51,41 @@ struct ModsTab: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Your install jobs").font(.subheadline.bold())
+                        Spacer()
+                        Button("Refresh jobs") { model.loadRecentJobs() }
+                            .disabled(model.busy)
+                    }
+                    if model.recentJobs.isEmpty {
+                        Text("No jobs for this session yet.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(model.recentJobs, id: \.jobId) { j in
+                            HStack {
+                                Text(
+                                    "\(j.packId ?? String(j.jobId.prefix(8))) · \(j.phase ?? "?")"
+                                        + (j.percent.map { " · \($0)%" } ?? "")
+                                )
+                                .font(.caption)
+                                Spacer()
+                                let terminal =
+                                    j.phase == "DONE" || j.phase == "FAILED" || j.phase == "CANCELLED"
+                                Button(terminal ? "View" : "Resume") {
+                                    model.resumeInstallJob(jobId: j.jobId)
+                                }
+                                .disabled(model.busy)
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .onAppear { model.loadRecentJobs() }
 
                 HStack {
                     TextField("Search packs…", text: $model.marketQuery)

@@ -23,15 +23,42 @@ struct GameTab: View {
     }
 
     private var sessionActions: some View {
-        HStack(spacing: 8) {
-            Button("Save") { model.saveGame() }
-                .disabled(model.busy)
-            Button("Load") { model.loadGame() }
-                .disabled(model.busy)
-            Button("Reset") { model.resetGame() }
-                .disabled(model.busy)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Button("Save") { model.saveGame() }
+                    .disabled(model.busy)
+                Button(model.saveExists == false ? "Load · none" : "Load") { model.loadGame() }
+                    .disabled(model.busy || model.saveExists == false)
+                Button("Reset") { model.resetGame() }
+                    .disabled(model.busy)
+            }
+            .buttonStyle(.bordered)
+            HStack {
+                Text(saveMetaLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Clear save") { model.deleteSave() }
+                    .disabled(model.busy || model.saveExists != true)
+                    .buttonStyle(.bordered)
+            }
         }
-        .buttonStyle(.bordered)
+        .task {
+            await model.refreshSaveMeta()
+        }
+    }
+
+    private var saveMetaLabel: String {
+        if model.saveExists == true {
+            if let b = model.saveBytes {
+                return "Save ready · \(b) bytes"
+            }
+            return "Save ready"
+        }
+        if model.saveExists == false {
+            return "No save for this session"
+        }
+        return "Save status unknown"
     }
 
     private func questCard(_ status: GameStatusV2) -> some View {

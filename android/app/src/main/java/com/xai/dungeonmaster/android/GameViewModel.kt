@@ -65,6 +65,10 @@ class GameViewModel(
         val healthError: String? = null,
         val healthAtEpochMs: Long? = null,
         val lastSavePath: String? = null,
+        /** null = unknown, true/false from GET /v2/save */
+        val saveExists: Boolean? = null,
+        val saveBytes: Long? = null,
+        val recentJobs: List<MarketplaceInstallJob> = emptyList(),
         val busy: Boolean = false,
         val error: String? = null,
         val info: String? = null,
@@ -255,7 +259,14 @@ class GameViewModel(
         val withSession = ensureSession(current)
         connectStomp(withSession.session!!)
         val envelope = api().getStatusV2()
-        withSession.copy(status = envelope.payload, error = null, info = withSession.info)
+        val (exists, bytes) = fetchSaveMeta()
+        withSession.copy(
+            status = envelope.payload,
+            saveExists = exists,
+            saveBytes = bytes,
+            error = null,
+            info = withSession.info,
+        )
     }
 
     fun act(choiceLabel: String) = launchCall { current ->
@@ -550,12 +561,87 @@ class GameViewModel(
     /** @deprecated prefer [sandboxPurchase] */
     fun devPurchase(productId: String) = sandboxPurchase(productId, DevReceipts.STOREFRONT_DEV)
 
+
+    private fun fetchSaveMeta(): Pair<Boolean?, Long?> {
+        return try {
+            val p = api().getSaveMetaV2().payload
+            Pair(p?.exists, p?.bytes)
+        } catch (_: Exception) {
+            Pair(null, null)
+        }
+    }
+
+    fun refreshSaveMeta() = launchCall { current ->
+        val withSession = ensureSession(current)
+        val (exists, bytes) = fetchSaveMeta()
+        withSession.copy(saveExists = exists, saveBytes = bytes, lastSavePath = withSession.lastSavePath)
+    }
+
+    fun deleteSave() = launchCall { current ->
+        val withSession = ensureSession(current)
+        val env = api().deleteSaveV2()
+        val deleted = env.payload?.deleted == true
+        val (exists, bytes) = fetchSaveMeta()
+        withSession.copy(
+            saveExists = exists,
+            saveBytes = bytes,
+            info = if (deleted) "Save deleted" else "No save to delete",
+            error = null,
+        )
+    }
+
+    fun loadRecentJobs() {
+        viewModelScope.launch {
+            try {
+                val jobs = withContext(Dispatchers.IO) {
+                    api().listMarketplaceInstallJobsV2(limit = 10).payload?.jobs
+                        ?.map { it.toUi() }
+                        .orEmpty()
+                }
+                publish { it.copy(recentJobs = jobs) }
+            } catch (_: Exception) {
+                /* ignore list failures */
+            }
+        }
+    }
+
+
+    fun resumeInstallJob(jobId: String) {
+        viewModelScope.launch {
+            try {
+                publish { it.copy(error = null) }
+                val j = withContext(Dispatchers.IO) { getInstallJob(jobId) }
+                publish { it.copy(installJob = j) }
+                val terminal = j.phase == "DONE" || j.phase == "FAILED" || j.phase == "CANCELLED"
+                if (terminal) {
+                    publish { it.copy(info = "${j.packId ?: "job"} · ${j.phase}") }
+                    return@launch
+                }
+                val done = pollInstallJob(jobId) { job ->
+                    publish { it.copy(installJob = job) }
+                }
+                publish { it.copy(installJob = done) }
+                loadRecentJobs()
+                publish { it.copy(info = done.message ?: done.phase ?: "Job finished") }
+                if (done.phase == "DONE") {
+                    loadMarketplace()
+                    loadCatalog()
+                }
+            } catch (e: Exception) {
+                publish { it.copy(error = e.message ?: e.toString()) }
+            }
+        }
+    }
+
     fun saveGame() = launchCall { current ->
         val withSession = ensureSession(current)
         val envelope = api().saveGameV2()
         val p = envelope.payload
+        val (exists, bytes) = fetchSaveMeta()
         withSession.copy(
             lastSavePath = p?.path,
+            saveExists = exists,
+            saveBytes = bytes,
             info = if (p?.saved == true) {
                 "Saved${if (p.sessionScoped == true) " (session)" else ""}"
             } else {
@@ -568,7 +654,14 @@ class GameViewModel(
     fun loadGame() = launchCall { current ->
         val withSession = ensureSession(current)
         val envelope = api().loadGameV2()
-        withSession.copy(status = envelope.payload, info = "Loaded save", error = null)
+        val (exists, bytes) = fetchSaveMeta()
+        withSession.copy(
+            status = envelope.payload,
+            saveExists = exists,
+            saveBytes = bytes,
+            info = "Loaded save",
+            error = null,
+        )
     }
 
     fun resetGame() = launchCall { current ->
