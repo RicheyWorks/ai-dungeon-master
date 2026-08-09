@@ -1,6 +1,7 @@
 package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.auth.RateLimitFilter;
+import com.xai.dungeonmaster.auth.SecretEquals;
 import com.xai.dungeonmaster.auth.SecurityAudit;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.dto.Envelope;
@@ -15,8 +16,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.lang.management.ManagementFactory;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -160,7 +159,7 @@ public class HealthController {
         String admin = request.getHeader("X-Admin-Token");
         if (admin != null) {
             String t = admin.trim();
-            if (tokenOk(adminToken, t) || tokenOk(previousAdminToken, t)) {
+            if (SecretEquals.matchesEither(adminToken, previousAdminToken, t)) {
                 return true;
             }
         }
@@ -168,8 +167,7 @@ public class HealthController {
     }
 
     private boolean metricsTokenAccepted(String presented) {
-        if (tokenOk(metricsScrapeToken, presented)) return true;
-        return tokenOk(previousMetricsScrapeToken, presented);
+        return SecretEquals.matchesEither(metricsScrapeToken, previousMetricsScrapeToken, presented);
     }
 
     /**
@@ -191,8 +189,7 @@ public class HealthController {
         }
         String admin = request.getHeader("X-Admin-Token");
         if (admin != null && !admin.isBlank()
-                && !tokenOk(adminToken, admin.trim())
-                && !tokenOk(previousAdminToken, admin.trim())) {
+                && !SecretEquals.matchesEither(adminToken, previousAdminToken, admin.trim())) {
             SecurityAudit.log(
                     "unauthorized",
                     path,
@@ -206,16 +203,5 @@ public class HealthController {
         if (request == null) return fallback;
         String uri = request.getRequestURI();
         return uri == null || uri.isBlank() ? fallback : uri;
-    }
-
-    private static boolean tokenOk(String expected, String actual) {
-        if (expected == null || expected.isEmpty() || actual == null) return false;
-        byte[] a = expected.getBytes(StandardCharsets.UTF_8);
-        byte[] b = actual.getBytes(StandardCharsets.UTF_8);
-        if (a.length != b.length) {
-            MessageDigest.isEqual(a, a);
-            return false;
-        }
-        return MessageDigest.isEqual(a, b);
     }
 }

@@ -104,6 +104,7 @@ runs `ProductionSecurityGuard` at boot and **refuses to start** if:
 | Session / entitlement / receipt / session-packs store | not `memory` |
 | Rate-limit store | not `memory` (use `redis`) |
 | Admin token | `game.admin.token` / `GAME_ADMIN_TOKEN` ≥ 24 chars |
+| Token compare | SHA-256 digest compare (`SecretEquals`) — no length oracle |
 | CORS | `game.cors.allowed-origins` explicit allow-list (no `*`) |
 | JDBC password | not a known default when store is jdbc |
 | Storefronts | strong sandbox secrets **or** live vendor credentials |
@@ -555,6 +556,9 @@ Set e.g. `game.cors.allowed-origins=https://play.example.com,https://admin.examp
 | Knob | Dev | Prod |
 |---|---|---|
 | `game.http.max-request-bytes` | 1 MiB | 512 KiB |
+| Tomcat form/swallow/post (aligned) | via `TomcatBodyLimitCustomizer` + `server.tomcat.*` | same |
+| Request body stream cap | `RequestSizeFilter` | same |
+
 | `server.tomcat.max-http-form-post-size` | 1MB | 512KB |
 | multipart pack upload | 10MB file / 12MB request | same |
 
