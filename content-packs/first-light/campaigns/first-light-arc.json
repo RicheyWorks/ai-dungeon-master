@@ -1,0 +1,10 @@
+{
+  "id": "first-light-arc",
+  "title": "First Light",
+  "nodes": [
+    {
+      "questId": "first-light-cold-open",
+      "grants": { "first_light_done": 1 }
+    }
+  ]
+}

@@ -1,0 +1,216 @@
+{
+  "id": "first-light-cold-open",
+  "title": "The Sealed Letter",
+  "description": "You are already running. The letter in your coat is hotter than the rain.",
+  "scenes": [
+    {
+      "id": "rain-alley",
+      "description": "Rain sheets off the rooftops. You are already mid-stride through a cutthroat alley — boots hammering the cobbles behind you, a wax-sealed letter burning against your ribs. Your employer's name is on the wrong lips tonight. The river gate is two turns away. The baker's chimney is open and hungry. A scaffold leans against the roof where you could vanish… or watch who comes for you.",
+      "choices": [
+        {
+          "label": "Keep the letter — run for the river",
+          "resultText": "You clutch the seal and cut hard for the black water. The chase does not end; it only changes rivers.",
+          "stakes": "You keep the secret — and the target on your back.",
+          "effects": [
+            { "type": "SET_FLAG", "arg": "letter_fate=1" },
+            { "type": "ADD_FLAG", "arg": "city_heat" }
+          ],
+          "nextSceneId": "river-gate"
+        },
+        {
+          "label": "Burn the letter in the baker's oven",
+          "resultText": "You fling the packet into the oven mouth. Wax screams. Ash lifts like a black prayer. Whatever was written is gone — and so is your only proof.",
+          "stakes": "Irreversible. The words die. So do some futures.",
+          "effects": [
+            { "type": "SET_FLAG", "arg": "letter_fate=2" },
+            { "type": "ADD_FLAG", "arg": "letter_ash" }
+          ],
+          "nextSceneId": "oven-smoke"
+        },
+        {
+          "label": "Hide and watch who comes",
+          "resultText": "You press into a rain barrel's shadow. Three cloaks pass, then a fourth with a silver pin you know too well — your own employer's house mark.",
+          "stakes": "You learn a betrayal. You risk being seen.",
+          "effects": [
+            { "type": "SET_FLAG", "arg": "letter_fate=3" },
+            { "type": "ADD_FLAG", "arg": "saw_employer_pin" }
+          ],
+          "nextSceneId": "scaffold-watch"
+        }
+      ]
+    },
+    {
+      "id": "river-gate",
+      "description": "The river gate is half-open for a grain barge. Lanterns swing. A dock clerk waves you through if you pay — or you can swim the pilings and hope the current is kinder than the crossbows.",
+      "choices": [
+        {
+          "label": "Bribe the clerk with your last coin",
+          "resultText": "Coin changes hands. The clerk forgets your face with professional speed.",
+          "stakes": "Safer passage; emptier purse.",
+          "effects": [{ "type": "ADD_FLAG", "arg": "dock_debt" }],
+          "nextSceneId": "safehouse-lane"
+        },
+        {
+          "label": "Swim the pilings under the barge",
+          "resultText": "Cold black water. A crossbow bolt kisses the wood above your head. You haul yourself onto the far quay, letter still dry against your chest.",
+          "stakes": "Risk drowning and bolts; keep moving free.",
+          "effects": [{ "type": "ADD_FLAG", "arg": "soaked" }],
+          "nextSceneId": "safehouse-lane"
+        }
+      ]
+    },
+    {
+      "id": "oven-smoke",
+      "description": "Flour dust and smoke fill the bakery. The baker swears in three languages. Outside, the chase falters — they wanted the letter, not a wet thief with empty hands. Someone still knows your face.",
+      "choices": [
+        {
+          "label": "Apologize and help smother the oven",
+          "resultText": "You and the baker beat the flames down. She shoves a heel of bread into your hands and a look that says: leave the city.",
+          "stakes": "A small ally; no letter.",
+          "effects": [{ "type": "ADD_FLAG", "arg": "baker_ally" }],
+          "nextSceneId": "safehouse-lane"
+        },
+        {
+          "label": "Slip out the side door before questions",
+          "resultText": "You are gone before the night watch arrives. Ash still greys your sleeves.",
+          "stakes": "Clean exit; the city remembers a fire.",
+          "effects": [{ "type": "ADD_FLAG", "arg": "city_heat" }],
+          "nextSceneId": "safehouse-lane"
+        }
+      ]
+    },
+    {
+      "id": "scaffold-watch",
+      "description": "From the scaffold you see the silver pin clearly: House Veyra, the people who hired you. The cloaks below fan out, searching. One stops, looks up — almost at you — then moves on. The letter still burns in your coat.",
+      "choices": [
+        {
+          "label": "Drop to the alley and shadow them",
+          "resultText": "You learn their route ends at the counting-house, not the docks. The letter was never meant to leave the city.",
+          "stakes": "Intel on the betrayal; more heat.",
+          "effects": [
+            { "type": "ADD_FLAG", "arg": "knows_counting_house" },
+            { "type": "ADD_FLAG", "arg": "city_heat" }
+          ],
+          "nextSceneId": "safehouse-lane"
+        },
+        {
+          "label": "Take the roofs toward the safehouse",
+          "resultText": "Tiles slick with rain. You outrun the pin and the boots, letter unopened, trust in ashes.",
+          "stakes": "Escape with the secret intact.",
+          "effects": [{ "type": "ADD_FLAG", "arg": "roofs_known" }],
+          "nextSceneId": "safehouse-lane"
+        }
+      ]
+    },
+    {
+      "id": "safehouse-lane",
+      "description": "A narrow room above a chandler's shop. One lamp. One chair. The city's noise is a distant sea. You can finally breathe — until you notice the second cup on the table, still warm.",
+      "choices": [
+        {
+          "label": "Search the room before you sit",
+          "resultText": "Behind a loose board: a second seal, cracked, addressed in the same hand as your letter. Someone was here first.",
+          "stakes": "You may find a trap — or a warning.",
+          "effects": [{ "type": "ADD_FLAG", "arg": "found_second_seal" }],
+          "nextSceneId": "the-knock"
+        },
+        {
+          "label": "Bar the door and try to sleep",
+          "resultText": "Exhaustion wins. You dream of wax and rain. Something knocks three times before dawn.",
+          "stakes": "Rest now; face the door later.",
+          "effects": [{ "type": "REST_PARTY" }],
+          "nextSceneId": "the-knock"
+        },
+        {
+          "label": "Open the warm cup's companion letter (if any)",
+          "resultText": "Only dregs. No letter in the cup — but a thumbprint in the dust matches the silver-pin gloves.",
+          "stakes": "Confirm someone close was here.",
+          "effects": [{ "type": "ADD_FLAG", "arg": "safehouse_compromised" }],
+          "nextSceneId": "the-knock"
+        }
+      ]
+    },
+    {
+      "id": "the-knock",
+      "description": "Three knocks. Measured. Polite. The kind of knock that already owns a key. Dawn is a grey knife under the door.",
+      "choices": [
+        {
+          "label": "Open the door — letter still sealed",
+          "resultText": "A courier in Veyra grey. They do not ask for the letter. They say: 'The contents were never for you. Run farther.' Then they are gone — and your employer has been playing both sides.",
+          "stakes": "Only if you kept the letter.",
+          "condition": { "type": "FLAG", "key": "letter_fate", "op": "EQ", "value": 1 },
+          "effects": [
+            { "type": "ADD_FLAG", "arg": "veyra_warning" },
+            { "type": "SET_FLAG", "arg": "dawn_path=1" }
+          ],
+          "nextSceneId": "dawn-reckoning"
+        },
+        {
+          "label": "Open the door — hands empty of proof",
+          "resultText": "The same grey courier. They smell ash on you. 'Good,' they say. 'Some words should die.' A purse hits the table. Blood money for silence.",
+          "stakes": "Only if you burned the letter.",
+          "condition": { "type": "FLAG", "key": "letter_fate", "op": "EQ", "value": 2 },
+          "effects": [
+            { "type": "GIVE_LOOT" },
+            { "type": "SET_FLAG", "arg": "dawn_path=2" }
+          ],
+          "nextSceneId": "dawn-reckoning"
+        },
+        {
+          "label": "Open the door — you saw the silver pin",
+          "resultText": "No courier. Your contact from House Veyra stands in the frame, pin bright, smile thin. 'You watched,' they say. 'So now you choose: partner… or problem.'",
+          "stakes": "Only if you hid and watched.",
+          "condition": { "type": "FLAG", "key": "letter_fate", "op": "EQ", "value": 3 },
+          "effects": [
+            { "type": "SET_FLAG", "arg": "dawn_path=3" },
+            { "type": "ADD_FLAG", "arg": "employer_confronted" }
+          ],
+          "nextSceneId": "dawn-reckoning"
+        },
+        {
+          "label": "Climb out the window before answering",
+          "resultText": "You leave the warm cup and the knock behind. The city opens like a wound. Whatever waited at the door will find another.",
+          "stakes": "Refuse the callback — carry the heat into day.",
+          "effects": [{ "type": "SET_FLAG", "arg": "dawn_path=4" }],
+          "nextSceneId": "dawn-reckoning"
+        }
+      ]
+    },
+    {
+      "id": "dawn-reckoning",
+      "description": "First light over the slate roofs. The letter's fate is already a scar on the city — kept, burned, or used as a mirror. This is not the end of the story. It is the first page you cannot unread.",
+      "isFinalScene": true,
+      "choices": [
+        {
+          "label": "Swear to open the letter at noon in the square",
+          "resultText": "You choose spectacle. By noon the square will be a stage — and you the fool or the firebrand.",
+          "stakes": "Public truth. Maximum heat.",
+          "condition": { "type": "FLAG", "key": "letter_fate", "op": "EQ", "value": 1 },
+          "effects": [
+            { "type": "SET_FLAG", "arg": "ending=open_square" },
+            { "type": "ADD_FLAG", "arg": "city_heat=2" }
+          ]
+        },
+        {
+          "label": "Live as if the words never existed",
+          "resultText": "Ash on your sleeves. Coin in your purse. A city that will still whisper your name when the baker tells the story.",
+          "stakes": "Silence purchased. Ghosts unpaid.",
+          "condition": { "type": "FLAG", "key": "letter_fate", "op": "EQ", "value": 2 },
+          "effects": [{ "type": "SET_FLAG", "arg": "ending=ash_silence" }]
+        },
+        {
+          "label": "Take Veyra's offer — for now",
+          "resultText": "You shake a gloved hand. The pin flashes. Partnership is just another word for leash — but leashes cut both ways.",
+          "stakes": "Power with a collar.",
+          "condition": { "type": "FLAG", "key": "letter_fate", "op": "EQ", "value": 3 },
+          "effects": [{ "type": "SET_FLAG", "arg": "ending=veyra_pact" }]
+        },
+        {
+          "label": "Leave the city before the bells",
+          "resultText": "Roads out. Rain still falling. You are not free — but you are moving. The sealed letter (or its absence) walks with you.",
+          "stakes": "Flight. The story follows.",
+          "effects": [{ "type": "SET_FLAG", "arg": "ending=exile_road" }]
+        }
+      ]
+    }
+  ]
+}

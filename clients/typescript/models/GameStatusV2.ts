@@ -25,6 +25,12 @@ import {
     QuestInfoFromJSONTyped,
     QuestInfoToJSON,
 } from './QuestInfo';
+import type { ChoiceDetail } from './ChoiceDetail';
+import {
+    ChoiceDetailFromJSON,
+    ChoiceDetailFromJSONTyped,
+    ChoiceDetailToJSON,
+} from './ChoiceDetail';
 
 /**
  * 
@@ -86,6 +92,12 @@ export interface GameStatusV2 {
      * @memberof GameStatusV2
      */
     discoveredRifts?: Array<string>;
+    /**
+     * Rich choice rows (stakes / irreversible hints) parallel to availableChoices.
+     * @type {Array<ChoiceDetail>}
+     * @memberof GameStatusV2
+     */
+    choiceDetails?: Array<ChoiceDetail>;
 }
 
 /**
@@ -114,6 +126,7 @@ export function GameStatusV2FromJSONTyped(json: any, ignoreDiscriminator: boolea
         'recentEvents': json['recentEvents'] == null ? undefined : json['recentEvents'],
         'location': json['location'] == null ? undefined : json['location'],
         'discoveredRifts': json['discoveredRifts'] == null ? undefined : json['discoveredRifts'],
+        'choiceDetails': json['choiceDetails'] == null ? undefined : ((json['choiceDetails'] as Array<any>).map(ChoiceDetailFromJSON)),
     };
 }
 
@@ -132,6 +145,7 @@ export function GameStatusV2ToJSON(value?: GameStatusV2 | null): any {
         'recentEvents': value['recentEvents'],
         'location': value['location'],
         'discoveredRifts': value['discoveredRifts'],
+        'choiceDetails': value['choiceDetails'] == null ? undefined : ((value['choiceDetails'] as Array<any>).map(ChoiceDetailToJSON)),
     };
 }
 

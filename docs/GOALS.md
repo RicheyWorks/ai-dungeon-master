@@ -62,7 +62,8 @@ If a goal needs more than one day, split into **child goals** with their own Don
 
 Pick **one**. Copy into `/goal`. Status: `ready` · `active` · `done` · `parked`.
 
-### G1 — Legendary first run  `ready` · **L** · *highest cool ROI*
+### G1 — Legendary first run  `done` · **L** · *highest cool ROI*
+
 
 **North star:** A new player’s first 10 minutes is a story they’d retell.
 
@@ -166,7 +167,9 @@ Record the current session here (newest on top).
 
 | Date | Goal | Status | Notes / PRs |
 |---|---|---|---|
-| 2026-08-09 | _(none — catalog created)_ | — | Use `/goal G1` or paste template |
+| 2026-08-09 | G1 Legendary first run | done | First Light pack, scene/stakes status, SPA framing |
+| 2026-08-09 | _(catalog created)_ | — | Architecture + GOALS docs |
+
 
 ---
 

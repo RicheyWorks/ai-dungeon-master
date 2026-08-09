@@ -249,6 +249,10 @@ public class GameV2Controller {
                 .map(Choice::getLabel)
                 .collect(Collectors.toList());
 
+        List<com.xai.dungeonmaster.dto.ChoiceDetail> choiceDetails = engine.getCurrentAvailableChoices().stream()
+                .map(com.xai.dungeonmaster.dto.ChoiceDetail::from)
+                .collect(Collectors.toList());
+
         List<String> history = engine.getTurnHistory();
         int start = Math.max(0, history.size() - RECENT_HISTORY_LIMIT);
         List<String> recent = new ArrayList<>(history.subList(start, history.size()));
@@ -262,6 +266,7 @@ public class GameV2Controller {
                 com.xai.dungeonmaster.dto.QuestInfo.from(engine.getCurrentQuest()),
                 engine.getChronicle().renderFacts(6),
                 engine.getWorldMap().getCurrentLocation(),
-                List.copyOf(engine.getWorldMap().getDiscoveredRifts()));
+                List.copyOf(engine.getWorldMap().getDiscoveredRifts()),
+                choiceDetails);
     }
 }
