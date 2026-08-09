@@ -24,3 +24,6 @@ deploy/certs/
 
 # Rendered Alertmanager secrets
 deploy/alertmanager/alertmanager.active.yml
+
+# Runtime session saves (local engine)
+saves/

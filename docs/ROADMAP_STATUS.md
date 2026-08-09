@@ -1,6 +1,6 @@
 # AI Dungeon Master — Roadmap Status
 
-_Last updated: 2026-08-02 · `mvn test` + web SPA build green · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
+_Last updated: 2026-08-09 · `mvn test` + web SPA build green · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
 
 Grounded in the current code, not the May plan. Phases 0–1 are complete, Phase 2
 is essentially complete, and Phase 5 (content packs & mods) now has substantial
@@ -17,6 +17,11 @@ marketplace job ownership, STOMP subscription ACL, dual admin-token rotation,
 lean public health, metrics scrape token, launch-smoke (HTTP + STOMP + metrics),
 and web/Android/iOS marketplace wiring to generated SDKs. See
 [`PRODUCTION.md`](PRODUCTION.md).
+
+**Session + SPA resilience (2026-08 follow-ups):** JWT refresh + rename, SPA TTL
+auto-renew, offline banner, STOMP reconnect, `X-Request-Id` on clients, metrics
+token dual rotation, save meta/delete (`GET/DELETE /v2/save`), and
+`GET /v2/marketplace/jobs` (session-owned install job list) with Mods UI.
 
 ## Snapshot
 
