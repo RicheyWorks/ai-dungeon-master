@@ -6,6 +6,8 @@ import type {
   AdminSessionsPayload,
   AdminSessionsPurgedPayload,
   AdminSecurityEventsPayload,
+  AdminAuditEventsPayload,
+  AdminNarrationInfo,
   CatalogPayload,
   EntitlementPayload,
   GameStatusV2,
@@ -84,6 +86,8 @@ export function App() {
   const [adminSessions, setAdminSessions] = useState<AdminSessionsPayload | null>(null);
   const [adminReceipts, setAdminReceipts] = useState<AdminReceiptsPayload | null>(null);
   const [adminSecurityEvents, setAdminSecurityEvents] = useState<AdminSecurityEventsPayload | null>(null);
+  const [adminAuditEvents, setAdminAuditEvents] = useState<AdminAuditEventsPayload | null>(null);
+  const [adminNarration, setAdminNarration] = useState<AdminNarrationInfo | null>(null);
   const [sessionPacksLookup, setSessionPacksLookup] = useState("");
   const [adminSessionPacks, setAdminSessionPacks] = useState<AdminSessionPacksPayload | null>(null);
   const [purgeResult, setPurgeResult] = useState<AdminSessionsPurgedPayload | null>(null);
@@ -1035,6 +1039,8 @@ export function App() {
           adminSessions={adminSessions}
           adminReceipts={adminReceipts}
           adminSecurityEvents={adminSecurityEvents}
+          adminAuditEvents={adminAuditEvents}
+          adminNarration={adminNarration}
           sessionPacksLookup={sessionPacksLookup}
           setSessionPacksLookup={setSessionPacksLookup}
           adminSessionPacks={adminSessionPacks}
@@ -1051,6 +1057,8 @@ export function App() {
             setAdminSessions(null);
             setAdminReceipts(null);
             setAdminSecurityEvents(null);
+            setAdminAuditEvents(null);
+            setAdminNarration(null);
             setAdminSessionPacks(null);
             setPurgeResult(null);
             setMetricsProbe(null);
@@ -1113,6 +1121,8 @@ export function App() {
                     adminSessions,
                     adminReceipts,
                     adminSecurityEvents,
+                    adminAuditEvents,
+                    adminNarration,
                     adminSessionPacks,
                     metricsProbe,
                     session: session
@@ -1139,6 +1149,42 @@ export function App() {
                 const p = await api.listAdminSecurityEvents(baseUrl, adminToken, 50);
                 setAdminSecurityEvents(p);
                 setInfo(`Loaded ${p.count ?? p.events?.length ?? 0} security events`);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onLoadAuditEvents={() =>
+            void (async () => {
+              try {
+                setError(null);
+                const p = await api.listAdminAuditEvents(baseUrl, adminToken, 50);
+                setAdminAuditEvents(p);
+                setInfo(`Loaded ${p.count ?? p.events?.length ?? 0} admin audit events`);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onLoadNarration={() =>
+            void (async () => {
+              try {
+                setError(null);
+                const p = await api.getAdminNarration(baseUrl, adminToken);
+                setAdminNarration(p);
+                setInfo(`Narration active: ${p.active ?? "?"} (${p.health ?? "?"})`);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          onSetNarrationProvider={(id) =>
+            void (async () => {
+              try {
+                setError(null);
+                const p = await api.setAdminNarrationProvider(baseUrl, adminToken, id);
+                setAdminNarration(p);
+                setInfo(`Narration provider → ${p.active ?? id}`);
               } catch (e) {
                 setError(e instanceof Error ? e.message : String(e));
               }
@@ -2214,6 +2260,8 @@ function SystemTab(props: {
   adminSessions: AdminSessionsPayload | null;
   adminReceipts: AdminReceiptsPayload | null;
   adminSecurityEvents: AdminSecurityEventsPayload | null;
+  adminAuditEvents: AdminAuditEventsPayload | null;
+  adminNarration: AdminNarrationInfo | null;
   sessionPacksLookup: string;
   setSessionPacksLookup: (v: string) => void;
   adminSessionPacks: AdminSessionPacksPayload | null;
@@ -2226,6 +2274,9 @@ function SystemTab(props: {
   onLoadSessions: () => void;
   onLoadReceipts: () => void;
   onLoadSecurityEvents: () => void;
+  onLoadAuditEvents: () => void;
+  onLoadNarration: () => void;
+  onSetNarrationProvider: (id: string) => void;
   onLoadSessionPacks: () => void;
   onPurgeIdle: () => void;
   onExportDiagnostics: () => void;
@@ -2240,6 +2291,7 @@ function SystemTab(props: {
   const sessions = props.adminSessions?.sessions ?? [];
   const receipts = props.adminReceipts?.receipts ?? [];
   const secEvents = props.adminSecurityEvents?.events ?? [];
+  const auditEvents = props.adminAuditEvents?.events ?? [];
 
   return (
     <div className="stack system-tab">
@@ -2600,6 +2652,96 @@ function SystemTab(props: {
               )}
             </div>
           </div>
+        ) : null}
+      </div>
+
+      <div className="card stack">
+        <div className="section-head">
+          <strong>Narration provider</strong>
+          <button
+            type="button"
+            disabled={props.busy || !props.adminToken.trim()}
+            onClick={props.onLoadNarration}
+          >
+            Load
+          </button>
+        </div>
+        <p className="muted tight">
+          Process-wide active LLM for all sessions on this node. Ops only — switching
+          affects every player until the next restart or change.
+        </p>
+        {props.adminNarration ? (
+          <div className="stack">
+            <div className="subtle">
+              Active <code>{props.adminNarration.active ?? "—"}</code>
+              {" · "}
+              health <code>{props.adminNarration.health ?? "—"}</code>
+            </div>
+            <div className="chip-row">
+              {(props.adminNarration.available ?? []).map((id) => {
+                const active = id === props.adminNarration?.active;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={active ? "chip active" : "chip"}
+                    disabled={props.busy || active || !props.adminToken.trim()}
+                    onClick={() => props.onSetNarrationProvider(id)}
+                  >
+                    {id}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Load with admin token to list providers.</p>
+        )}
+      </div>
+
+      <div className="card stack">
+        <div className="section-head">
+          <strong>Admin audit</strong>
+          <button
+            type="button"
+            disabled={props.busy || !props.adminToken.trim()}
+            onClick={props.onLoadAuditEvents}
+          >
+            Load audit
+          </button>
+        </div>
+        <p className="muted tight">
+          Process-local ring from <code>dm.admin.audit</code> (sessions, receipts, purge, narration).
+        </p>
+        {auditEvents.length > 0 ? (
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Outcome</th>
+                  <th>Path</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditEvents.map((e) => (
+                  <tr key={String(e.id ?? e.requestId ?? Math.random())}>
+                    <td>
+                      <code>{e.outcome ?? "—"}</code>
+                    </td>
+                    <td>
+                      <code title={e.path}>{e.path ? e.path.slice(0, 32) : "—"}</code>
+                    </td>
+                    <td className="muted" title={e.detail}>
+                      {(e.detail ?? "").slice(0, 48) || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : props.adminAuditEvents ? (
+          <div className="empty">No admin audit events in ring yet.</div>
         ) : null}
       </div>
 

@@ -19,6 +19,8 @@ import java.io.IOException
 import okhttp3.OkHttpClient
 import okhttp3.HttpUrl
 
+import com.xai.dungeonmaster.client.models.AdminAuditEventsEnvelope
+import com.xai.dungeonmaster.client.models.AdminNarrationEnvelope
 import com.xai.dungeonmaster.client.models.AdminReceiptsEnvelope
 import com.xai.dungeonmaster.client.models.AdminSecurityEventsEnvelope
 import com.xai.dungeonmaster.client.models.AdminSessionPacksEnvelope
@@ -49,6 +51,82 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
         val defaultBasePath: String by lazy {
             System.getProperties().getProperty(ApiClient.baseUrlKey, "http://localhost:8080")
         }
+    }
+
+    /**
+     * Active narration provider snapshot (ops)
+     * 
+     * @param xAdminToken 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return AdminNarrationEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun getAdminNarration(xAdminToken: kotlin.String, xRequestId: kotlin.String? = null) : AdminNarrationEnvelope {
+        val localVarResponse = getAdminNarrationWithHttpInfo(xAdminToken = xAdminToken, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as AdminNarrationEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Active narration provider snapshot (ops)
+     * 
+     * @param xAdminToken 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<AdminNarrationEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun getAdminNarrationWithHttpInfo(xAdminToken: kotlin.String, xRequestId: kotlin.String?) : ApiResponse<AdminNarrationEnvelope?> {
+        val localVariableConfig = getAdminNarrationRequestConfig(xAdminToken = xAdminToken, xRequestId = xRequestId)
+
+        return request<Unit, AdminNarrationEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation getAdminNarration
+     *
+     * @param xAdminToken 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun getAdminNarrationRequestConfig(xAdminToken: kotlin.String, xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf()
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xAdminToken.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/admin/narration",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
     }
 
     /**
@@ -126,6 +204,90 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
         return RequestConfig(
             method = RequestMethod.GET,
             path = "/v2/admin/session-packs",
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Recent admin ops audit events (ops)
+     * Process-local ring (newest first) of &#x60;AdminAudit&#x60; outcomes for admin routes. No raw tokens — fingerprints only. 
+     * @param xAdminToken 
+     * @param limit  (optional, default to 50)
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return AdminAuditEventsEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun listAdminAuditEvents(xAdminToken: kotlin.String, limit: kotlin.Int? = 50, xRequestId: kotlin.String? = null) : AdminAuditEventsEnvelope {
+        val localVarResponse = listAdminAuditEventsWithHttpInfo(xAdminToken = xAdminToken, limit = limit, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as AdminAuditEventsEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Recent admin ops audit events (ops)
+     * Process-local ring (newest first) of &#x60;AdminAudit&#x60; outcomes for admin routes. No raw tokens — fingerprints only. 
+     * @param xAdminToken 
+     * @param limit  (optional, default to 50)
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<AdminAuditEventsEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun listAdminAuditEventsWithHttpInfo(xAdminToken: kotlin.String, limit: kotlin.Int?, xRequestId: kotlin.String?) : ApiResponse<AdminAuditEventsEnvelope?> {
+        val localVariableConfig = listAdminAuditEventsRequestConfig(xAdminToken = xAdminToken, limit = limit, xRequestId = xRequestId)
+
+        return request<Unit, AdminAuditEventsEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation listAdminAuditEvents
+     *
+     * @param xAdminToken 
+     * @param limit  (optional, default to 50)
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun listAdminAuditEventsRequestConfig(xAdminToken: kotlin.String, limit: kotlin.Int?, xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
+            .apply {
+                if (limit != null) {
+                    put("limit", listOf(limit.toString()))
+                }
+            }
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xAdminToken.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.GET,
+            path = "/v2/admin/audit-events",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,
@@ -577,6 +739,88 @@ class AdminApi(basePath: kotlin.String = defaultBasePath, client: OkHttpClient =
         return RequestConfig(
             method = RequestMethod.DELETE,
             path = "/v2/admin/sessions/{sessionId}".replace("{"+"sessionId"+"}", encodeURIComponent(sessionId.toString())),
+            query = localVariableQuery,
+            headers = localVariableHeaders,
+            requiresAuthentication = false,
+            body = localVariableBody
+        )
+    }
+
+    /**
+     * Switch process-wide active LLM narration provider (ops)
+     * Calls &#x60;LLMProviderRegistry.setActive&#x60;. Multi-tenant deployments should only change this with intent — it affects all sessions on the node. 
+     * @param id Provider id (e.g. local-stub, openai, anthropic, xai, llama)
+     * @param xAdminToken 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return AdminNarrationEnvelope
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     * @throws UnsupportedOperationException If the API returns an informational or redirection response
+     * @throws ClientException If the API returns a client error response
+     * @throws ServerException If the API returns a server error response
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class, UnsupportedOperationException::class, ClientException::class, ServerException::class)
+    fun setAdminNarrationProvider(id: kotlin.String, xAdminToken: kotlin.String, xRequestId: kotlin.String? = null) : AdminNarrationEnvelope {
+        val localVarResponse = setAdminNarrationProviderWithHttpInfo(id = id, xAdminToken = xAdminToken, xRequestId = xRequestId)
+
+        return when (localVarResponse.responseType) {
+            ResponseType.Success -> (localVarResponse as Success<*>).data as AdminNarrationEnvelope
+            ResponseType.Informational -> throw UnsupportedOperationException("Client does not support Informational responses.")
+            ResponseType.Redirection -> throw UnsupportedOperationException("Client does not support Redirection responses.")
+            ResponseType.ClientError -> {
+                val localVarError = localVarResponse as ClientError<*>
+                throw ClientException("Client error : ${localVarError.statusCode} ${localVarError.message.orEmpty()}", localVarError.statusCode, localVarResponse)
+            }
+            ResponseType.ServerError -> {
+                val localVarError = localVarResponse as ServerError<*>
+                throw ServerException("Server error : ${localVarError.statusCode} ${localVarError.message.orEmpty()} ${localVarError.body}", localVarError.statusCode, localVarResponse)
+            }
+        }
+    }
+
+    /**
+     * Switch process-wide active LLM narration provider (ops)
+     * Calls &#x60;LLMProviderRegistry.setActive&#x60;. Multi-tenant deployments should only change this with intent — it affects all sessions on the node. 
+     * @param id Provider id (e.g. local-stub, openai, anthropic, xai, llama)
+     * @param xAdminToken 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return ApiResponse<AdminNarrationEnvelope?>
+     * @throws IllegalStateException If the request is not correctly configured
+     * @throws IOException Rethrows the OkHttp execute method exception
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Throws(IllegalStateException::class, IOException::class)
+    fun setAdminNarrationProviderWithHttpInfo(id: kotlin.String, xAdminToken: kotlin.String, xRequestId: kotlin.String?) : ApiResponse<AdminNarrationEnvelope?> {
+        val localVariableConfig = setAdminNarrationProviderRequestConfig(id = id, xAdminToken = xAdminToken, xRequestId = xRequestId)
+
+        return request<Unit, AdminNarrationEnvelope>(
+            localVariableConfig
+        )
+    }
+
+    /**
+     * To obtain the request config of the operation setAdminNarrationProvider
+     *
+     * @param id Provider id (e.g. local-stub, openai, anthropic, xai, llama)
+     * @param xAdminToken 
+     * @param xRequestId Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     * @return RequestConfig
+     */
+    fun setAdminNarrationProviderRequestConfig(id: kotlin.String, xAdminToken: kotlin.String, xRequestId: kotlin.String?) : RequestConfig<Unit> {
+        val localVariableBody = null
+        val localVariableQuery: MultiValueMap = mutableMapOf<kotlin.String, kotlin.collections.List<kotlin.String>>()
+            .apply {
+                put("id", listOf(id.toString()))
+            }
+        val localVariableHeaders: MutableMap<String, String> = mutableMapOf()
+        xAdminToken.apply { localVariableHeaders["X-Admin-Token"] = this.toString() }
+        xRequestId?.apply { localVariableHeaders["X-Request-Id"] = this.toString() }
+        localVariableHeaders["Accept"] = "application/json"
+
+        return RequestConfig(
+            method = RequestMethod.POST,
+            path = "/v2/admin/narration/provider",
             query = localVariableQuery,
             headers = localVariableHeaders,
             requiresAuthentication = false,

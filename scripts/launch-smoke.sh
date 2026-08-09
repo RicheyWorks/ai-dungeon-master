@@ -253,6 +253,20 @@ if [[ -n "${ADMIN_TOKEN:-}" ]]; then
 
   tmp="$(mktemp)"
   HTTP_CODE="$(curl -sS -m "$TIMEOUT" -H "X-Admin-Token: $ADMIN_TOKEN" -H "X-Request-Id: $REQUEST_ID" \
+    -o "$tmp" -w "%{http_code}" "${BASE_URL}/v2/admin/audit-events?limit=10" || echo 000)"
+  BODY="$(cat "$tmp")"; rm -f "$tmp"
+  expect 200 "GET /v2/admin/audit-events"
+  green "OK  admin audit-events"
+
+  tmp="$(mktemp)"
+  HTTP_CODE="$(curl -sS -m "$TIMEOUT" -H "X-Admin-Token: $ADMIN_TOKEN" -H "X-Request-Id: $REQUEST_ID" \
+    -o "$tmp" -w "%{http_code}" "${BASE_URL}/v2/admin/narration" || echo 000)"
+  BODY="$(cat "$tmp")"; rm -f "$tmp"
+  expect 200 "GET /v2/admin/narration"
+  green "OK  admin narration"
+
+  tmp="$(mktemp)"
+  HTTP_CODE="$(curl -sS -m "$TIMEOUT" -H "X-Admin-Token: $ADMIN_TOKEN" -H "X-Request-Id: $REQUEST_ID" \
     -o "$tmp" -w "%{http_code}" "${BASE_URL}/v2/admin/sessions?limit=20" || echo 000)"
   BODY="$(cat "$tmp")"; rm -f "$tmp"
   expect 200 "GET /v2/admin/sessions"

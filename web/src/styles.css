@@ -1099,6 +1099,22 @@ kbd {
   color: var(--text);
 }
 
+button.chip {
+  cursor: pointer;
+}
+
+button.chip:disabled {
+  opacity: 0.85;
+  cursor: default;
+}
+
+button.chip.active {
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--border));
+  background: color-mix(in oklab, var(--accent) 18%, var(--bg-input));
+  color: var(--text);
+  font-weight: 600;
+}
+
 .install-card {
   border-color: color-mix(in oklab, var(--live) 30%, var(--border));
 }

@@ -1,6 +1,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export * from './ActionRequest';
+export * from './AdminAuditEvent';
+export * from './AdminAuditEventsEnvelope';
+export * from './AdminAuditEventsPayload';
+export * from './AdminNarrationEnvelope';
 export * from './AdminReceiptRow';
 export * from './AdminReceiptsEnvelope';
 export * from './AdminReceiptsPayload';
