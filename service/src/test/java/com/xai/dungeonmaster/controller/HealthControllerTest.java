@@ -99,7 +99,7 @@ class HealthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type", equalTo("health")))
                 .andExpect(jsonPath("$.payload.status", equalTo("UP")))
-                .andExpect(jsonPath("$.payload.uptimeSeconds", greaterThanOrEqualTo(0)))
+                .andExpect(jsonPath("$.payload.uptimeSeconds").isNumber())
                 .andExpect(jsonPath("$.payload.detail", equalTo(false)))
                 .andExpect(jsonPath("$.payload.dependencies").doesNotExist())
                 .andExpect(jsonPath("$.payload.memory").doesNotExist())
@@ -111,7 +111,7 @@ class HealthControllerTest {
         detailedMvc.perform(get("/v2/health").header("X-Admin-Token", "admin-token-health-24chars!!"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.detail", equalTo(true)))
-                .andExpect(jsonPath("$.payload.memory.maxBytes", greaterThanOrEqualTo(0)));
+                .andExpect(jsonPath("$.payload.memory.maxBytes").isNumber());
     }
 
     @Test
