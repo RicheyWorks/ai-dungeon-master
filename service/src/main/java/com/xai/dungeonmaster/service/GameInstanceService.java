@@ -214,6 +214,24 @@ public class GameInstanceService {
         return bySession.size();
     }
 
+    /**
+     * Rebind the narration backend on the default engine and every live
+     * session engine (ops provider switch).
+     */
+    public int rebindNarrators(com.xai.dungeonmaster.plugin.LLMProvider narrator) {
+        if (narrator == null) return 0;
+        int n = 0;
+        if (defaultEngine != null) {
+            defaultEngine.setNarrator(narrator);
+            n++;
+        }
+        for (Entry e : bySession.values()) {
+            e.engine.setNarrator(narrator);
+            n++;
+        }
+        return n;
+    }
+
     /** True when a dedicated engine exists for the session id. */
     public boolean hasSession(String sessionId) {
         return sessionId != null && !sessionId.isBlank() && bySession.containsKey(sessionId);

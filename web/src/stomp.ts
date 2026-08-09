@@ -26,6 +26,9 @@ export class StompClient {
   private intentionalClose = false;
   private reconnectAttempt = 0;
   private reconnectTimer: number | null = null;
+  private heartbeatTimer: number | null = null;
+  /** Negotiated client→server heartbeat interval (0 = off). */
+  private clientHeartbeatMs = 0;
   connected = false;
 
   private readonly autoReconnect: boolean;
@@ -66,6 +69,7 @@ export class StompClient {
   connect() {
     if (this.ws) return;
     this.intentionalClose = false;
+    this.buffer = "";
     this.ws = new WebSocket(this.url);
     this.ws.onopen = () => this.sendRaw(this.buildConnect());
     this.ws.onmessage = (ev) => this.handleIncoming(String(ev.data));
@@ -73,6 +77,8 @@ export class StompClient {
     this.ws.onclose = () => {
       this.connected = false;
       this.ws = null;
+      this.stopHeartbeat();
+      this.buffer = "";
       this.listener.onClosed();
       this.scheduleReconnect();
     };
@@ -103,6 +109,7 @@ export class StompClient {
   disconnect() {
     this.intentionalClose = true;
     this.clearReconnectTimer();
+    this.stopHeartbeat();
     this.reconnectAttempt = 0;
     try {
       if (this.connected) this.sendRaw(this.frame("DISCONNECT", { receipt: "bye" }, null));
@@ -112,6 +119,7 @@ export class StompClient {
     this.ws?.close();
     this.ws = null;
     this.connected = false;
+    this.buffer = "";
   }
 
   private scheduleReconnect() {
@@ -142,11 +150,33 @@ export class StompClient {
     }
   }
 
+  private stopHeartbeat() {
+    if (this.heartbeatTimer != null) {
+      window.clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+    this.clientHeartbeatMs = 0;
+  }
+
+  private startHeartbeat(intervalMs: number) {
+    this.stopHeartbeat();
+    if (intervalMs <= 0) return;
+    this.clientHeartbeatMs = intervalMs;
+    // STOMP heartbeats are a single EOL (no frame command).
+    this.heartbeatTimer = window.setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send("\n");
+      }
+    }, intervalMs);
+  }
+
   private sendRaw(frame: string) {
     this.ws?.send(frame);
   }
 
   private handleIncoming(chunk: string) {
+    // Server heartbeats are lone newlines — ignore keep-alive noise.
+    if (chunk === "\n" || chunk === "\r\n") return;
     this.buffer += chunk;
     while (true) {
       const idx = this.buffer.indexOf("\0");
@@ -173,12 +203,34 @@ export class StompClient {
     if (command === "CONNECTED") {
       this.connected = true;
       this.reconnectAttempt = 0;
+      this.applyHeartbeatNegotiation(headers["heart-beat"] ?? headers["heartbeat"]);
       this.listener.onConnected();
     } else if (command === "MESSAGE") {
       this.listener.onMessage(headers.destination ?? "", body);
     } else if (command === "ERROR") {
       this.listener.onError(body || headers.message || "STOMP error");
     }
+  }
+
+  /**
+   * STOMP 1.2 negotiation: client advertised cx,cy; server CONNECTED sx,sy.
+   * Client must send every max(cx, sy) when both > 0.
+   */
+  private applyHeartbeatNegotiation(serverHb: string | undefined) {
+    const clientCx = 10_000;
+    const clientCy = 10_000;
+    let sx = 0;
+    let sy = 0;
+    if (serverHb) {
+      const parts = serverHb.split(",").map((s) => parseInt(s.trim(), 10));
+      sx = Number.isFinite(parts[0]) ? parts[0]! : 0;
+      sy = Number.isFinite(parts[1]) ? parts[1]! : 0;
+    }
+    const clientSend =
+      clientCx > 0 && sy > 0 ? Math.max(clientCx, sy) : 0;
+    this.startHeartbeat(clientSend);
+    void clientCy;
+    void sx;
   }
 
   private buildConnect(): string {
@@ -192,6 +244,7 @@ export class StompClient {
     const headers: Record<string, string> = {
       "accept-version": "1.2,1.1,1.0",
       host,
+      // Client can send every 10s; wants server every 10s (matches server defaults).
       "heart-beat": "10000,10000",
     };
     if (this.token) {

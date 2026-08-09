@@ -244,7 +244,9 @@ export function App() {
         s.token,
         {
         onConnected: () => {
-          client.subscribe("/topic/narrative");
+          // Authenticated sessions only hear /topic/narrative/{sessionId}.
+          // Subscribing to the shared /topic/narrative is denied when auth is on
+          // and can ERROR/close the socket.
           client.subscribe(`/topic/narrative/${s.sessionId}`);
           setStompConnected(true);
           setInfo("Live stream connected");
@@ -274,6 +276,16 @@ export function App() {
                 setInfo("Narration complete");
                 return;
               }
+              if (env.type === "error") {
+                const msg =
+                  (env.payload as { message?: string } | undefined)?.message ??
+                  "Narration error";
+                setError(msg);
+                setStreamBuffer("");
+                return;
+              }
+              // Ignore unknown typed envelopes (do not paint JSON into chronicle).
+              return;
             } catch {
               /* plain text */
             }
@@ -2725,7 +2737,7 @@ function SystemTab(props: {
               </thead>
               <tbody>
                 {auditEvents.map((e) => (
-                  <tr key={String(e.id ?? e.requestId ?? Math.random())}>
+                  <tr key={String(e.id ?? `${e.atEpochMs}-${e.path}-${e.outcome}-${e.requestId ?? ""}`)}>
                     <td>
                       <code>{e.outcome ?? "—"}</code>
                     </td>
@@ -2773,7 +2785,7 @@ function SystemTab(props: {
               </thead>
               <tbody>
                 {secEvents.map((e) => (
-                  <tr key={String(e.id ?? e.requestId ?? Math.random())}>
+                  <tr key={String(e.id ?? `${e.atEpochMs}-${e.path}-${e.outcome}-${e.requestId ?? ""}`)}>
                     <td>
                       <code>{e.outcome ?? "—"}</code>
                     </td>

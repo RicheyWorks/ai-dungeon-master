@@ -38,6 +38,7 @@ public class SessionService {
     /** Create a new session (persisted via the store) and mint its first token. */
     public Issued createSession(String displayName) {
         String name = (displayName == null || displayName.isBlank()) ? "Adventurer" : displayName.trim();
+        if (name.length() > 64) name = name.substring(0, 64);
         String id = UUID.randomUUID().toString();
         long now = Instant.now().getEpochSecond();
         Session session = new Session(id, name, now);

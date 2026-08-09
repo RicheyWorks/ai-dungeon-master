@@ -18,7 +18,15 @@ export function shortId(sessionId: string): string {
 
 export function isExpired(info: SessionInfo, now = Math.floor(Date.now() / 1000)): boolean {
   if (!info.expiresAtEpochSeconds) return false;
-  return now >= info.expiresAtEpochSeconds - 30;
+  // Real JWT expiry only — do not discard refreshable near-expiry sessions.
+  return now >= info.expiresAtEpochSeconds;
+}
+
+/** True when TTL is under 30s (refresh soon). */
+export function isNearExpiry(info: SessionInfo, now = Math.floor(Date.now() / 1000)): boolean {
+  if (!info.expiresAtEpochSeconds) return false;
+  const left = info.expiresAtEpochSeconds - now;
+  return left > 0 && left <= 30;
 }
 
 export function relativeEpoch(epochSeconds?: number, now = Math.floor(Date.now() / 1000)): string {

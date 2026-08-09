@@ -236,8 +236,20 @@ export type SaveMeta = {
 };
 
 export async function getSaveMeta(baseUrl: string, token: string): Promise<SaveMeta> {
-  const p = (await createApi(baseUrl, token).getSaveMetaV2()).payload;
-  return p ?? { exists: false };
+  const p = (await createApi(baseUrl, token).getSaveMetaV2()).payload as
+    | (SaveMeta & { _exists?: boolean })
+    | null
+    | undefined;
+  if (!p) return { exists: false };
+  // openapi-generator maps JSON "exists" → SDK field "_exists"
+  const exists = p.exists ?? p._exists;
+  return {
+    exists,
+    path: p.path,
+    sessionScoped: p.sessionScoped,
+    bytes: p.bytes,
+    modifiedAtEpochMs: p.modifiedAtEpochMs,
+  };
 }
 
 export async function deleteSave(
