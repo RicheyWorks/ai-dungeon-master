@@ -34,7 +34,9 @@ class AuthFlowTest {
         SessionService sessions = new SessionService(jwt);
         DungeonMasterEngine engine = new DungeonMasterEngine(
                 3, 3, new String[] { "Kael" }, new String[] { "Warrior" });
-        mvc = standaloneSetup(new SessionController(sessions), new GameV2Controller(engine))
+        mvc = standaloneSetup(
+                        new SessionController(sessions, null, jwt, new com.xai.dungeonmaster.content.SessionPackService()),
+                        new GameV2Controller(engine))
                 .addFilters(new JwtAuthFilter(jwt, sessions, true)) // enforcement ON
                 .build();
     }
@@ -77,7 +79,11 @@ class AuthFlowTest {
         mvc.perform(get("/v2/session/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type").value("session"))
-                .andExpect(jsonPath("$.payload.displayName").value("Adventurer"));
+                .andExpect(jsonPath("$.payload.displayName").value("Adventurer"))
+                .andExpect(jsonPath("$.payload.token").doesNotExist())
+                .andExpect(jsonPath("$.payload.expiresAtEpochSeconds").isNumber())
+                .andExpect(jsonPath("$.payload.lastSeenEpochSeconds").isNumber())
+                .andExpect(jsonPath("$.payload.enabledPackIds").isArray());
     }
 
     @Test

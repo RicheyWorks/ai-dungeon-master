@@ -14,18 +14,25 @@ public struct SessionPayload: Codable, JSONEncodable, Hashable {
 
     /** Stable player session id (JWT subject). */
     public var sessionId: String
-    /** JWT (only set on create; null on /session/me). */
+    /** JWT (only set on create/refresh/rename; null on /session/me). */
     public var token: String?
     public var displayName: String
+    /** JWT exp claim; populated on create/refresh/rename and on GET /session/me. */
     public var expiresAtEpochSeconds: Int64?
     public var createdAtEpochSeconds: Int64?
+    /** Last activity (GET /session/me). */
+    public var lastSeenEpochSeconds: Int64?
+    /** Content packs enabled for this session (GET /session/me). */
+    public var enabledPackIds: [String]?
 
-    public init(sessionId: String, token: String? = nil, displayName: String, expiresAtEpochSeconds: Int64? = nil, createdAtEpochSeconds: Int64? = nil) {
+    public init(sessionId: String, token: String? = nil, displayName: String, expiresAtEpochSeconds: Int64? = nil, createdAtEpochSeconds: Int64? = nil, lastSeenEpochSeconds: Int64? = nil, enabledPackIds: [String]? = nil) {
         self.sessionId = sessionId
         self.token = token
         self.displayName = displayName
         self.expiresAtEpochSeconds = expiresAtEpochSeconds
         self.createdAtEpochSeconds = createdAtEpochSeconds
+        self.lastSeenEpochSeconds = lastSeenEpochSeconds
+        self.enabledPackIds = enabledPackIds
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -34,6 +41,8 @@ public struct SessionPayload: Codable, JSONEncodable, Hashable {
         case displayName
         case expiresAtEpochSeconds
         case createdAtEpochSeconds
+        case lastSeenEpochSeconds
+        case enabledPackIds
     }
 
     // Encodable protocol methods
@@ -45,6 +54,8 @@ public struct SessionPayload: Codable, JSONEncodable, Hashable {
         try container.encode(displayName, forKey: .displayName)
         try container.encodeIfPresent(expiresAtEpochSeconds, forKey: .expiresAtEpochSeconds)
         try container.encodeIfPresent(createdAtEpochSeconds, forKey: .createdAtEpochSeconds)
+        try container.encodeIfPresent(lastSeenEpochSeconds, forKey: .lastSeenEpochSeconds)
+        try container.encodeIfPresent(enabledPackIds, forKey: .enabledPackIds)
     }
 }
 

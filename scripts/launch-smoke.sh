@@ -119,6 +119,13 @@ info "sessionId=$SESSION_ID"
 
 http GET /v2/session/me "$TOKEN"
 expect 200 "GET /v2/session/me"
+ME_EXP="$(json_get payload.expiresAtEpochSeconds)"
+if [[ -n "$ME_EXP" && "$ME_EXP" != "null" && "$ME_EXP" != "0" ]]; then
+  green "OK  session/me expiresAtEpochSeconds=$ME_EXP"
+else
+  red "FAIL session/me missing expiresAtEpochSeconds (got $ME_EXP)"
+  exit 1
+fi
 
 http POST /v2/session/refresh "$TOKEN"
 expect 200 "POST /v2/session/refresh"

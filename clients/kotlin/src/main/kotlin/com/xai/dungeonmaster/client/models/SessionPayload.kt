@@ -24,9 +24,11 @@ import com.squareup.moshi.JsonClass
  *
  * @param sessionId Stable player session id (JWT subject).
  * @param displayName 
- * @param token JWT (only set on create; null on /session/me).
- * @param expiresAtEpochSeconds 
+ * @param token JWT (only set on create/refresh/rename; null on /session/me).
+ * @param expiresAtEpochSeconds JWT exp claim; populated on create/refresh/rename and on GET /session/me.
  * @param createdAtEpochSeconds 
+ * @param lastSeenEpochSeconds Last activity (GET /session/me).
+ * @param enabledPackIds Content packs enabled for this session (GET /session/me).
  */
 
 
@@ -39,15 +41,24 @@ data class SessionPayload (
     @Json(name = "displayName")
     val displayName: kotlin.String,
 
-    /* JWT (only set on create; null on /session/me). */
+    /* JWT (only set on create/refresh/rename; null on /session/me). */
     @Json(name = "token")
     val token: kotlin.String? = null,
 
+    /* JWT exp claim; populated on create/refresh/rename and on GET /session/me. */
     @Json(name = "expiresAtEpochSeconds")
     val expiresAtEpochSeconds: kotlin.Long? = null,
 
     @Json(name = "createdAtEpochSeconds")
-    val createdAtEpochSeconds: kotlin.Long? = null
+    val createdAtEpochSeconds: kotlin.Long? = null,
+
+    /* Last activity (GET /session/me). */
+    @Json(name = "lastSeenEpochSeconds")
+    val lastSeenEpochSeconds: kotlin.Long? = null,
+
+    /* Content packs enabled for this session (GET /session/me). */
+    @Json(name = "enabledPackIds")
+    val enabledPackIds: kotlin.collections.List<kotlin.String>? = null
 
 ) {
 
