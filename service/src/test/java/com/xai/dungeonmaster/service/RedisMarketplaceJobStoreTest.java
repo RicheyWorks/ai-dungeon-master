@@ -52,7 +52,7 @@ class RedisMarketplaceJobStoreTest {
         assertEquals("CANCELLED", loaded.phase());
         assertTrue(loaded.cancelRequested());
         assertNull(loaded.ownerSessionId());
-        assertTrue(loaded.ownedBy("anyone"));
+        assertFalse(loaded.ownedBy("anyone"));
     }
 
     @Test

@@ -343,9 +343,11 @@ DELETE /v2/marketplace/jobs/{jobId}            → cancel (owner session only)
 
 Phases: `QUEUED` → `DOWNLOADING` → `VERIFYING` → `INSTALLING` → `DONE` | `FAILED` | `CANCELLED`.
 
-**Job ownership:** async installs bind to the caller's session id (JWT). Poll and
-cancel return **403** for other sessions. Jobs with no owner (legacy / unauthenticated
-start) remain open. Multi-node Redis snapshots store `ownerSessionId`.
+**Job ownership:** async installs **require** a Bearer session and bind to that
+session id. Poll and cancel for other sessions (or no session) return **404**
+(no existence leak); ownership denials still emit `security_audit outcome=forbidden`.
+Ownerless legacy rows are fail-closed (not world-readable). Multi-node Redis
+snapshots store `ownerSessionId`.
 
 **Security audit:** foreign job poll/cancel emits
 `security_audit outcome=forbidden` on logger `dm.security.audit` (caller + owner
@@ -510,7 +512,8 @@ revokes identity and destroys the session engine (save-on-evict).
 | `forbidden` | Marketplace install job poll/cancel by non-owner |
 | `unauthorized` | Metrics scrape fail; health detail bad ops token |
 | `rate_limited` | HTTP 429 buckets; STOMP narrate/action budget denials |
-| `request_too_large` | HTTP 413 from `Content-Length` over max |
+| `request_too_large` | HTTP 413 from `Content-Length` or stream body over max |
+
 
 ### Pack upload size
 
