@@ -64,9 +64,10 @@ Play path covered by `launch-smoke.sh`:
 | Inspect receipts | `GET /v2/admin/receipts?limit=50` + `X-Admin-Token` |
 | Inspect session packs | `GET /v2/admin/session-packs?sessionId=…` + `X-Admin-Token` |
 | List sessions | `GET /v2/admin/sessions?limit=100` + `X-Admin-Token` |
+| Security events | `GET /v2/admin/security-events?limit=50` + `X-Admin-Token` (process-local ring) |
 | Revoke session | `DELETE /v2/admin/sessions/{sessionId}` + `X-Admin-Token` |
 | Purge idle | `POST /v2/admin/sessions/purge-idle?idleTtlSeconds=86400&evictEngines=true` + `X-Admin-Token` |
-| Web SPA ops | System tab: admin/metrics tokens, sessions/receipts/packs, purge idle, export diagnostics JSON |
+| Web SPA ops | System tab: admin/metrics tokens, sessions/receipts/packs/security events, purge idle, export diagnostics JSON |
 | Rollback | redeploy previous image tag; keep Postgres + `saves` volumes |
 
 ### 4. Abuse surface (prod defaults)
@@ -351,7 +352,9 @@ session ids, no JWTs). Metrics scrape failures emit
 tokens (`X-Metrics-Token` / `X-Admin-Token` present but wrong) emit
 `unauthorized` on `/v2/health` and readiness paths while the response stays lean.
 Rate-limit bursts emit `security_audit outcome=rate_limited` with bucket, count,
-and retry-after (logger `dm.security.audit`).
+and retry-after (logger `dm.security.audit`). The same events are kept in a
+process-local ring (last 200, newest first) and listed via
+**`GET /v2/admin/security-events`** (System tab → Load events).
 
 ### Marketplace install job store
 

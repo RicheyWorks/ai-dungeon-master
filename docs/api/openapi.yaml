@@ -227,6 +227,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+
+  /v2/admin/security-events:
+    get:
+      tags: [admin]
+      operationId: listAdminSecurityEvents
+      summary: Recent multi-tenant security audit events (ops)
+      description: |
+        Process-local ring (newest first) of `SecurityAudit` outcomes
+        (forbidden ownership, rate limits, scrape denials, etc.). No raw tokens.
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, minimum: 1, maximum: 200 }
+        - in: header
+          name: X-Admin-Token
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Security event list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSecurityEventsEnvelope'
+        '401':
+          description: Bad admin token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Admin API disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /v2/status:
     get:
       tags: [v2]
@@ -1266,6 +1304,34 @@ components:
         version: { type: integer }
         payload:
           $ref: '#/components/schemas/AdminReceiptsPayload'
+        requestId: { type: string }
+    AdminSecurityEvent:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        atEpochMs: { type: integer, format: int64 }
+        outcome: { type: string }
+        path: { type: string }
+        clientIp: { type: string }
+        requestId: { type: string }
+        detail: { type: string }
+    AdminSecurityEventsPayload:
+      type: object
+      properties:
+        count: { type: integer }
+        limit: { type: integer }
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminSecurityEvent'
+    AdminSecurityEventsEnvelope:
+      type: object
+      required: [type, version, payload, requestId]
+      properties:
+        type: { type: string, example: admin.security_events }
+        version: { type: integer }
+        payload:
+          $ref: '#/components/schemas/AdminSecurityEventsPayload'
         requestId: { type: string }
     AdminSessionPacksPayload:
       type: object

@@ -614,6 +614,38 @@ export async function listAdminReceipts(
   }
 }
 
+export type AdminSecurityEvent = {
+  id?: number;
+  atEpochMs?: number;
+  outcome?: string;
+  path?: string;
+  clientIp?: string;
+  requestId?: string;
+  detail?: string;
+};
+
+export type AdminSecurityEventsPayload = {
+  count?: number;
+  limit?: number;
+  events?: AdminSecurityEvent[];
+};
+
+export async function listAdminSecurityEvents(
+  baseUrl: string,
+  adminToken: string,
+  limit = 50,
+): Promise<AdminSecurityEventsPayload> {
+  try {
+    const env = await createAdminApi(baseUrl, adminToken).listAdminSecurityEvents({
+      xAdminToken: adminToken,
+      limit,
+    });
+    return (env.payload as AdminSecurityEventsPayload) ?? { events: [] };
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "admin security events"));
+  }
+}
+
 export type AdminSessionPacksPayload = {
   sessionId?: string;
   enabledPackIds?: string[];

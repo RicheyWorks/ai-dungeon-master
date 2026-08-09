@@ -114,6 +114,50 @@ open class AdminAPI {
     }
 
     /**
+     Recent multi-tenant security audit events (ops)
+     
+     - parameter xAdminToken: (header)  
+     - parameter limit: (query)  (optional, default to 50)
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: AdminSecurityEventsEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func listAdminSecurityEvents(xAdminToken: String, limit: Int? = nil, xRequestId: String? = nil) async throws -> AdminSecurityEventsEnvelope {
+        return try await listAdminSecurityEventsWithRequestBuilder(xAdminToken: xAdminToken, limit: limit, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Recent multi-tenant security audit events (ops)
+     - GET /v2/admin/security-events
+     - Process-local ring (newest first) of `SecurityAudit` outcomes (forbidden ownership, rate limits, scrape denials, etc.). No raw tokens. 
+     - parameter xAdminToken: (header)  
+     - parameter limit: (query)  (optional, default to 50)
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<AdminSecurityEventsEnvelope> 
+     */
+    open class func listAdminSecurityEventsWithRequestBuilder(xAdminToken: String, limit: Int? = nil, xRequestId: String? = nil) -> RequestBuilder<AdminSecurityEventsEnvelope> {
+        let localVariablePath = "/v2/admin/security-events"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "limit": (wrappedValue: limit?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Admin-Token": xAdminToken.encodeToJSON(),
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AdminSecurityEventsEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      List active sessions (ops)
      
      - parameter xAdminToken: (header)  

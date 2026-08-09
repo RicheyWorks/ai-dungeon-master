@@ -158,7 +158,7 @@ Full contract: [`docs/api/openapi.yaml`](docs/api/openapi.yaml) ·
 | `POST /v2/catalog/packs` | Upload zip (admin-gated when required) |
 | `POST /v2/catalog/packs/{id}/enable` · `/disable` | Toggle pack |
 | `POST /v2/entitlements/verify` · `GET /v2/entitlements` | Store receipts |
-| `GET /v2/admin/*` | Ops: sessions, receipts, packs, purge (admin token) |
+| `GET /v2/admin/*` | Ops: sessions, receipts, packs, purge, security events (admin token) |
 | `GET /health` · `/health/ready` · `/v2/health` | Probes (detail token-gated in prod) |
 | `GET /metrics` | Prometheus (scrape token in prod; dual rotation supported) |
 
@@ -177,6 +177,8 @@ Send `X-Request-Id` to correlate request/response (clients generate one per call
 - Subscribe: `/topic/narrative/{sessionId}` (foreign session ids are denied)
 - Send: `/app/action`, `/app/narrate`
 - SPA client auto-reconnects with exponential backoff; STOMP heartbeats every 10s
+  (server: `game.ws.heartbeat.server-ms` / `client-ms`)
+
 
 ---
 
