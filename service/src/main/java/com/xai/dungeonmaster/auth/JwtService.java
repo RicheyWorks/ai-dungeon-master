@@ -112,6 +112,14 @@ public class JwtService {
         }
     }
 
+    /** Expiry claim ({@code exp}) for a valid token, empty if invalid/expired. */
+    public Optional<Long> expiryEpochSeconds(String token) {
+        return verify(token).map(claims -> {
+            Object exp = claims.get("exp");
+            return (exp instanceof Number) ? ((Number) exp).longValue() : 0L;
+        }).filter(exp -> exp > 0L);
+    }
+
     private String encode(Map<String, Object> obj) {
         try {
             return B64.encodeToString(mapper.writeValueAsBytes(obj));

@@ -399,11 +399,25 @@ export function App() {
             /* fall through to validate / mint */
           }
         }
-        const ok = await api.validateSession(baseUrl, candidate.token);
-        if (ok) {
-          sessionStore.saveSession(candidate);
-          setSession(candidate);
-          return candidate;
+        try {
+          const me = await api.getSessionMe(baseUrl, candidate.token);
+          const synced: SessionInfo = {
+            ...candidate,
+            displayName: me.displayName ?? candidate.displayName,
+            expiresAtEpochSeconds:
+              me.expiresAtEpochSeconds && me.expiresAtEpochSeconds > 0
+                ? me.expiresAtEpochSeconds
+                : candidate.expiresAtEpochSeconds,
+            createdAtEpochSeconds:
+              me.createdAtEpochSeconds && me.createdAtEpochSeconds > 0
+                ? me.createdAtEpochSeconds
+                : candidate.createdAtEpochSeconds,
+          };
+          sessionStore.saveSession(synced);
+          setSession(synced);
+          return synced;
+        } catch {
+          /* invalid — mint below */
         }
       }
       sessionStore.clearSession();

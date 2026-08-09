@@ -26,7 +26,7 @@ export interface SessionPayload {
      */
     sessionId: string;
     /**
-     * JWT (only set on create; null on /session/me).
+     * JWT (only set on create/refresh/rename; null on /session/me).
      * @type {string}
      * @memberof SessionPayload
      */
@@ -38,7 +38,7 @@ export interface SessionPayload {
      */
     displayName: string;
     /**
-     * 
+     * JWT exp claim; populated on create/refresh/rename and on GET /session/me.
      * @type {number}
      * @memberof SessionPayload
      */
@@ -49,6 +49,18 @@ export interface SessionPayload {
      * @memberof SessionPayload
      */
     createdAtEpochSeconds?: number;
+    /**
+     * Last activity (GET /session/me).
+     * @type {number}
+     * @memberof SessionPayload
+     */
+    lastSeenEpochSeconds?: number | null;
+    /**
+     * Content packs enabled for this session (GET /session/me).
+     * @type {Array<string>}
+     * @memberof SessionPayload
+     */
+    enabledPackIds?: Array<string> | null;
 }
 
 /**
@@ -75,6 +87,8 @@ export function SessionPayloadFromJSONTyped(json: any, ignoreDiscriminator: bool
         'displayName': json['displayName'],
         'expiresAtEpochSeconds': json['expiresAtEpochSeconds'] == null ? undefined : json['expiresAtEpochSeconds'],
         'createdAtEpochSeconds': json['createdAtEpochSeconds'] == null ? undefined : json['createdAtEpochSeconds'],
+        'lastSeenEpochSeconds': json['lastSeenEpochSeconds'] == null ? undefined : json['lastSeenEpochSeconds'],
+        'enabledPackIds': json['enabledPackIds'] == null ? undefined : json['enabledPackIds'],
     };
 }
 
@@ -89,6 +103,8 @@ export function SessionPayloadToJSON(value?: SessionPayload | null): any {
         'displayName': value['displayName'],
         'expiresAtEpochSeconds': value['expiresAtEpochSeconds'],
         'createdAtEpochSeconds': value['createdAtEpochSeconds'],
+        'lastSeenEpochSeconds': value['lastSeenEpochSeconds'],
+        'enabledPackIds': value['enabledPackIds'],
     };
 }
 

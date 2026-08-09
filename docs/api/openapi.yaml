@@ -644,7 +644,10 @@ paths:
     get:
       tags: [v2]
       operationId: getSessionMeV2
-      summary: Echo the authenticated session (no token reflected).
+      summary: Echo the authenticated session (expiry, last-seen, enabled packs; no token).
+      description: |
+        Returns session identity without reflecting the JWT. Includes `expiresAtEpochSeconds`
+        from the caller's Bearer token, `lastSeenEpochSeconds`, and `enabledPackIds`.
       parameters:
         - $ref: '#/components/parameters/XRequestId'
       responses:
@@ -1796,16 +1799,27 @@ components:
           description: Stable player session id (JWT subject).
         token:
           type: string
-          description: JWT (only set on create; null on /session/me).
+          description: JWT (only set on create/refresh/rename; null on /session/me).
           nullable: true
         displayName:
           type: string
         expiresAtEpochSeconds:
           type: integer
           format: int64
+          description: JWT exp claim; populated on create/refresh/rename and on GET /session/me.
         createdAtEpochSeconds:
           type: integer
           format: int64
+        lastSeenEpochSeconds:
+          type: integer
+          format: int64
+          nullable: true
+          description: Last activity (GET /session/me).
+        enabledPackIds:
+          type: array
+          nullable: true
+          description: Content packs enabled for this session (GET /session/me).
+          items: { type: string }
     ErrorEnvelope:
       allOf:
         - $ref: '#/components/schemas/Envelope'

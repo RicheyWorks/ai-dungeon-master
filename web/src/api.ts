@@ -141,6 +141,29 @@ export async function validateSession(baseUrl: string, token: string): Promise<b
   }
 }
 
+/** Fetch /v2/session/me and return expiry + packs (no token reflected). */
+export async function getSessionMe(
+  baseUrl: string,
+  token: string,
+): Promise<{
+  sessionId?: string;
+  displayName?: string;
+  expiresAtEpochSeconds?: number;
+  createdAtEpochSeconds?: number;
+  lastSeenEpochSeconds?: number | null;
+  enabledPackIds?: string[] | null;
+}> {
+  const env = await createApi(baseUrl, token).getSessionMeV2();
+  return (env.payload as {
+    sessionId?: string;
+    displayName?: string;
+    expiresAtEpochSeconds?: number;
+    createdAtEpochSeconds?: number;
+    lastSeenEpochSeconds?: number | null;
+    enabledPackIds?: string[] | null;
+  }) ?? {};
+}
+
 /** Explicit logout — server drops identity, pack prefs, and live engine. */
 export async function logoutSession(baseUrl: string, token: string): Promise<void> {
   try {
