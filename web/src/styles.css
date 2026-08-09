@@ -1492,3 +1492,16 @@ button.linkish {
   line-height: 1.45;
 }
 .gap { gap: 0.5rem; }
+
+/* G9 cool-path */
+.cool-empty { max-width: 36rem; }
+.cool-empty p { margin: 0.5rem 0 0; line-height: 1.45; }
+.campaign-chip { margin: 0.35rem 0 0.25rem; }
+.quest-desc { margin: 0.4rem 0 0; font-size: 0.95rem; line-height: 1.4; }
+.play-hint {
+  border-left: 3px solid var(--accent);
+  padding: 0.35rem 0.75rem;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 0 6px 6px 0;
+}
+.play-hint p { margin: 0.2rem 0 0; }

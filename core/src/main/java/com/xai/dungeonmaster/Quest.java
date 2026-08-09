@@ -167,7 +167,10 @@ public class Quest {
 
         if (engine != null) {
             engine.log("QUEST COMPLETE: " + title);
-            engine.broadcast("The party has restored stability to this rift sector.");
+            engine.broadcast("QUEST COMPLETE: " + title
+                    + (description != null && !description.isBlank()
+                    ? " — " + description
+                    : ""));
         }
     }
 

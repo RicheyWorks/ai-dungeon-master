@@ -14,7 +14,9 @@ public record QuestInfo(
         boolean failed,
         double progress,
         String sceneId,
-        String sceneDescription
+        String sceneDescription,
+        /** Quest-level blurb for SPA framing (G9). */
+        String description
 ) {
     /** Map a live Quest (nullable) to its API snapshot. */
     public static QuestInfo from(Quest quest) {
@@ -26,6 +28,7 @@ public record QuestInfo(
                 quest.isFailed(),
                 quest.getProgressPercentage(),
                 scene != null ? scene.getId() : null,
-                scene != null ? scene.getDescription() : null);
+                scene != null ? scene.getDescription() : null,
+                quest.getDescription());
     }
 }

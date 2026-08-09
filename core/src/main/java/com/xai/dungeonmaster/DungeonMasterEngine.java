@@ -139,16 +139,21 @@ public class DungeonMasterEngine {
             }
         }
 
-        // Opening quest is sourced from the QuestScript SPI (bundled
-        // DefaultQuestScript, id "default"), so content packs can ship their own
-        // openers. Fall back to the generator directly if the registry was cleared.
-        Quest opening = QuestScriptRegistry.dispatch(
-                QuestScriptRegistry.DEFAULT_SCRIPT, this, difficulty, chaosLevel);
-        this.currentQuest = (opening != null)
-                ? opening
-                : dungeonGenerator.generateCustomRift("Genesis Rift", 4, difficulty);
-        worldMap.setCurrentLocation(this.currentQuest.getTitle());
-        chronicle.record("quest_started", this.currentQuest.getTitle(), "");
+        // Opening quest: prefer First Light cold-open script id so campaign
+        // grants/chain match (G9). Fallback default SPI / generator.
+        if (QuestScriptRegistry.isRegistered(
+                com.xai.dungeonmaster.plugin.builtin.DefaultQuestScript.FIRST_LIGHT_SCRIPT)) {
+            startQuestById(com.xai.dungeonmaster.plugin.builtin.DefaultQuestScript.FIRST_LIGHT_SCRIPT);
+        } else {
+            Quest opening = QuestScriptRegistry.dispatch(
+                    QuestScriptRegistry.DEFAULT_SCRIPT, this, difficulty, chaosLevel);
+            this.currentQuest = (opening != null)
+                    ? opening
+                    : dungeonGenerator.generateCustomRift("Genesis Rift", 4, difficulty);
+            this.currentQuestScriptId = QuestScriptRegistry.DEFAULT_SCRIPT;
+            worldMap.setCurrentLocation(this.currentQuest.getTitle());
+            chronicle.record("quest_started", this.currentQuest.getTitle(), "");
+        }
         log("Multiversal Engine Online. Chaos Level " + chaosLevel);
     }
 
@@ -355,7 +360,10 @@ public class DungeonMasterEngine {
             }
         }
 
-        if (random.nextInt(100) < chaosLevel * 5) {
+        // Ambient chaos combat: skip while a campaign arc owns the session so
+        // First Light (and other story packs) aren't hijacked mid-scene (G9).
+        if (campaign == null && chaosLevel > 0
+                && random.nextInt(100) < chaosLevel * 5) {
             triggerCombatEncounter();
         }
         return outcome;
@@ -442,9 +450,43 @@ public class DungeonMasterEngine {
         return campaign;
     }
 
+    /**
+     * Short player-facing next-step (G9 cool path / SPA empty states).
+     */
+    public String playHint() {
+        if (combatState.isActive()) {
+            return "Combat — Attack, spell, item, or flee. Push Your Luck once per scene.";
+        }
+        Quest q = currentQuest;
+        if (q == null) {
+            return "No quest — Reset or Sync to begin First Light.";
+        }
+        if (q.isFinished()) {
+            if (campaign != null && campaign.nextEligible(worldState) == null) {
+                return "Story told — Export a share card, Save, or Reset for a new run.";
+            }
+            return "Chapter closed — the next scene should load on your next Sync.";
+        }
+        List<Choice> choices = getCurrentAvailableChoices();
+        if (choices == null || choices.isEmpty()) {
+            return "No choices right now — wait for combat to end or Sync.";
+        }
+        Scene sc = q.getCurrentScene();
+        if (sc != null && sc.getDescription() != null && !sc.getDescription().isBlank()) {
+            return "Read the scene, then pick a choice. Numbers 1–9 work on web.";
+        }
+        return "Choose what happens next.";
+    }
+
+
     /** The current quest, or null. */
     public Quest getCurrentQuest() {
         return currentQuest;
+    }
+
+    /** Script id for the active quest (campaign grants key off this). */
+    public String getCurrentQuestScriptId() {
+        return currentQuestScriptId;
     }
 
     /** Persistent world flags + quest outcomes. Never null. */
@@ -484,13 +526,34 @@ public class DungeonMasterEngine {
      * has an NPC, that NPC's persona sheet so dialogue stays in character.
      */
     private List<String> narrationFacts() {
-        List<String> facts = new ArrayList<>(chronicle.renderFacts(NARRATION_FACTS));
+        // Framing → chronicle → last check → NPC persona last so local-stub
+        // recaps dialogue character when present, else latest story fact.
+        List<String> facts = new ArrayList<>();
         Quest quest = currentQuest;
         Scene scene = (quest != null) ? quest.getCurrentScene() : null;
-        String npcId = (scene != null) ? scene.getNpcId() : null;
-        if (npcId != null) {
-            Npc npc = com.xai.dungeonmaster.plugin.ContentRegistry.npcs().get(npcId);
-            if (npc != null) facts.add(npc.renderFact());
+        if (campaign != null) {
+            facts.add("Campaign: " + campaign.getTitle());
+        }
+        if (quest != null) {
+            facts.add("Quest: " + quest.getTitle()
+                    + (quest.isFinished() ? " (finished)" : " (in progress)"));
+            if (quest.getDescription() != null && !quest.getDescription().isBlank()) {
+                facts.add("Quest stakes: " + quest.getDescription());
+            }
+        }
+        if (scene != null && scene.getDescription() != null && !scene.getDescription().isBlank()) {
+            facts.add("Scene: " + scene.getDescription());
+        }
+        facts.addAll(chronicle.renderFacts(NARRATION_FACTS));
+        if (lastCheck != null && lastCheck.getNarration() != null && !lastCheck.getNarration().isBlank()) {
+            facts.add("Last check: " + lastCheck.getNarration());
+        }
+        if (scene != null) {
+            String npcId = scene.getNpcId();
+            if (npcId != null) {
+                Npc npc = com.xai.dungeonmaster.plugin.ContentRegistry.npcs().get(npcId);
+                if (npc != null) facts.add(npc.renderFact());
+            }
         }
         return facts;
     }

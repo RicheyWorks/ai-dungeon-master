@@ -122,6 +122,24 @@ export interface GameStatusV2 {
      * @memberof GameStatusV2
      */
     lastCheck?: CheckResultDto | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof GameStatusV2
+     */
+    campaignId?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof GameStatusV2
+     */
+    campaignTitle?: string | null;
+    /**
+     * G9 cool-path next-step hint
+     * @type {string}
+     * @memberof GameStatusV2
+     */
+    playHint?: string | null;
 }
 
 /**
@@ -153,6 +171,9 @@ export function GameStatusV2FromJSONTyped(json: any, ignoreDiscriminator: boolea
         'choiceDetails': json['choiceDetails'] == null ? undefined : ((json['choiceDetails'] as Array<any>).map(ChoiceDetailFromJSON)),
         'story': json['story'] == null ? undefined : StoryMemoryPayloadFromJSON(json['story']),
         'lastCheck': json['lastCheck'] == null ? undefined : CheckResultDtoFromJSON(json['lastCheck']),
+        'campaignId': json['campaignId'] == null ? undefined : json['campaignId'],
+        'campaignTitle': json['campaignTitle'] == null ? undefined : json['campaignTitle'],
+        'playHint': json['playHint'] == null ? undefined : json['playHint'],
     };
 }
 
@@ -174,6 +195,9 @@ export function GameStatusV2ToJSON(value?: GameStatusV2 | null): any {
         'choiceDetails': value['choiceDetails'] == null ? undefined : ((value['choiceDetails'] as Array<any>).map(ChoiceDetailToJSON)),
         'story': StoryMemoryPayloadToJSON(value['story']),
         'lastCheck': CheckResultDtoToJSON(value['lastCheck']),
+        'campaignId': value['campaignId'],
+        'campaignTitle': value['campaignTitle'],
+        'playHint': value['playHint'],
     };
 }
 
