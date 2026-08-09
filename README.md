@@ -128,6 +128,10 @@ BASE_URL=http://127.0.0.1:8080 ./scripts/launch-smoke.sh
 | **`core`** | Engine + plugin SPI. No Spring. Domain model, generation, `LLMProvider`, content registries. |
 | **`service`** | Spring adapter: REST `/v2/*`, STOMP, optional Swing/CLI, production gates, static `/app` SPA. |
 
+Full design map (boundaries, session lifecycle, where cool-game work lands):
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).  
+Multi-hour build sessions: [`docs/GOALS.md`](docs/GOALS.md) (`/goal` protocol).
+
 ---
 
 ## API surface
@@ -251,6 +255,8 @@ desktop/         launcher scripts + Tauri scaffold
 
 | Doc | Purpose |
 |---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design, module boundaries, invariants |
+| [`docs/GOALS.md`](docs/GOALS.md) | Multi-hour `/goal` protocol + cool-game backlog |
 | [`docs/PRODUCTION.md`](docs/PRODUCTION.md) | Multi-tenant ops, tokens, rate limits, smoke gates |
 | [`docs/MULTI_NODE.md`](docs/MULTI_NODE.md) | Redis/JDBC session stores, sticky LB |
 | [`docs/STOREFRONTS.md`](docs/STOREFRONTS.md) | Receipt plugins & storefronts |
@@ -320,11 +326,14 @@ See [`docs/ROADMAP_STATUS.md`](docs/ROADMAP_STATUS.md).
 
 ## Contributing
 
-1. Branch from `main` (`feat/…`, `fix/…`, `docs/…`, `chore/…`).
-2. Keep changes focused; regenerate SDKs when OpenAPI changes.
-3. Run `mvn -pl service -am test` and `cd web && npm run build` before PR.
-4. Stage SPA with `./scripts/build-web.sh` when shipping web changes.
-5. Prefer product-facing summaries in PRs; link `docs/PRODUCTION.md` for ops.
+1. Prefer a multi-hour **`/goal`** from [`docs/GOALS.md`](docs/GOALS.md) over
+   drive-by micro-batches; name the Goal ID in the PR body.
+2. Branch from `main` (`feat/…`, `fix/…`, `docs/…`, `chore/…`).
+3. Keep changes inside the goal’s in-scope paths ([ARCHITECTURE.md](docs/ARCHITECTURE.md) §10).
+4. Regenerate SDKs when OpenAPI changes.
+5. Run `mvn -pl core,service -am test` and `cd web && npm run build` before PR.
+6. Stage SPA with `./scripts/build-web.sh` when shipping web changes.
+7. Link `docs/PRODUCTION.md` only for ops/security contract changes.
 
 Labels (areas): `area/backend`, `area/frontend`, `area/android`, `area/ios`,
 `area/docs`, `area/security`, `area/ops` · types: `type/feature`, `type/fix`,

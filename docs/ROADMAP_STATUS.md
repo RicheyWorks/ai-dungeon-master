@@ -1,5 +1,7 @@
 # AI Dungeon Master — Roadmap Status
 
+> Multi-hour work: use [`GOALS.md`](GOALS.md) (`/goal`) · design map: [`ARCHITECTURE.md`](ARCHITECTURE.md)
+
 _Last updated: 2026-08-09 · `mvn test` + web SPA build green · Reference: `AI_Dungeon_Master_Audit_and_Roadmap.docx` (May 2026)_
 
 Grounded in the current code, not the May plan. Phases 0–1 are complete, Phase 2
