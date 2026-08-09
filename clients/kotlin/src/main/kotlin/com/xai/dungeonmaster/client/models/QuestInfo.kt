@@ -20,12 +20,14 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 /**
- * Outcome snapshot of the current quest.
+ * Outcome snapshot of the current quest plus scene framing.
  *
  * @param title 
  * @param completed 
  * @param failed 
  * @param progress Scene progress in [0,1].
+ * @param sceneId 
+ * @param sceneDescription Current scene prose for cold-open / stakes framing.
  */
 
 
@@ -42,7 +44,14 @@ data class QuestInfo (
 
     /* Scene progress in [0,1]. */
     @Json(name = "progress")
-    val progress: kotlin.Double? = null
+    val progress: kotlin.Double? = null,
+
+    @Json(name = "sceneId")
+    val sceneId: kotlin.String? = null,
+
+    /* Current scene prose for cold-open / stakes framing. */
+    @Json(name = "sceneDescription")
+    val sceneDescription: kotlin.String? = null
 
 ) {
 

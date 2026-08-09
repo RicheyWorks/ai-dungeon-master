@@ -563,3 +563,8 @@ Set e.g. `game.cors.allowed-origins=https://play.example.com,https://admin.examp
 | multipart pack upload | 10MB file / 12MB request | same |
 
 Oversized requests with `Content-Length` are rejected early with **413** envelope.
+
+## Launch freeze
+
+Ship gates: [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md) (Goal G8).
+Storefront vertical smoke: `./scripts/storefront-smoke.sh` (Goal G7).
