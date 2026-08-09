@@ -11,6 +11,7 @@ import com.xai.dungeonmaster.dto.NarrationInfo;
 import com.xai.dungeonmaster.entitlement.ReceiptLedger;
 import com.xai.dungeonmaster.plugin.LLMProvider;
 import com.xai.dungeonmaster.plugin.LLMProviderRegistry;
+import com.xai.dungeonmaster.service.GameEngineFactory;
 import com.xai.dungeonmaster.service.GameInstanceService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,6 +47,7 @@ public class AdminController {
     private final SessionPackService sessionPacks;
     private final SessionService sessions;
     private final GameInstanceService instances;
+    private final GameEngineFactory engineFactory;
     private final String adminToken;
     private final String previousAdminToken;
 
@@ -55,24 +57,26 @@ public class AdminController {
             SessionPackService sessionPacks,
             SessionService sessions,
             GameInstanceService instances,
+            GameEngineFactory engineFactory,
             @Value("${game.admin.token:}") String adminToken,
             @Value("${game.admin.token.previous:}") String previousAdminToken) {
         this.ledger = ledger;
         this.sessionPacks = sessionPacks;
         this.sessions = sessions;
         this.instances = instances;
+        this.engineFactory = engineFactory;
         this.adminToken = adminToken == null ? "" : adminToken.trim();
         this.previousAdminToken = previousAdminToken == null ? "" : previousAdminToken.trim();
     }
 
     /** Back-compat for receipt-only tests. */
     public AdminController(ReceiptLedger ledger, String adminToken) {
-        this(ledger, null, null, null, adminToken, "");
+        this(ledger, null, null, null, null, adminToken, "");
     }
 
     /** Test helper with session packs + dual token. */
     public AdminController(ReceiptLedger ledger, SessionPackService sessionPacks, String adminToken) {
-        this(ledger, sessionPacks, null, null, adminToken, "");
+        this(ledger, sessionPacks, null, null, null, adminToken, "");
     }
 
     /** Test helper with dual admin tokens. */
@@ -81,7 +85,7 @@ public class AdminController {
             SessionPackService sessionPacks,
             String adminToken,
             String previousAdminToken) {
-        this(ledger, sessionPacks, null, null, adminToken, previousAdminToken);
+        this(ledger, sessionPacks, null, null, null, adminToken, previousAdminToken);
     }
 
     /** Test helper with sessions + engines. */
@@ -91,7 +95,7 @@ public class AdminController {
             SessionService sessions,
             GameInstanceService instances,
             String adminToken) {
-        this(ledger, sessionPacks, sessions, instances, adminToken, "");
+        this(ledger, sessionPacks, sessions, instances, null, adminToken, "");
     }
 
     /**
@@ -401,9 +405,17 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     Envelope.of("error", new ErrorPayload("Unknown narration provider: " + providerId), requestId));
         }
+        int rebound = 0;
+        if (engineFactory != null && instances != null) {
+            rebound = instances.rebindNarrators(engineFactory.buildNarrator());
+        } else if (instances != null) {
+            // Tests without factory: rebind raw active provider
+            rebound = instances.rebindNarrators(LLMProviderRegistry.getActive());
+        }
         NarrationInfo info = snapshotNarration();
         AdminAudit.log("ok", "/v2/admin/narration/provider", RateLimitFilter.clientIp(request, false),
-                requestId, "active=" + info.active() + " token=" + AdminAudit.tokenFingerprint(token));
+                requestId, "active=" + info.active() + " engines=" + rebound
+                        + " token=" + AdminAudit.tokenFingerprint(token));
         return ResponseEntity.ok(Envelope.of("admin.narration", info, requestId));
     }
 

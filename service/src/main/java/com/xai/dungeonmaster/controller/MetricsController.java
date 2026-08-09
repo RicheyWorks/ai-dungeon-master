@@ -79,7 +79,7 @@ public class MetricsController {
 
     @GetMapping(value = "/metrics", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<String> metrics(HttpServletRequest request) {
-        if (!scrapeToken.isEmpty() && !tokenMatches(request)) {
+        if ((!scrapeToken.isEmpty() || !previousScrapeToken.isEmpty()) && !tokenMatches(request)) {
             SecurityAudit.log(
                     "unauthorized",
                     "/metrics",

@@ -28,6 +28,7 @@ public final class GameEngineFactory {
     private final String narrationProviderId;
     private final int narrationTokenCeiling;
     private final SimpMessagingTemplate messaging;
+    private volatile boolean bootstrappedActive;
 
     public GameEngineFactory(int difficulty, int chaos,
                              String[] partyNames, String[] partyRoles,
@@ -53,11 +54,8 @@ public final class GameEngineFactory {
         DungeonMasterEngine engine = new DungeonMasterEngine(
                 difficulty, chaos, partyNames, partyRoles);
 
-        LLMProviderRegistry.setActive(narrationProviderId);
-        LLMProvider narrator = new TokenBudgetProvider(
-                new ModerationProvider(LLMProviderRegistry.getActive()),
-                narrationTokenCeiling);
-        engine.setNarrator(narrator);
+        bootstrapActiveOnce();
+        engine.setNarrator(buildNarrator());
 
         if (campaignId != null && !campaignId.isBlank()) {
             Campaign campaign = CampaignRegistry.get(campaignId);
@@ -76,6 +74,27 @@ public final class GameEngineFactory {
             engine.addUiListener(text -> messaging.convertAndSend(topic, text));
         }
         return engine;
+    }
+
+    /**
+     * Budgeted + moderated stack around the current registry active provider.
+     * Safe to call after ops switches the active id.
+     */
+    public LLMProvider buildNarrator() {
+        bootstrapActiveOnce();
+        return new TokenBudgetProvider(
+                new ModerationProvider(LLMProviderRegistry.getActive()),
+                narrationTokenCeiling);
+    }
+
+    /** Seed registry from config once; subsequent mints respect ops switches. */
+    private void bootstrapActiveOnce() {
+        if (bootstrappedActive) return;
+        synchronized (this) {
+            if (bootstrappedActive) return;
+            LLMProviderRegistry.setActive(narrationProviderId);
+            bootstrappedActive = true;
+        }
     }
 
     /** Process-default engine (legacy single-player + unauthenticated v2). */
