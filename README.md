@@ -48,6 +48,10 @@ content packs, and typed clients for web, Android, and iOS.
   NPC/faction dispositions — pack JSON, offline-capable.
 - **Legendary opener (G1)** — free **First Light** pack: cold-open letter heist,
   irreversible first choice, delayed callback; SPA shows scene prose + stakes.
+- **Story memory (G2)** — epithets, scars, 3-line recap on status + SPA.
+- **Cinematic checks (G3)** — d20 stakes→roll→result; Push Your Luck; SPA card.
+- **Flagship First Light 1.1 (G4)** — noon climax, 3 endings, boss, items, NPCs.
+- **Sensory & share (G5)** — muteable ambient/stings; export markdown + PNG card.
 - **Session resilience** — JWT mint / refresh / rename, SPA auto-renew near expiry,
   offline banner, STOMP auto-reconnect, per-request `X-Request-Id`.
 - **Save lifecycle** — session-scoped save/load/reset plus **GET/DELETE save meta**.

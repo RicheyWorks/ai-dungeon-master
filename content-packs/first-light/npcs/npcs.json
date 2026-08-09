@@ -1,0 +1,26 @@
+{
+  "baker-maera": {
+    "id": "baker-maera",
+    "displayName": "Maera the Baker",
+    "role": "Night-oven keeper",
+    "factionId": "street-shadows",
+    "persona": "Flour-dusted, sharp-tongued, keeps three secrets and one oven that never cools. Helps runners who don't burn her shop twice.",
+    "baseDisposition": 1
+  },
+  "courier-grey": {
+    "id": "courier-grey",
+    "displayName": "The Grey Courier",
+    "role": "Veyra messenger",
+    "factionId": "house-veyra",
+    "persona": "Polite as a closed door. Carries other people's endings in a leather satchel and never runs — walks as if already paid.",
+    "baseDisposition": -1
+  },
+  "veyra-handler": {
+    "id": "veyra-handler",
+    "displayName": "Handler Veyra",
+    "role": "Your employer",
+    "factionId": "house-veyra",
+    "persona": "Silver pin, thinner smile. Hired you for a letter that was never meant to leave the counting-house. Offers partnership like a leash.",
+    "baseDisposition": 0
+  }
+}

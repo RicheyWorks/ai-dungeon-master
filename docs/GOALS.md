@@ -89,7 +89,7 @@ Pick **one**. Copy into `/goal`. Status: `ready` · `active` · `done` · `parke
 
 ---
 
-### G3 — Cinematic checks  `ready` · **M**
+### G3 — Cinematic checks  `done` · **M**
 
 **North star:** Rolls feel like drama, not a spreadsheet.
 
@@ -102,7 +102,7 @@ Pick **one**. Copy into `/goal`. Status: `ready` · `active` · `done` · `parke
 
 ---
 
-### G4 — Flagship content pack  `ready` · **L**
+### G4 — Flagship content pack  `done` · **L**
 
 **North star:** One pack is “the” reason to play (endings, art hooks, quests).
 
@@ -115,7 +115,7 @@ Pick **one**. Copy into `/goal`. Status: `ready` · `active` · `done` · `parke
 
 ---
 
-### G5 — Sensory & share  `ready` · **M**
+### G5 — Sensory & share  `done` · **M**
 
 **North star:** Vibes + share card make the run social.
 
@@ -167,6 +167,7 @@ Record the current session here (newest on top).
 
 | Date | Goal | Status | Notes / PRs |
 |---|---|---|---|
+| 2026-08-09 | G3+G4+G5 cool stack | done | Checks, flagship First Light 1.1, audio+share |
 | 2026-08-09 | G2 Memory you can feel | done | StoryMemory recap/epithets/scars + SPA + save/load |
 | 2026-08-09 | G1 Legendary first run | done | First Light pack, scene/stakes status, SPA framing |
 | 2026-08-09 | _(catalog created)_ | — | Architecture + GOALS docs |

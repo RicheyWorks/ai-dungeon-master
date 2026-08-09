@@ -1,0 +1,42 @@
+{
+  "fl_alley_cutpurse": {
+    "entityType": "enemy",
+    "name": "Alley Cutpurse",
+    "baseHp": 28,
+    "baseAc": 11,
+    "attackBonus": 2,
+    "levelRequirement": 1,
+    "factionId": "street-shadows",
+    "lootTable": ["fl_raincloak"]
+  },
+  "fl_veyra_hound": {
+    "entityType": "enemy",
+    "name": "Veyra House Hound",
+    "baseHp": 42,
+    "baseAc": 13,
+    "attackBonus": 4,
+    "levelRequirement": 2,
+    "factionId": "house-veyra",
+    "lootTable": ["fl_courier_purse"]
+  },
+  "fl_grey_courier": {
+    "entityType": "enemy",
+    "name": "Grey Courier",
+    "baseHp": 55,
+    "baseAc": 14,
+    "attackBonus": 5,
+    "levelRequirement": 3,
+    "factionId": "house-veyra"
+  },
+  "fl_counting_house_captain": {
+    "entityType": "enemy",
+    "name": "Counting-House Captain Boss",
+    "baseHp": 480,
+    "baseAc": 17,
+    "attackBonus": 9,
+    "levelRequirement": 8,
+    "isBoss": true,
+    "factionId": "house-veyra",
+    "lootTable": ["fl_silver_pin"]
+  }
+}

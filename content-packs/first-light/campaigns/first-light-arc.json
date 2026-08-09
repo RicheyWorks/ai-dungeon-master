@@ -5,6 +5,11 @@
     {
       "questId": "first-light-cold-open",
       "grants": { "first_light_done": 1 }
+    },
+    {
+      "questId": "first-light-noon-square",
+      "requires": { "first_light_done": 1 },
+      "grants": { "noon_done": 1 }
     }
   ]
 }

@@ -68,3 +68,4 @@ export * from './SessionRequest';
 export * from './VerifyReceiptRequest';
 export * from './ChoiceDetail';
 export * from './StoryMemoryPayload';
+export * from './CheckResultDto';
