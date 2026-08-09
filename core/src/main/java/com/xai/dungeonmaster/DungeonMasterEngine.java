@@ -650,6 +650,16 @@ public class DungeonMasterEngine {
      * GUI and CLI), this returns typed {@link MemberState} value objects so
      * clients never parse server-formatted text.
      */
+    /**
+     * Live party snapshot for story-memory / epithet derivation (G2).
+     * Prefer {@link #getPartyState()} for wire APIs.
+     */
+    public List<Adventurer> getParty() {
+        synchronized (party) {
+            return List.copyOf(party);
+        }
+    }
+
     public PartyState getPartyState() {
         List<MemberState> members = new ArrayList<>();
         synchronized (party) {

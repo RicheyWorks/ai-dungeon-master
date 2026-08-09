@@ -50,11 +50,19 @@ public final class ChoiceEffect {
         switch (type) {
             case "SET_FLAG" -> {
                 KeyValue kv = parseArg(1);
-                if (kv != null) engine.getWorldState().setFlag(kv.key, kv.value);
+                if (kv != null) {
+                    engine.getWorldState().setFlag(kv.key, kv.value);
+                    noteStoryBeat(engine, kv.key, kv.value);
+                }
             }
             case "ADD_FLAG" -> {
                 KeyValue kv = parseArg(1);
-                if (kv != null) engine.getWorldState().addFlag(kv.key, kv.value);
+                if (kv != null) {
+                    engine.getWorldState().addFlag(kv.key, kv.value);
+                    if ("city_heat".equals(kv.key) && engine.getWorldState().getFlag(kv.key) >= 2) {
+                        engine.getChronicle().record("scar", "city_heat", "Known to the city watch");
+                    }
+                }
             }
             case "TRIGGER_COMBAT" -> {
                 engine.log("A rift opens! Combat is inevitable.");
@@ -85,6 +93,28 @@ public final class ChoiceEffect {
                 if (kv != null) engine.getWorldState().addFlag(Faction.reputationFlag(kv.key), kv.value);
             }
             default -> engine.log("Unknown choice effect: " + type);
+        }
+    }
+
+    /** Record memorable oaths/scars into the chronicle when story flags change. */
+    private static void noteStoryBeat(DungeonMasterEngine engine, String key, int value) {
+        if (engine == null || key == null) return;
+        Chronicle c = engine.getChronicle();
+        if (c == null) return;
+        switch (key) {
+            case "letter_fate" -> {
+                String detail = switch (value) {
+                    case 1 -> "Kept the sealed letter";
+                    case 2 -> "Burned the sealed letter";
+                    case 3 -> "Watched who came for the letter";
+                    default -> "Chose a fate for the letter";
+                };
+                c.record("oath", "letter_fate", detail);
+            }
+            case "dawn_path" -> c.record("scar", "dawn_path", "Dawn path " + value);
+            case "tree_fate" -> c.record("oath", "tree_fate",
+                    value == 1 ? "Spared the weeping tree" : "Burned the weeping tree");
+            default -> { /* no-op */ }
         }
     }
 

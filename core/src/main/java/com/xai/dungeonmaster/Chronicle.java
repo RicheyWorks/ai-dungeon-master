@@ -103,6 +103,13 @@ public class Chronicle {
         return facts;
     }
 
+    /**
+     * Player-facing recap lines (Goal G2). Delegates to {@link StoryMemory#recap}.
+     */
+    public synchronized List<String> renderRecap(int maxLines) {
+        return StoryMemory.recap(this, maxLines);
+    }
+
     @JsonIgnore
     public synchronized boolean isEmpty() {
         return recent.isEmpty() && tally.isEmpty();

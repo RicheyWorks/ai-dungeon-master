@@ -76,7 +76,7 @@ Pick **one**. Copy into `/goal`. Status: `ready` · `active` · `done` · `parke
 
 ---
 
-### G2 — Memory you can feel  `ready` · **M–L**
+### G2 — Memory you can feel  `done` · **M–L**
 
 **North star:** Load game and *feel* continuity (epithets, scars, recap).
 
@@ -167,6 +167,7 @@ Record the current session here (newest on top).
 
 | Date | Goal | Status | Notes / PRs |
 |---|---|---|---|
+| 2026-08-09 | G2 Memory you can feel | done | StoryMemory recap/epithets/scars + SPA + save/load |
 | 2026-08-09 | G1 Legendary first run | done | First Light pack, scene/stakes status, SPA framing |
 | 2026-08-09 | _(catalog created)_ | — | Architecture + GOALS docs |
 
