@@ -1,6 +1,7 @@
 package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.auth.AdminAudit;
+import com.xai.dungeonmaster.auth.SecretEquals;
 import com.xai.dungeonmaster.auth.RateLimitFilter;
 import com.xai.dungeonmaster.auth.SecurityAudit;
 import com.xai.dungeonmaster.auth.SessionService;
@@ -26,8 +27,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -448,18 +447,6 @@ public class AdminController {
     }
 
     private boolean tokenAccepted(String presented) {
-        if (constantTimeEquals(adminToken, presented)) return true;
-        return !previousAdminToken.isEmpty() && constantTimeEquals(previousAdminToken, presented);
-    }
-
-    private static boolean constantTimeEquals(String expected, String actual) {
-        if (expected == null || actual == null) return false;
-        byte[] a = expected.getBytes(StandardCharsets.UTF_8);
-        byte[] b = actual.getBytes(StandardCharsets.UTF_8);
-        if (a.length != b.length) {
-            MessageDigest.isEqual(a, a);
-            return false;
-        }
-        return MessageDigest.isEqual(a, b);
+        return SecretEquals.matchesEither(adminToken, previousAdminToken, presented);
     }
 }

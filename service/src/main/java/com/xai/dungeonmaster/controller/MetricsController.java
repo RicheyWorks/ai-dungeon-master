@@ -2,6 +2,7 @@ package com.xai.dungeonmaster.controller;
 
 import com.xai.dungeonmaster.auth.RateLimitFilter;
 import com.xai.dungeonmaster.auth.RateLimitMetrics;
+import com.xai.dungeonmaster.auth.SecretEquals;
 import com.xai.dungeonmaster.auth.SecurityAudit;
 import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.service.AuthDependencyProbe;
@@ -18,7 +19,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Locale;
 import java.util.Map;
 
@@ -172,19 +172,7 @@ public class MetricsController {
     }
 
     private boolean scrapeTokenAccepted(String presented) {
-        if (constantTimeEquals(scrapeToken, presented)) return true;
-        return !previousScrapeToken.isEmpty() && constantTimeEquals(previousScrapeToken, presented);
-    }
-
-    private static boolean constantTimeEquals(String expected, String actual) {
-        if (expected == null || actual == null) return false;
-        byte[] a = expected.getBytes(StandardCharsets.UTF_8);
-        byte[] b = actual.getBytes(StandardCharsets.UTF_8);
-        if (a.length != b.length) {
-            MessageDigest.isEqual(a, a);
-            return false;
-        }
-        return MessageDigest.isEqual(a, b);
+        return SecretEquals.matchesEither(scrapeToken, previousScrapeToken, presented);
     }
 
     private static void helpType(StringBuilder out, String name, String type, String help) {

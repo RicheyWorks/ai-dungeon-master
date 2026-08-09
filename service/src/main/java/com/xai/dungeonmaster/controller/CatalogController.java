@@ -1,5 +1,6 @@
 package com.xai.dungeonmaster.controller;
 
+import com.xai.dungeonmaster.auth.SecretEquals;
 import com.xai.dungeonmaster.auth.AdminAudit;
 import com.xai.dungeonmaster.auth.JwtAuthFilter;
 import com.xai.dungeonmaster.auth.RateLimitFilter;
@@ -29,8 +30,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -220,19 +219,6 @@ public class CatalogController {
 
     private boolean adminAccepted(String presented) {
         if (presented == null || presented.isBlank()) return false;
-        String t = presented.trim();
-        if (tokenOk(adminToken, t)) return true;
-        return !previousAdminToken.isEmpty() && tokenOk(previousAdminToken, t);
-    }
-
-    private static boolean tokenOk(String expected, String actual) {
-        if (expected == null || expected.isEmpty() || actual == null) return false;
-        byte[] a = expected.getBytes(StandardCharsets.UTF_8);
-        byte[] b = actual.getBytes(StandardCharsets.UTF_8);
-        if (a.length != b.length) {
-            MessageDigest.isEqual(a, a);
-            return false;
-        }
-        return MessageDigest.isEqual(a, b);
+        return SecretEquals.matchesEither(adminToken, previousAdminToken, presented.trim());
     }
 }
