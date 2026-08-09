@@ -51,6 +51,7 @@ export function App() {
   const [marketplace, setMarketplace] = useState<MarketplacePayload | null>(null);
   const [marketQuery, setMarketQuery] = useState("");
   const [installJob, setInstallJob] = useState<MarketplaceInstallJob | null>(null);
+  const [recentJobs, setRecentJobs] = useState<MarketplaceInstallJob[]>([]);
   const [entitlements, setEntitlements] = useState<EntitlementPayload | null>(null);
   const [narration, setNarration] = useState<string | null>(null);
   const [streamBuffer, setStreamBuffer] = useState("");
@@ -100,6 +101,23 @@ export function App() {
   const refreshInFlight = useRef(false);
 
   const token = session?.token ?? null;
+  const refreshRecentJobs = useCallback(async () => {
+    if (!token) {
+      setRecentJobs([]);
+      return;
+    }
+    try {
+      const r = await api.listMarketplaceJobs(baseUrl, token, 10);
+      setRecentJobs(r.jobs);
+    } catch {
+      /* ignore list failures */
+    }
+  }, [baseUrl, token]);
+
+  useEffect(() => {
+    if (tab === "mods") void refreshRecentJobs();
+  }, [tab, refreshRecentJobs]);
+
   const installActive =
     !!installJob &&
     installJob.phase !== "DONE" &&
@@ -808,6 +826,7 @@ export function App() {
             void (async () => {
               try {
                 setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
+                await refreshRecentJobs();
                 setInfo("Marketplace refreshed");
               } catch (e) {
                 setError(e instanceof Error ? e.message : String(e));
@@ -841,6 +860,7 @@ export function App() {
                   (j) => setInstallJob(j),
                 );
                 setInstallJob(done);
+                await refreshRecentJobs();
                 if (done.phase === "DONE") {
                   setInfo(done.message ?? `Installed ${id}`);
                   setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
@@ -864,6 +884,40 @@ export function App() {
                 const j = await api.cancelMarketplaceInstall(baseUrl, token, installJob.jobId);
                 if (j) setInstallJob(j);
                 setInfo("Cancel requested");
+                await refreshRecentJobs();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            })()
+          }
+          recentJobs={recentJobs}
+          onRefreshJobs={() => void refreshRecentJobs()}
+          onResumeJob={(jobId) =>
+            void (async () => {
+              try {
+                setError(null);
+                const j = await api.getMarketplaceInstallJob(baseUrl, token, jobId);
+                setInstallJob(j);
+                if (
+                  j.phase === "DONE" ||
+                  j.phase === "FAILED" ||
+                  j.phase === "CANCELLED"
+                ) {
+                  setInfo(`${j.packId ?? "job"} · ${j.phase}`);
+                  return;
+                }
+                const done = await api.pollMarketplaceInstall(
+                  baseUrl,
+                  token,
+                  jobId,
+                  (x) => setInstallJob(x),
+                );
+                setInstallJob(done);
+                await refreshRecentJobs();
+                setInfo(done.message ?? done.phase ?? "Job finished");
+                if (done.phase === "DONE") {
+                  setMarketplace(await api.getMarketplace(baseUrl, token, marketQuery));
+                }
               } catch (e) {
                 setError(e instanceof Error ? e.message : String(e));
               }
@@ -1550,10 +1604,13 @@ function ModsTab(props: {
   dropActive: boolean;
   setDropActive: (v: boolean) => void;
   installJob: MarketplaceInstallJob | null;
+  recentJobs: MarketplaceInstallJob[];
   onReload: () => void;
   onSearch: () => void;
   onInstall: (id: string) => void;
   onCancelInstall: () => void;
+  onRefreshJobs: () => void;
+  onResumeJob: (jobId: string) => void;
   onToggle: (id: string, enable: boolean) => void;
   onUpload: (file: File) => void;
   onBuyToUnlock: (sku: string, packLabel?: string) => void;
@@ -1615,6 +1672,40 @@ function ModsTab(props: {
           </div>
         </div>
       )}
+      <div className="card stack">
+        <div className="row between">
+          <strong>Your install jobs</strong>
+          <button type="button" className="ghost compact" onClick={props.onRefreshJobs} disabled={props.busy}>
+            Refresh jobs
+          </button>
+        </div>
+        {props.recentJobs.length === 0 ? (
+          <div className="empty muted">No jobs for this session yet.</div>
+        ) : (
+          <ul className="job-list">
+            {props.recentJobs.map((j) => (
+              <li key={j.jobId} className="row between tight">
+                <span>
+                  <code>{j.packId ?? j.jobId.slice(0, 8)}</code>
+                  {" · "}
+                  <span className="muted">{j.phase ?? "?"}</span>
+                  {j.percent != null ? ` · ${j.percent}%` : ""}
+                </span>
+                <button
+                  type="button"
+                  className="ghost compact"
+                  disabled={props.busy}
+                  onClick={() => props.onResumeJob(j.jobId)}
+                >
+                  {j.phase === "DONE" || j.phase === "FAILED" || j.phase === "CANCELLED"
+                    ? "View"
+                    : "Resume"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <p className="muted">
         Discovery via <code>/v2/marketplace</code>
         {props.marketplace?.root ? ` · ${props.marketplace.root}` : ""}.{" "}

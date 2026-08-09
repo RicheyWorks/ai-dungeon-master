@@ -375,6 +375,36 @@ public class MarketplaceService {
         return true;
     }
 
+    /**
+     * Jobs owned by {@code sessionId} (most recently updated first).
+     * Empty session returns empty list. Legacy ownerless jobs are excluded.
+     */
+    public List<MarketplaceInstallJob> listJobsForSession(String sessionId, int limit) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return List.of();
+        }
+        String sid = sessionId.trim();
+        int cap = Math.min(100, Math.max(1, limit <= 0 ? 20 : limit));
+        Map<String, MarketplaceJobStore.JobRecord> byId = new LinkedHashMap<>();
+        for (String id : jobStore.ids()) {
+            jobStore.load(id).ifPresent(rec -> {
+                if (sid.equals(rec.ownerSessionId())) {
+                    byId.put(id, rec);
+                }
+            });
+        }
+        for (JobState local : jobs.values()) {
+            if (sid.equals(local.ownerSessionId)) {
+                byId.put(local.jobId, local.toRecord());
+            }
+        }
+        return byId.values().stream()
+                .sorted(Comparator.comparingLong(MarketplaceJobStore.JobRecord::updatedAtMs).reversed())
+                .limit(cap)
+                .map(MarketplaceJobStore.JobRecord::toDto)
+                .toList();
+    }
+
     private void runJob(JobState state, MarketplaceListing listing) {
         try {
             state.persist(jobStore);

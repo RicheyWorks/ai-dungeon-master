@@ -134,4 +134,33 @@ class MarketplaceControllerTest {
                 .andExpect(jsonPath("$.payload.jobId").isNotEmpty())
                 .andExpect(jsonPath("$.payload.packId", equalTo("demo-pack")));
     }
+
+    @Test
+    void listJobsReturnsOnlyCallerOwned() throws Exception {
+        SessionService.Session owner = sessions.createSession("Lister").session();
+        SessionService.Session other = sessions.createSession("Stranger").session();
+
+        mvc.perform(get("/v2/marketplace/jobs").requestAttr(JwtAuthFilter.SESSION_ATTR, owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type", equalTo("marketplace_install_jobs")))
+                .andExpect(jsonPath("$.payload.count", equalTo(0)))
+                .andExpect(jsonPath("$.payload.jobs").isArray());
+
+        mvc.perform(post("/v2/marketplace/demo-pack/install-async")
+                        .requestAttr(JwtAuthFilter.SESSION_ATTR, owner))
+                .andExpect(status().isAccepted());
+
+        mvc.perform(get("/v2/marketplace/jobs").requestAttr(JwtAuthFilter.SESSION_ATTR, owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.count", equalTo(1)))
+                .andExpect(jsonPath("$.payload.jobs[0].packId", equalTo("demo-pack")));
+
+        mvc.perform(get("/v2/marketplace/jobs").requestAttr(JwtAuthFilter.SESSION_ATTR, other))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.count", equalTo(0)));
+
+        mvc.perform(get("/v2/marketplace/jobs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payload.count", equalTo(0)));
+    }
 }

@@ -658,6 +658,24 @@ code {
   font-weight: 600;
 }
 
+.job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.job-list li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+.job-list li:last-child {
+  border-bottom: none;
+}
+
 /* —— Mods / store —— */
 
 .pack-title {
