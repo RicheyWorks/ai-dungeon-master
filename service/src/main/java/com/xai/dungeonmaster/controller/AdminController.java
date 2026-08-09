@@ -7,7 +7,10 @@ import com.xai.dungeonmaster.auth.SessionService;
 import com.xai.dungeonmaster.content.SessionPackService;
 import com.xai.dungeonmaster.dto.Envelope;
 import com.xai.dungeonmaster.dto.ErrorPayload;
+import com.xai.dungeonmaster.dto.NarrationInfo;
 import com.xai.dungeonmaster.entitlement.ReceiptLedger;
+import com.xai.dungeonmaster.plugin.LLMProvider;
+import com.xai.dungeonmaster.plugin.LLMProviderRegistry;
 import com.xai.dungeonmaster.service.GameInstanceService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
@@ -319,6 +322,101 @@ public class AdminController {
         AdminAudit.log("ok", "/v2/admin/security-events", RateLimitFilter.clientIp(request, false),
                 requestId, "count=" + rows.size() + " token=" + AdminAudit.tokenFingerprint(token));
         return ResponseEntity.ok(Envelope.of("admin.security_events", payload, requestId));
+    }
+
+    /**
+     * Recent admin ops audit events (process-local ring, newest first).
+     *
+     * <pre>GET /v2/admin/audit-events?limit=50</pre>
+     */
+    @GetMapping("/audit-events")
+    public ResponseEntity<Envelope<?>> auditEvents(
+            @RequestHeader(value = "X-Admin-Token", required = false) String token,
+            @RequestParam(value = "limit", required = false, defaultValue = "50") int limit,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId, "/v2/admin/audit-events", request);
+        if (denied != null) return denied;
+        List<AdminAudit.Event> events = AdminAudit.recent(limit);
+        List<Map<String, Object>> rows = new ArrayList<>(events.size());
+        for (AdminAudit.Event e : events) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", e.id());
+            row.put("atEpochMs", e.atEpochMs());
+            row.put("outcome", e.outcome());
+            row.put("path", e.path());
+            row.put("clientIp", e.clientIp());
+            row.put("requestId", e.requestId());
+            row.put("detail", e.detail());
+            rows.add(row);
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("count", rows.size());
+        payload.put("limit", Math.min(200, Math.max(1, limit <= 0 ? 50 : limit)));
+        payload.put("events", rows);
+        // Do not AdminAudit.log this list call into the ring (noise); SLF4J still via authorize path only.
+        return ResponseEntity.ok(Envelope.of("admin.audit_events", payload, requestId));
+    }
+
+    /**
+     * Snapshot of the process-wide narration provider.
+     *
+     * <pre>GET /v2/admin/narration</pre>
+     */
+    @GetMapping("/narration")
+    public ResponseEntity<Envelope<?>> getNarration(
+            @RequestHeader(value = "X-Admin-Token", required = false) String token,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId, "/v2/admin/narration", request);
+        if (denied != null) return denied;
+        NarrationInfo info = snapshotNarration();
+        AdminAudit.log("ok", "/v2/admin/narration", RateLimitFilter.clientIp(request, false),
+                requestId, "active=" + info.active() + " token=" + AdminAudit.tokenFingerprint(token));
+        return ResponseEntity.ok(Envelope.of("admin.narration", info, requestId));
+    }
+
+    /**
+     * Switch the process-wide active LLM narration provider (ops only).
+     *
+     * <pre>POST /v2/admin/narration/provider?id=local-stub</pre>
+     */
+    @PostMapping("/narration/provider")
+    public ResponseEntity<Envelope<?>> setNarrationProvider(
+            @RequestParam("id") String id,
+            @RequestHeader(value = "X-Admin-Token", required = false) String token,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        ResponseEntity<Envelope<?>> denied = authorize(token, requestId, "/v2/admin/narration/provider", request);
+        if (denied != null) return denied;
+        String providerId = id == null ? "" : id.trim();
+        if (providerId.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    Envelope.of("error", new ErrorPayload("provider id required"), requestId));
+        }
+        boolean ok = LLMProviderRegistry.setActive(providerId);
+        if (!ok) {
+            AdminAudit.log("fail", "/v2/admin/narration/provider", RateLimitFilter.clientIp(request, false),
+                    requestId, "unknown=" + providerId + " token=" + AdminAudit.tokenFingerprint(token));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    Envelope.of("error", new ErrorPayload("Unknown narration provider: " + providerId), requestId));
+        }
+        NarrationInfo info = snapshotNarration();
+        AdminAudit.log("ok", "/v2/admin/narration/provider", RateLimitFilter.clientIp(request, false),
+                requestId, "active=" + info.active() + " token=" + AdminAudit.tokenFingerprint(token));
+        return ResponseEntity.ok(Envelope.of("admin.narration", info, requestId));
+    }
+
+    private static NarrationInfo snapshotNarration() {
+        LLMProvider active = LLMProviderRegistry.getActive();
+        List<String> available = new ArrayList<>(LLMProviderRegistry.registeredIds());
+        available.sort(String.CASE_INSENSITIVE_ORDER);
+        if (!available.contains(LLMProviderRegistry.FALLBACK_ID)
+                && !available.stream().anyMatch(s -> s.equalsIgnoreCase(LLMProviderRegistry.FALLBACK_ID))) {
+            available.add(0, LLMProviderRegistry.FALLBACK_ID);
+            available.sort(String.CASE_INSENSITIVE_ORDER);
+        }
+        return new NarrationInfo(active.id(), active.health().name(), available);
     }
 
     private ResponseEntity<Envelope<?>> authorize(

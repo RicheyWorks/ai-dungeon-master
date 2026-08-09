@@ -13,6 +13,44 @@ import AnyCodable
 open class AdminAPI {
 
     /**
+     Active narration provider snapshot (ops)
+     
+     - parameter xAdminToken: (header)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: AdminNarrationEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func getAdminNarration(xAdminToken: String, xRequestId: String? = nil) async throws -> AdminNarrationEnvelope {
+        return try await getAdminNarrationWithRequestBuilder(xAdminToken: xAdminToken, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Active narration provider snapshot (ops)
+     - GET /v2/admin/narration
+     - parameter xAdminToken: (header)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<AdminNarrationEnvelope> 
+     */
+    open class func getAdminNarrationWithRequestBuilder(xAdminToken: String, xRequestId: String? = nil) -> RequestBuilder<AdminNarrationEnvelope> {
+        let localVariablePath = "/v2/admin/narration"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Admin-Token": xAdminToken.encodeToJSON(),
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AdminNarrationEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
      Session pack overrides (ops)
      
      - parameter sessionId: (query)  
@@ -51,6 +89,50 @@ open class AdminAPI {
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
         let localVariableRequestBuilder: RequestBuilder<AdminSessionPacksEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Recent admin ops audit events (ops)
+     
+     - parameter xAdminToken: (header)  
+     - parameter limit: (query)  (optional, default to 50)
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: AdminAuditEventsEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func listAdminAuditEvents(xAdminToken: String, limit: Int? = nil, xRequestId: String? = nil) async throws -> AdminAuditEventsEnvelope {
+        return try await listAdminAuditEventsWithRequestBuilder(xAdminToken: xAdminToken, limit: limit, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Recent admin ops audit events (ops)
+     - GET /v2/admin/audit-events
+     - Process-local ring (newest first) of `AdminAudit` outcomes for admin routes. No raw tokens — fingerprints only. 
+     - parameter xAdminToken: (header)  
+     - parameter limit: (query)  (optional, default to 50)
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<AdminAuditEventsEnvelope> 
+     */
+    open class func listAdminAuditEventsWithRequestBuilder(xAdminToken: String, limit: Int? = nil, xRequestId: String? = nil) -> RequestBuilder<AdminAuditEventsEnvelope> {
+        let localVariablePath = "/v2/admin/audit-events"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "limit": (wrappedValue: limit?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Admin-Token": xAdminToken.encodeToJSON(),
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AdminAuditEventsEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
@@ -290,5 +372,49 @@ open class AdminAPI {
         let localVariableRequestBuilder: RequestBuilder<AdminSessionRevokedEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "DELETE", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
+    }
+
+    /**
+     Switch process-wide active LLM narration provider (ops)
+     
+     - parameter id: (query) Provider id (e.g. local-stub, openai, anthropic, xai, llama) 
+     - parameter xAdminToken: (header)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: AdminNarrationEnvelope
+     */
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func setAdminNarrationProvider(id: String, xAdminToken: String, xRequestId: String? = nil) async throws -> AdminNarrationEnvelope {
+        return try await setAdminNarrationProviderWithRequestBuilder(id: id, xAdminToken: xAdminToken, xRequestId: xRequestId).execute().body
+    }
+
+    /**
+     Switch process-wide active LLM narration provider (ops)
+     - POST /v2/admin/narration/provider
+     - Calls `LLMProviderRegistry.setActive`. Multi-tenant deployments should only change this with intent — it affects all sessions on the node. 
+     - parameter id: (query) Provider id (e.g. local-stub, openai, anthropic, xai, llama) 
+     - parameter xAdminToken: (header)  
+     - parameter xRequestId: (header) Optional correlation id echoed back in the response envelope&#39;s requestId. A server-generated UUID is used when omitted.  (optional)
+     - returns: RequestBuilder<AdminNarrationEnvelope> 
+     */
+    open class func setAdminNarrationProviderWithRequestBuilder(id: String, xAdminToken: String, xRequestId: String? = nil) -> RequestBuilder<AdminNarrationEnvelope> {
+        let localVariablePath = "/v2/admin/narration/provider"
+        let localVariableURLString = AIDungeonMasterClientAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "id": (wrappedValue: id.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "X-Admin-Token": xAdminToken.encodeToJSON(),
+            "X-Request-Id": xRequestId?.encodeToJSON(),
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AdminNarrationEnvelope>.Type = AIDungeonMasterClientAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: false)
     }
 }

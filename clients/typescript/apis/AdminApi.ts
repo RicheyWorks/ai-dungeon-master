@@ -15,6 +15,8 @@
 
 import * as runtime from '../runtime';
 import type {
+  AdminAuditEventsEnvelope,
+  AdminNarrationEnvelope,
   AdminReceiptsEnvelope,
   AdminSecurityEventsEnvelope,
   AdminSessionPacksEnvelope,
@@ -24,6 +26,10 @@ import type {
   ErrorEnvelope,
 } from '../models/index';
 import {
+    AdminAuditEventsEnvelopeFromJSON,
+    AdminAuditEventsEnvelopeToJSON,
+    AdminNarrationEnvelopeFromJSON,
+    AdminNarrationEnvelopeToJSON,
     AdminReceiptsEnvelopeFromJSON,
     AdminReceiptsEnvelopeToJSON,
     AdminSecurityEventsEnvelopeFromJSON,
@@ -40,9 +46,20 @@ import {
     ErrorEnvelopeToJSON,
 } from '../models/index';
 
+export interface GetAdminNarrationRequest {
+    xAdminToken: string;
+    xRequestId?: string;
+}
+
 export interface GetAdminSessionPacksRequest {
     sessionId: string;
     xAdminToken: string;
+    xRequestId?: string;
+}
+
+export interface ListAdminAuditEventsRequest {
+    xAdminToken: string;
+    limit?: number;
     xRequestId?: string;
 }
 
@@ -82,10 +99,57 @@ export interface RevokeAdminSessionRequest {
     xRequestId?: string;
 }
 
+export interface SetAdminNarrationProviderRequest {
+    id: string;
+    xAdminToken: string;
+    xRequestId?: string;
+}
+
 /**
  * 
  */
 export class AdminApi extends runtime.BaseAPI {
+
+    /**
+     * Active narration provider snapshot (ops)
+     */
+    async getAdminNarrationRaw(requestParameters: GetAdminNarrationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AdminNarrationEnvelope>> {
+        if (requestParameters['xAdminToken'] == null) {
+            throw new runtime.RequiredError(
+                'xAdminToken',
+                'Required parameter "xAdminToken" was null or undefined when calling getAdminNarration().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xAdminToken'] != null) {
+            headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
+        }
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/admin/narration`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AdminNarrationEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Active narration provider snapshot (ops)
+     */
+    async getAdminNarration(requestParameters: GetAdminNarrationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminNarrationEnvelope> {
+        const response = await this.getAdminNarrationRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Session pack overrides (ops)
@@ -136,6 +200,53 @@ export class AdminApi extends runtime.BaseAPI {
      */
     async getAdminSessionPacks(requestParameters: GetAdminSessionPacksRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminSessionPacksEnvelope> {
         const response = await this.getAdminSessionPacksRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Process-local ring (newest first) of `AdminAudit` outcomes for admin routes. No raw tokens — fingerprints only. 
+     * Recent admin ops audit events (ops)
+     */
+    async listAdminAuditEventsRaw(requestParameters: ListAdminAuditEventsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AdminAuditEventsEnvelope>> {
+        if (requestParameters['xAdminToken'] == null) {
+            throw new runtime.RequiredError(
+                'xAdminToken',
+                'Required parameter "xAdminToken" was null or undefined when calling listAdminAuditEvents().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xAdminToken'] != null) {
+            headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
+        }
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/admin/audit-events`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AdminAuditEventsEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Process-local ring (newest first) of `AdminAudit` outcomes for admin routes. No raw tokens — fingerprints only. 
+     * Recent admin ops audit events (ops)
+     */
+    async listAdminAuditEvents(requestParameters: ListAdminAuditEventsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminAuditEventsEnvelope> {
+        const response = await this.listAdminAuditEventsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -396,6 +507,60 @@ export class AdminApi extends runtime.BaseAPI {
      */
     async revokeAdminSession(requestParameters: RevokeAdminSessionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminSessionRevokedEnvelope> {
         const response = await this.revokeAdminSessionRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Calls `LLMProviderRegistry.setActive`. Multi-tenant deployments should only change this with intent — it affects all sessions on the node. 
+     * Switch process-wide active LLM narration provider (ops)
+     */
+    async setAdminNarrationProviderRaw(requestParameters: SetAdminNarrationProviderRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AdminNarrationEnvelope>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling setAdminNarrationProvider().'
+            );
+        }
+
+        if (requestParameters['xAdminToken'] == null) {
+            throw new runtime.RequiredError(
+                'xAdminToken',
+                'Required parameter "xAdminToken" was null or undefined when calling setAdminNarrationProvider().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['id'] != null) {
+            queryParameters['id'] = requestParameters['id'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xAdminToken'] != null) {
+            headerParameters['X-Admin-Token'] = String(requestParameters['xAdminToken']);
+        }
+
+        if (requestParameters['xRequestId'] != null) {
+            headerParameters['X-Request-Id'] = String(requestParameters['xRequestId']);
+        }
+
+        const response = await this.request({
+            path: `/v2/admin/narration/provider`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AdminNarrationEnvelopeFromJSON(jsonValue));
+    }
+
+    /**
+     * Calls `LLMProviderRegistry.setActive`. Multi-tenant deployments should only change this with intent — it affects all sessions on the node. 
+     * Switch process-wide active LLM narration provider (ops)
+     */
+    async setAdminNarrationProvider(requestParameters: SetAdminNarrationProviderRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AdminNarrationEnvelope> {
+        const response = await this.setAdminNarrationProviderRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

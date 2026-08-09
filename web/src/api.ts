@@ -646,6 +646,74 @@ export async function listAdminSecurityEvents(
   }
 }
 
+export type AdminAuditEvent = {
+  id?: number;
+  atEpochMs?: number;
+  outcome?: string;
+  path?: string;
+  clientIp?: string;
+  requestId?: string;
+  detail?: string;
+};
+
+export type AdminAuditEventsPayload = {
+  count?: number;
+  limit?: number;
+  events?: AdminAuditEvent[];
+};
+
+export async function listAdminAuditEvents(
+  baseUrl: string,
+  adminToken: string,
+  limit = 50,
+): Promise<AdminAuditEventsPayload> {
+  try {
+    const env = await createAdminApi(baseUrl, adminToken).listAdminAuditEvents({
+      xAdminToken: adminToken,
+      limit,
+    });
+    return (env.payload as AdminAuditEventsPayload) ?? { events: [] };
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "admin audit events"));
+  }
+}
+
+export type AdminNarrationInfo = {
+  active?: string;
+  health?: string;
+  available?: string[];
+};
+
+export async function getAdminNarration(
+  baseUrl: string,
+  adminToken: string,
+): Promise<AdminNarrationInfo> {
+  try {
+    const env = await createAdminApi(baseUrl, adminToken).getAdminNarration({
+      xAdminToken: adminToken,
+    });
+    return (env.payload as AdminNarrationInfo) ?? {};
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "admin narration"));
+  }
+}
+
+export async function setAdminNarrationProvider(
+  baseUrl: string,
+  adminToken: string,
+  id: string,
+): Promise<AdminNarrationInfo> {
+  try {
+    const env = await createAdminApi(baseUrl, adminToken).setAdminNarrationProvider({
+      xAdminToken: adminToken,
+      id,
+    });
+    return (env.payload as AdminNarrationInfo) ?? {};
+  } catch (e) {
+    throw new Error(await sdkErrorMessage(e, "set narration provider"));
+  }
+}
+
 export type AdminSessionPacksPayload = {
   sessionId?: string;
   enabledPackIds?: string[];
