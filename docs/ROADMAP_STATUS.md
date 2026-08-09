@@ -22,6 +22,7 @@ and web/Android/iOS marketplace wiring to generated SDKs. See
 auto-renew, offline banner, STOMP reconnect, `X-Request-Id` on clients, metrics
 token dual rotation, save meta/delete (`GET/DELETE /v2/save`), and
 `GET /v2/marketplace/jobs` (session-owned install job list) with Mods UI.
+Android/iOS shells now surface save meta/clear-save and install job list/resume.
 
 ## Snapshot
 

@@ -41,12 +41,15 @@ fun ModsScreen(
     marketplace: MarketplacePayload?,
     marketQuery: String,
     installJob: MarketplaceInstallJob?,
+    recentJobs: List<MarketplaceInstallJob> = emptyList(),
     busy: Boolean,
     onLoad: () -> Unit,
     onMarketQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onInstall: (String) -> Unit,
     onCancelInstall: () -> Unit,
+    onRefreshJobs: () -> Unit = {},
+    onResumeJob: (String) -> Unit = {},
     onToggle: (id: String, enable: Boolean) -> Unit,
     onUpload: (file: File, replace: Boolean) -> Unit,
     onBuyToUnlock: (sku: String, packLabel: String?) -> Unit = { _, _ -> },
@@ -141,6 +144,52 @@ fun ModsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+            }
+        }
+        item {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Your install jobs", style = MaterialTheme.typography.titleSmall)
+                        OutlinedButton(onClick = onRefreshJobs, enabled = !busy) {
+                            Text("Refresh jobs")
+                        }
+                    }
+                    if (recentJobs.isEmpty()) {
+                        Text(
+                            "No jobs for this session yet.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        recentJobs.forEach { j ->
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    "${j.packId ?: j.jobId.take(8)} · ${j.phase ?: "?"}" +
+                                        (j.percent?.let { " · $it%" } ?: ""),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                val terminal =
+                                    j.phase == "DONE" || j.phase == "FAILED" || j.phase == "CANCELLED"
+                                OutlinedButton(
+                                    onClick = { onResumeJob(j.jobId) },
+                                    enabled = !busy,
+                                ) {
+                                    Text(if (terminal) "View" else "Resume")
+                                }
+                            }
+                        }
                     }
                 }
             }
