@@ -128,7 +128,7 @@ Pick **one**. Copy into `/goal`. Status: `ready` · `active` · `done` · `parke
 
 ---
 
-### G6 — Mobile parity slice  `ready` · **M**
+### G6 — Mobile parity slice  `done` · **M**
 
 **North star:** Android *or* iOS matches web on session resilience + save + jobs.
 
@@ -141,7 +141,7 @@ Pick **one**. Copy into `/goal`. Status: `ready` · `active` · `done` · `parke
 
 ---
 
-### G7 — Storefront vertical  `parked` · **L**
+### G7 — Storefront vertical  `done` · **L**
 
 **North star:** One real money path (Steam **or** Play **or** App Store) grants a gated pack.
 
@@ -153,7 +153,7 @@ Pick **one**. Copy into `/goal`. Status: `ready` · `active` · `done` · `parke
 
 ---
 
-### G8 — Production launch freeze  `parked` · **S–M**
+### G8 — Production launch freeze  `done` · **S–M**
 
 **North star:** Checklist-only: smoke, tokens, docs, no feature creep.
 
@@ -167,6 +167,7 @@ Record the current session here (newest on top).
 
 | Date | Goal | Status | Notes / PRs |
 |---|---|---|---|
+| 2026-08-09 | G6+G7+G8 finish board | done | Android parity, storefront smoke, launch checklist |
 | 2026-08-09 | G3+G4+G5 cool stack | done | Checks, flagship First Light 1.1, audio+share |
 | 2026-08-09 | G2 Memory you can feel | done | StoryMemory recap/epithets/scars + SPA + save/load |
 | 2026-08-09 | G1 Legendary first run | done | First Light pack, scene/stakes status, SPA framing |

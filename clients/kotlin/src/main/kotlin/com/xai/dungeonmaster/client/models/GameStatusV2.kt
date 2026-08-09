@@ -15,8 +15,11 @@
 
 package com.xai.dungeonmaster.client.models
 
+import com.xai.dungeonmaster.client.models.CheckResultDto
+import com.xai.dungeonmaster.client.models.ChoiceDetail
 import com.xai.dungeonmaster.client.models.MemberState
 import com.xai.dungeonmaster.client.models.QuestInfo
+import com.xai.dungeonmaster.client.models.StoryMemoryPayload
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
@@ -33,6 +36,9 @@ import com.squareup.moshi.JsonClass
  * @param recentEvents Compact story-memory facts from the engine's Chronicle (newest last), e.g. \"Quest completed: The Weeping Tree\". Bounded server-side.
  * @param location Current party location from the engine WorldMap.
  * @param discoveredRifts Named rifts the party has discovered (starting set + completed quests).
+ * @param choiceDetails Rich choice rows (stakes / irreversible hints) parallel to availableChoices.
+ * @param story 
+ * @param lastCheck 
  */
 
 
@@ -66,7 +72,17 @@ data class GameStatusV2 (
 
     /* Named rifts the party has discovered (starting set + completed quests). */
     @Json(name = "discoveredRifts")
-    val discoveredRifts: kotlin.collections.List<kotlin.String>? = null
+    val discoveredRifts: kotlin.collections.List<kotlin.String>? = null,
+
+    /* Rich choice rows (stakes / irreversible hints) parallel to availableChoices. */
+    @Json(name = "choiceDetails")
+    val choiceDetails: kotlin.collections.List<ChoiceDetail>? = null,
+
+    @Json(name = "story")
+    val story: StoryMemoryPayload? = null,
+
+    @Json(name = "lastCheck")
+    val lastCheck: CheckResultDto? = null
 
 ) {
 

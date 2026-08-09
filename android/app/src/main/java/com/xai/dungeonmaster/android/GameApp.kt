@@ -85,6 +85,10 @@ fun GameApp() {
             Text(
                 buildString {
                     append("Playing as ${session.displayName} · ${session.shortId()}")
+                    val ttl = session.secondsUntilExpiry()
+                    if (ttl > 0L) {
+                        append(" · JWT ${ttl / 60}m${ttl % 60}s")
+                    }
                     if (ui.stompConnected) append(" · LIVE")
                     when (ui.healthOk) {
                         true -> append(" · READY")
@@ -222,6 +226,12 @@ private fun GameScreen(ui: GameViewModel.UiState, viewModel: GameViewModel) {
 
         ui.status?.let { status ->
             item { QuestCard(status) }
+            status.story?.let { story ->
+                item { StoryMemoryCard(story) }
+            }
+            status.lastCheck?.let { check ->
+                item { LastCheckCard(check) }
+            }
             item { Text("Party", style = MaterialTheme.typography.titleMedium) }
             items(status.party.orEmpty()) { member -> MemberCard(member) }
 
@@ -353,6 +363,12 @@ private fun QuestCard(status: GameStatusV2) {
                 quest?.title ?: "No active quest",
                 style = MaterialTheme.typography.titleLarge,
             )
+            status.story?.partyTitle?.let { title ->
+                Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            quest?.sceneDescription?.takeIf { it.isNotBlank() }?.let { prose ->
+                Text(prose, style = MaterialTheme.typography.bodySmall)
+            }
             val outcome = when {
                 quest?.completed == true -> "Completed"
                 quest?.failed == true -> "Failed"
@@ -360,13 +376,69 @@ private fun QuestCard(status: GameStatusV2) {
                 else -> "In progress"
             }
             Text(
-                "$outcome · Chaos ${status.chaosLevel ?: "?"}",
+                "$outcome · Chaos ${status.chaosLevel ?: "?"}" +
+                    (status.location?.let { " · $it" } ?: ""),
                 style = MaterialTheme.typography.bodyMedium,
             )
             LinearProgressIndicator(
                 progress = { (quest?.progress ?: 0.0).toFloat().coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+@Composable
+private fun StoryMemoryCard(story: com.xai.dungeonmaster.client.models.StoryMemoryPayload) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), Arrangement.spacedBy(6.dp)) {
+            Text("Identity", style = MaterialTheme.typography.titleSmall)
+            story.partyTitle?.let {
+                Text(it, style = MaterialTheme.typography.titleMedium)
+            }
+            val epithets = story.epithets.orEmpty()
+            if (epithets.isNotEmpty()) {
+                Text(epithets.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+            }
+            val scars = story.scars.orEmpty()
+            if (scars.isNotEmpty()) {
+                Text("Scars: ${scars.joinToString("; ")}", style = MaterialTheme.typography.bodySmall)
+            }
+            val recap = story.recap.orEmpty()
+            if (recap.isNotEmpty()) {
+                Text("Last time…", style = MaterialTheme.typography.labelMedium)
+                recap.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LastCheckCard(check: com.xai.dungeonmaster.client.models.CheckResultDto) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), Arrangement.spacedBy(4.dp)) {
+            Text("Cinematic check", style = MaterialTheme.typography.titleSmall)
+            check.stakes?.let {
+                Text("Stakes: $it", style = MaterialTheme.typography.bodySmall)
+            }
+            val roll = check.roll
+            val mod = check.modifier ?: 0
+            val total = check.total
+            val dc = check.difficulty
+            if (roll != null) {
+                val badge = when {
+                    check.critical == true -> "CRIT"
+                    check.fumble == true -> "FUMBLE"
+                    check.success == true -> "HIT"
+                    else -> "MISS"
+                }
+                Text(
+                    "d20 $roll ${if (mod >= 0) "+$mod" else "$mod"} = $total vs $dc · $badge",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            check.effect?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            check.narration?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
     }
 }

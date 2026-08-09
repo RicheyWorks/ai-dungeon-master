@@ -139,3 +139,11 @@ All three clients mint sandbox receipts via shared helpers (`DevReceipts` /
 - Never ship production builds with default sandbox secrets  
 - Prefer live mode in prod; keep sandbox for CI only  
 - Rotate `STOREFRONT_*` secrets with the same cadence as JWT secrets  
+
+## Smoke (G7)
+
+```bash
+BASE_URL=http://127.0.0.1:8080 ./scripts/storefront-smoke.sh
+```
+
+Mints a session, signs a **dev** receipt for `pack_the_hollows`, verifies, lists entitlements.

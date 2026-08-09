@@ -263,6 +263,7 @@ desktop/         launcher scripts + Tauri scaffold
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design, module boundaries, invariants |
 | [`docs/GOALS.md`](docs/GOALS.md) | Multi-hour `/goal` protocol + cool-game backlog |
+| [`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md) | Production launch freeze gates (G8) |
 | [`docs/PRODUCTION.md`](docs/PRODUCTION.md) | Multi-tenant ops, tokens, rate limits, smoke gates |
 | [`docs/MULTI_NODE.md`](docs/MULTI_NODE.md) | Redis/JDBC session stores, sticky LB |
 | [`docs/STOREFRONTS.md`](docs/STOREFRONTS.md) | Receipt plugins & storefronts |

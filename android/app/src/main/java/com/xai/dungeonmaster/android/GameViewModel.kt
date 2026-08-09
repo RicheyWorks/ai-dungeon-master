@@ -730,9 +730,17 @@ class GameViewModel(
             }
             if (!candidate.isExpired()) {
                 try {
-                    api().getSessionMeV2()
-                    store.saveSession(candidate)
-                    return current.copy(session = candidate)
+                    val me = api().getSessionMeV2().payload
+                    val synced = candidate.copy(
+                        displayName = me.displayName ?: candidate.displayName,
+                        expiresAtEpochSeconds = me.expiresAtEpochSeconds
+                            ?: candidate.expiresAtEpochSeconds,
+                        createdAtEpochSeconds = me.createdAtEpochSeconds
+                            ?: candidate.createdAtEpochSeconds,
+                        sessionId = me.sessionId ?: candidate.sessionId,
+                    )
+                    store.saveSession(synced)
+                    return current.copy(session = synced)
                 } catch (_: Exception) {
                     try {
                         val refreshed = refreshSessionToken(candidate)
@@ -761,7 +769,7 @@ class GameViewModel(
         val url = StompClient.stompUrl(base())
         val client = StompClient(url, session.token, object : StompClient.Listener {
             override fun onConnected() {
-                stompRef.get()?.subscribe("/topic/narrative")
+                // Session-scoped narrative only (parity with web STOMP ACL).
                 stompRef.get()?.subscribe("/topic/narrative/${session.sessionId}")
                 publish { it.copy(stompConnected = true, info = "Live stream connected") }
             }

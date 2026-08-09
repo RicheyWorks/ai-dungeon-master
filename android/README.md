@@ -98,3 +98,15 @@ Compose BOM 2024.06) — bump them freely, nothing here is version-sensitive.
 ## Not yet wired
 
 - Real Play Billing (dev storefront covers the verify loop for now)
+
+## Parity with web (G6)
+
+See [PARITY.md](PARITY.md) for the session / save / jobs / story / check checklist.
+JWT TTL is shown in the session chrome; Sync calls `GET /v2/session/me` to
+resync expiry. STOMP subscribes only to `/topic/narrative/{sessionId}`.
+
+## Store unlock (G7)
+
+Sandbox buy on the Store tab uses the **dev** storefront (HMAC receipts).
+SKU `pack_the_hollows` enables the Black Hollows pack via PackAutoEnabler.
+Server-side smoke: `./scripts/storefront-smoke.sh`

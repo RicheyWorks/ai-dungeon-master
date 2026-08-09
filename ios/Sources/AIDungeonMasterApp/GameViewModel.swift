@@ -596,9 +596,17 @@ public final class GameViewModel: ObservableObject {
             }
             if !candidate.isExpired() {
                 do {
-                    _ = try await V2API.getSessionMeV2()
-                    session = candidate
-                    store.saveSession(candidate)
+                    let me = try await V2API.getSessionMeV2()
+                    let p = me.payload
+                    let synced = SessionInfo(
+                        sessionId: p.sessionId ?? candidate.sessionId,
+                        token: candidate.token,
+                        displayName: p.displayName ?? candidate.displayName,
+                        expiresAtEpochSeconds: p.expiresAtEpochSeconds ?? candidate.expiresAtEpochSeconds,
+                        createdAtEpochSeconds: p.createdAtEpochSeconds ?? candidate.createdAtEpochSeconds
+                    )
+                    session = synced
+                    store.saveSession(synced)
                     return
                 } catch {
                     do {
@@ -718,7 +726,7 @@ public final class GameViewModel: ObservableObject {
 
 extension GameViewModel: StompClientListener {
     public func stompDidConnect(_ client: StompClient) {
-        client.subscribe(destination: "/topic/narrative")
+        // Session-scoped narrative only (web parity / STOMP ACL).
         if let session {
             client.subscribe(destination: "/topic/narrative/\(session.sessionId)")
         }
