@@ -2,6 +2,7 @@ package com.xai.dungeonmaster;
 
 import com.xai.dungeonmaster.plugin.ContentPack;
 import com.xai.dungeonmaster.plugin.ContentRegistry;
+import com.xai.dungeonmaster.plugin.QuestScriptRegistry;
 import com.xai.dungeonmaster.util.ResourceLoader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class ContentPackLoadTest {
 
     /** Packs expected to ship in the repo. */
     private static final List<String> SHIPPED_PACKS =
-            List.of("black-hollows", "dnd-classic", "sci-fi", "cozy-hearthwood");
+            List.of("black-hollows", "dnd-classic", "sci-fi", "cozy-hearthwood", "first-light");
 
     @AfterEach
     void reset() {
@@ -96,6 +97,17 @@ class ContentPackLoadTest {
         for (String id : SHIPPED_PACKS) {
             ContentPack p = byId.get(id);
             assertNotNull(p, "expected pack '" + id + "' to load; found " + byId.keySet());
+            boolean storyOnly = p.monsters().isEmpty() && p.items().isEmpty();
+            if (storyOnly) {
+                // Free story packs (e.g. first-light) may ship quests only.
+                assertTrue(
+                        QuestScriptRegistry.registeredIds().stream()
+                                .anyMatch(s -> s.startsWith(id) || s.contains("first-light")
+                                        || "first-light".equals(id)),
+                        id + " story pack should register quest scripts; have "
+                                + QuestScriptRegistry.registeredIds());
+                continue;
+            }
             assertFalse(p.monsters().isEmpty(), id + " should ship monsters");
             assertFalse(p.items().isEmpty(), id + " should ship items");
             assertTrue(p.monsters().values().stream().anyMatch(Enemy::isBoss),

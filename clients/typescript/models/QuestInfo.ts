@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * Outcome snapshot of the current quest.
+ * Outcome snapshot of the current quest plus scene framing.
  * @export
  * @interface QuestInfo
  */
@@ -43,6 +43,18 @@ export interface QuestInfo {
      * @memberof QuestInfo
      */
     progress?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof QuestInfo
+     */
+    sceneId?: string | null;
+    /**
+     * Current scene prose for cold-open / stakes framing.
+     * @type {string}
+     * @memberof QuestInfo
+     */
+    sceneDescription?: string | null;
 }
 
 /**
@@ -66,6 +78,8 @@ export function QuestInfoFromJSONTyped(json: any, ignoreDiscriminator: boolean):
         'completed': json['completed'] == null ? undefined : json['completed'],
         'failed': json['failed'] == null ? undefined : json['failed'],
         'progress': json['progress'] == null ? undefined : json['progress'],
+        'sceneId': json['sceneId'] == null ? undefined : json['sceneId'],
+        'sceneDescription': json['sceneDescription'] == null ? undefined : json['sceneDescription'],
     };
 }
 
@@ -79,6 +93,8 @@ export function QuestInfoToJSON(value?: QuestInfo | null): any {
         'completed': value['completed'],
         'failed': value['failed'],
         'progress': value['progress'],
+        'sceneId': value['sceneId'],
+        'sceneDescription': value['sceneDescription'],
     };
 }
 

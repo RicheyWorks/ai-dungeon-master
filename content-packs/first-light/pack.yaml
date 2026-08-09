@@ -1,0 +1,9 @@
+# First Light — free legendary opener (Goal G1).
+# Ships the default cold-open story when the engine boots with content packs.
+id: "first-light"
+displayName: "First Light"
+version: "1.0.0"
+minEngineVersion: "1.0.0"
+description: >
+  A free opening adventure: you are already mid-heist in the rain, a sealed letter
+  burning your palm, and one choice that the city will not forget.

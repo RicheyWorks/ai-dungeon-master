@@ -1362,3 +1362,50 @@ button.linkish {
     backdrop-filter: none;
   }
 }
+
+/* G1 — scene framing + stakes */
+.scene-frame {
+  margin-top: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+}
+.scene-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+.scene-prose {
+  margin: 0;
+  line-height: 1.55;
+  font-size: 0.98rem;
+  color: var(--text);
+}
+.choice-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  text-align: left;
+  flex: 1;
+}
+.choice-stakes {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.35;
+}
+.choice-irrev-tag {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e8a54b;
+  font-weight: 600;
+}
+.choice-irreversible {
+  border-color: color-mix(in srgb, #e8a54b 50%, var(--border));
+}

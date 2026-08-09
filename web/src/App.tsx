@@ -1382,7 +1382,11 @@ function GameTab(props: {
           ? "In combat"
           : "In progress";
   const choices = status?.availableChoices ?? [];
+  const choiceDetails = status?.choiceDetails ?? [];
   const choiceSignature = choices.join("\u0001");
+  const detailFor = (label: string, idx: number) =>
+    choiceDetails.find((c) => c.label === label) ?? choiceDetails[idx];
+
   const rifts = status?.discoveredRifts ?? [];
   const history = status?.recentHistory ?? [];
   const streamRef = useRef<HTMLDivElement | null>(null);
@@ -1529,6 +1533,14 @@ function GameTab(props: {
             <div className="subtle mt-1">
               Quest progress {Math.round(progress * 100)}%
             </div>
+            {quest?.sceneDescription ? (
+              <div className="scene-frame mt-2">
+                {(quest.title === "The Sealed Letter" || quest.sceneId === "rain-alley") && (
+                  <div className="scene-kicker">You are already in the story</div>
+                )}
+                <p className="scene-prose">{quest.sceneDescription}</p>
+              </div>
+            ) : null}
             {rifts.length > 0 && (
               <div className="rift-row">
                 <span className="subtle">Discovered rifts</span>
@@ -1629,20 +1641,31 @@ function GameTab(props: {
                 Narrate below or wait for the next beat.
               </div>
             ) : (
-              choices.map((label, idx) => (
+              choices.map((label, idx) => {
+                const detail = detailFor(label, idx);
+                const stakes = detail?.stakes;
+                const irreversible = detail?.irreversible === true;
+                return (
                 <button
                   key={label}
                   type="button"
-                  className="choice primary"
+                  className={`choice primary${irreversible ? " choice-irreversible" : ""}`}
                   disabled={props.busy}
                   onClick={() => props.onAct(label)}
                 >
                   <span className="choice-key" aria-hidden>
                     {idx < 9 ? idx + 1 : "·"}
                   </span>
-                  <span className="choice-label">{label}</span>
+                  <span className="choice-body">
+                    <span className="choice-label">{label}</span>
+                    {stakes ? <span className="choice-stakes">{stakes}</span> : null}
+                    {irreversible ? (
+                      <span className="choice-irrev-tag">Story-defining</span>
+                    ) : null}
+                  </span>
                 </button>
-              ))
+                );
+              })
             )}
           </section>
         </>

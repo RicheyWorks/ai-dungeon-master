@@ -66,3 +66,4 @@ export * from './SessionEnvelope';
 export * from './SessionPayload';
 export * from './SessionRequest';
 export * from './VerifyReceiptRequest';
+export * from './ChoiceDetail';

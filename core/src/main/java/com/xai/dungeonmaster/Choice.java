@@ -42,6 +42,12 @@ public class Choice {
     private final ChoiceCondition condition;
 
     /**
+     * Optional player-facing stakes line for UI (not the spoiler {@link #resultText}).
+     * Authored in pack JSON; null for combat/legacy choices.
+     */
+    private final String stakes;
+
+    /**
      * Runtime-only requirement logic.
      * Predicates are not safely serializable, so this should be ignored by Jackson.
      */
@@ -61,19 +67,29 @@ public class Choice {
      * Constructor for action-registry choices without an explicit branch.
      */
     public Choice(String label, String actionKey, String resultText) {
-        this(label, actionKey, resultText, null, null, null);
+        this(label, actionKey, resultText, null, null, null, null);
     }
 
     /** Constructor for branching choices without effects/conditions. */
     public Choice(String label, String actionKey, String resultText, String nextSceneId) {
-        this(label, actionKey, resultText, nextSceneId, null, null);
+        this(label, actionKey, resultText, nextSceneId, null, null, null);
+    }
+
+    /** Full constructor without stakes (call sites / tests). */
+    public Choice(
+            String label,
+            String actionKey,
+            String resultText,
+            String nextSceneId,
+            java.util.List<ChoiceEffect> effects,
+            ChoiceCondition condition) {
+        this(label, actionKey, resultText, nextSceneId, effects, condition, null);
     }
 
     /**
      * Primary constructor for full integration with the action registry.
-     * {@code nextSceneId}, {@code effects}, and {@code condition} are all
-     * optional (additive for save compatibility): old saves and old call
-     * sites deserialize/compile unchanged.
+     * {@code nextSceneId}, {@code effects}, {@code condition}, and {@code stakes}
+     * are all optional (additive for save compatibility).
      */
     @JsonCreator
     public Choice(
@@ -82,7 +98,8 @@ public class Choice {
             @JsonProperty("resultText") String resultText,
             @JsonProperty("nextSceneId") String nextSceneId,
             @JsonProperty("effects") java.util.List<ChoiceEffect> effects,
-            @JsonProperty("condition") ChoiceCondition condition) {
+            @JsonProperty("condition") ChoiceCondition condition,
+            @JsonProperty("stakes") String stakes) {
 
         this.label = normalize(label, "Unnamed Choice");
         this.actionKey = normalize(actionKey, DEFAULT_ACTION);
@@ -90,6 +107,7 @@ public class Choice {
         this.nextSceneId = (nextSceneId != null && !nextSceneId.isBlank()) ? nextSceneId.trim() : null;
         this.effects = (effects != null) ? java.util.List.copyOf(effects) : java.util.List.of();
         this.condition = condition;
+        this.stakes = (stakes != null && !stakes.isBlank()) ? stakes.trim() : null;
         this.requirement = actor -> true;
         this.requirementFailMessage = "Your current state prevents this action.";
     }
@@ -218,6 +236,21 @@ public class Choice {
         return condition;
     }
 
+    /** Player-facing stakes (UI); null when unset. */
+    public String getStakes() {
+        return stakes;
+    }
+
+    /** True when this choice sets a world flag (story-defining / often irreversible). */
+    public boolean isStoryFlagChoice() {
+        for (ChoiceEffect e : effects) {
+            if (e != null && ("SET_FLAG".equals(e.getType()) || "ADD_FLAG".equals(e.getType()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public String getRequirementFailMessage() {
         return requirementFailMessage;
     }
@@ -233,7 +266,7 @@ public class Choice {
 
     @Override
     public int hashCode() {
-        return Objects.hash(label, actionKey, resultText, nextSceneId, effects, condition);
+        return Objects.hash(label, actionKey, resultText, nextSceneId, effects, condition, stakes);
     }
 
     @Override
@@ -245,6 +278,7 @@ public class Choice {
                 && Objects.equals(resultText, other.resultText)
                 && Objects.equals(nextSceneId, other.nextSceneId)
                 && Objects.equals(effects, other.effects)
-                && Objects.equals(condition, other.condition);
+                && Objects.equals(condition, other.condition)
+                && Objects.equals(stakes, other.stakes);
     }
 }

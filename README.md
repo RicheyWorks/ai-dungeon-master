@@ -41,11 +41,13 @@ content packs, and typed clients for web, Android, and iOS.
   Anthropic / xAI / local-llama when keys are present.
 - **Plugin SPIs** — eight `ServiceLoader` SPIs; code mods are signature-checked
   and bytecode-sandboxed before load.
-- **Content packs** — four themed packs ship; marketplace browse + async install
+- **Content packs** — five themed packs (including free First Light opener) ship; marketplace browse + async install
   with **session-owned job list**; runtime enable/disable and zip upload
   (admin-gated in multi-tenant prod).
 - **Story depth (ADR-001)** — branching quest graphs, campaigns, narrative memory,
   NPC/faction dispositions — pack JSON, offline-capable.
+- **Legendary opener (G1)** — free **First Light** pack: cold-open letter heist,
+  irreversible first choice, delayed callback; SPA shows scene prose + stakes.
 - **Session resilience** — JWT mint / refresh / rename, SPA auto-renew near expiry,
   offline banner, STOMP auto-reconnect, per-request `X-Request-Id`.
 - **Save lifecycle** — session-scoped save/load/reset plus **GET/DELETE save meta**.
@@ -225,7 +227,7 @@ Decorators: token budget + moderation. Streaming providers push
 ## Content packs & plugins
 
 - Bundled + scanned packs under `content-packs/` (`game.content.packs.dir`)
-- Ships: `black-hollows`, `dnd-classic`, `sci-fi`, `cozy-hearthwood`
+- Ships: `first-light` (free opener), `black-hollows`, `dnd-classic`, `sci-fi`, `cozy-hearthwood`
 - Story data: `quests/`, `campaigns/`, `npcs/`, `factions/` (see [ADR-001](docs/adr/ADR-001-story-depth.md))
 - Code plugins: JARs + `plugin.yaml`, signature policy
   (`LENIENT` / `REQUIRED` / `DISABLED`) + bytecode sandbox
